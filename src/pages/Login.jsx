@@ -1,16 +1,19 @@
 import React, { useState } from 'react';
 import { useNavigate, Navigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { BookOpen, LogIn, Key, Sparkles, CheckCircle2 } from 'lucide-react';
+import { BookOpen, LogIn, Lock, Mail, Eye, EyeOff, UserPlus, ShieldCheck } from 'lucide-react';
 import Button from '../components/common/Button';
 
 export default function Login() {
-  const [email, setEmail] = useState('study@gmail.com');
-  const [password, setPassword] = useState('study123');
+  const [isSignUp, setIsSignUp] = useState(false);
+  const [name, setName] = useState('');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
-  const { login, user } = useAuth();
+  const { login, signup, user } = useAuth();
   const navigate = useNavigate();
 
   // If already logged in, redirect to dashboard
@@ -18,120 +21,132 @@ export default function Login() {
     return <Navigate to="/" replace />;
   }
 
-  const handleLogin = async (e) => {
-    if (e) e.preventDefault();
+  const handleSubmit = async (e) => {
+    e.preventDefault();
     setError('');
     setLoading(true);
 
     try {
-      await login(email, password);
+      if (isSignUp) {
+        await signup(email, password, name || 'Study Point Owner');
+      } else {
+        await login(email, password);
+      }
       navigate('/');
     } catch (err) {
       console.error(err);
-      setError(err.message || 'Login failed. Please check credentials.');
+      setError(err.message || 'Authentication failed. Please check credentials.');
     } finally {
       setLoading(false);
     }
   };
 
-  const handleQuickOwnerLogin = () => {
-    setEmail('study@gmail.com');
-    setPassword('study123');
-    setError('');
-    setLoading(true);
-    login('study@gmail.com', 'study123')
-      .then(() => navigate('/'))
-      .catch((err) => {
-        setError(err.message || 'Login failed');
-        setLoading(false);
-      });
-  };
-
   return (
-    <div className="min-h-screen bg-gradient-to-br from-indigo-900 via-indigo-800 to-slate-900 flex items-center justify-center p-4">
-      <div className="max-w-md w-full bg-white rounded-2xl shadow-2xl overflow-hidden border border-indigo-100/20">
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-indigo-950 to-slate-900 flex items-center justify-center p-4">
+      <div className="max-w-md w-full bg-white rounded-3xl shadow-2xl overflow-hidden border border-slate-100/20 animate-in fade-in zoom-in-95 duration-200">
         {/* Header Branding */}
-        <div className="bg-gradient-to-r from-indigo-600 to-indigo-700 p-8 text-center text-white relative">
-          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-white/15 backdrop-blur-md mb-3 shadow-inner">
-            <BookOpen size={34} className="text-white" />
+        <div className="bg-gradient-to-r from-indigo-600 via-indigo-700 to-purple-700 p-8 text-center text-white relative">
+          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-white/15 backdrop-blur-md mb-3 shadow-inner ring-2 ring-white/20">
+            <BookOpen size={32} className="text-white" />
           </div>
-          <h2 className="text-2xl font-extrabold tracking-tight">Study Point Manager</h2>
-          <p className="text-indigo-100 text-xs mt-1 font-medium">Owner Management & Billing Portal</p>
+          <h2 className="text-2xl font-black tracking-tight">Study Point Manager</h2>
+          <p className="text-indigo-100 text-xs mt-1 font-medium">
+            {isSignUp ? 'Create New Owner Account' : 'Library Management & Billing Portal'}
+          </p>
         </div>
 
-        {/* Login Form Body */}
-        <div className="p-7">
-          {/* Quick Demo/Owner Card Banner */}
-          <div className="mb-5 bg-indigo-50/90 border border-indigo-100 p-3.5 rounded-xl">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2 text-xs font-bold text-indigo-950">
-                <Key className="w-4 h-4 text-indigo-600" />
-                <span>Owner Credentials Pre-filled:</span>
-              </div>
-              <span className="text-[11px] bg-indigo-200/70 text-indigo-800 font-semibold px-2 py-0.5 rounded">
-                Owner Access
-              </span>
-            </div>
-            <div className="text-xs text-indigo-800/90 mt-1.5 font-mono bg-white/70 p-2 rounded border border-indigo-100/60 flex items-center justify-between">
-              <span>📧 study@gmail.com</span>
-              <span>🔑 study123</span>
-            </div>
-          </div>
-
+        {/* Login / Signup Form */}
+        <div className="p-7 sm:p-8">
           {error && (
-            <div className="mb-4 bg-red-50 text-red-700 p-3 rounded-xl text-xs border border-red-200 text-center font-medium">
+            <div className="mb-5 bg-rose-50 text-rose-700 p-3.5 rounded-2xl text-xs border border-rose-200 font-semibold leading-relaxed">
               {error}
             </div>
           )}
 
-          <form onSubmit={handleLogin} className="space-y-4">
+          <form onSubmit={handleSubmit} className="space-y-4">
+            {isSignUp && (
+              <div>
+                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+                  Owner Full Name
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  className="w-full px-4 py-2.5 border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-sm outline-none transition-all"
+                  placeholder="e.g. Manish Sharma"
+                />
+              </div>
+            )}
+
             <div>
-              <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">
-                Owner Email Address
+              <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+                Email Address
               </label>
-              <input
-                type="email"
-                required
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="w-full px-3.5 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-sm outline-none transition-all"
-                placeholder="study@gmail.com"
-              />
+              <div className="relative">
+                <Mail className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                <input
+                  type="email"
+                  required
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  className="w-full pl-10 pr-4 py-2.5 border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-sm outline-none transition-all"
+                  placeholder="name@example.com"
+                />
+              </div>
             </div>
 
             <div>
-              <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">
+              <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
                 Password
               </label>
-              <input
-                type="password"
-                required
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="w-full px-3.5 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-sm outline-none transition-all"
-                placeholder="study123"
-              />
+              <div className="relative">
+                <Lock className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                <input
+                  type={showPassword ? 'text' : 'password'}
+                  required
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="w-full pl-10 pr-10 py-2.5 border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-sm outline-none transition-all"
+                  placeholder="••••••••"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 cursor-pointer"
+                >
+                  {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
+              </div>
             </div>
 
             <Button
               type="submit"
               variant="primary"
-              className="w-full py-3 flex justify-center items-center gap-2 text-sm font-bold shadow-md shadow-indigo-200"
+              className="w-full py-3 flex justify-center items-center gap-2 text-sm font-black shadow-md shadow-indigo-600/25 mt-2 rounded-xl"
               loading={loading}
             >
-              <LogIn size={18} /> Log In to Dashboard
+              {isSignUp ? <UserPlus size={18} /> : <LogIn size={18} />}
+              <span>{isSignUp ? 'Create Owner Account' : 'Sign In to Dashboard'}</span>
             </Button>
           </form>
 
-          <div className="mt-4 pt-4 border-t border-gray-100 text-center">
-            <button
-              type="button"
-              onClick={handleQuickOwnerLogin}
-              className="w-full py-2.5 px-4 bg-gray-50 hover:bg-indigo-50 text-indigo-700 border border-gray-200 hover:border-indigo-200 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2"
-            >
-              <Sparkles className="w-4 h-4 text-amber-500" />
-              <span>1-Click Owner Login (study@gmail.com)</span>
-            </button>
+          {/* Toggle between Sign In and Sign Up */}
+          <div className="mt-6 pt-5 border-t border-slate-100 text-center">
+            <p className="text-xs text-slate-500">
+              {isSignUp ? 'Already have an owner account?' : 'New library owner?'}
+              <button
+                type="button"
+                onClick={() => {
+                  setIsSignUp(!isSignUp);
+                  setError('');
+                }}
+                className="ml-1.5 font-bold text-indigo-600 hover:text-indigo-800 hover:underline cursor-pointer"
+              >
+                {isSignUp ? 'Sign In' : 'Create an Account'}
+              </button>
+            </p>
           </div>
         </div>
       </div>

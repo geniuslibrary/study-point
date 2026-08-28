@@ -19,31 +19,32 @@ export const useAuth = () => {
   return context;
 };
 
-const LOCAL_STORAGE_KEY = 'studypoint_owner_auth';
+const LOCAL_STORAGE_KEY = 'studypoint_auth_session';
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    // 1. Check local storage session
     const savedSession = localStorage.getItem(LOCAL_STORAGE_KEY);
     if (savedSession) {
       try {
         const parsed = JSON.parse(savedSession);
         setUser(parsed);
-        setLoading(false);
       } catch (e) {
         localStorage.removeItem(LOCAL_STORAGE_KEY);
       }
     }
 
+    // 2. Listen to Firebase Auth state
     const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
       if (firebaseUser) {
-        // If logged in via Firebase, check if it was owner or staff
         const local = localStorage.getItem(LOCAL_STORAGE_KEY);
         if (local) {
-          const parsed = JSON.parse(local);
-          setUser(parsed);
+          try {
+            setUser(JSON.parse(local));
+          } catch (e) {}
         } else {
           const userData = {
             uid: firebaseUser.uid,
@@ -55,6 +56,17 @@ export const AuthProvider = ({ children }) => {
           setUser(userData);
           localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(userData));
         }
+      } else {
+        const local = localStorage.getItem(LOCAL_STORAGE_KEY);
+        // Only clear if not a staff session
+        if (local) {
+          try {
+            const parsed = JSON.parse(local);
+            if (parsed.role === 'owner') {
+              // owner signed out
+            }
+          } catch (e) {}
+        }
       }
       setLoading(false);
     });
@@ -62,12 +74,10 @@ export const AuthProvider = ({ children }) => {
     return unsubscribe;
   }, []);
 
-  // Permission Checker Helper
   const hasPermission = (moduleName, action = 'view') => {
     if (!user) return false;
     if (!user.role || user.role === 'owner') return true;
 
-    // Check specific module and action permissions
     const modulePerms = user.permissions?.[moduleName];
     if (!modulePerms) return false;
     return !!modulePerms[action];
@@ -77,7 +87,11 @@ export const AuthProvider = ({ children }) => {
     const cleanEmail = email.trim().toLowerCase();
     const cleanPass = password.trim();
 
-    // 1. Check if email/password matches a Staff user created by the Owner
+    if (!cleanEmail || !cleanPass) {
+      throw new Error('Please enter both email and password.');
+    }
+
+    // 1. Check if login matches a Staff User created by the Owner
     try {
       const staffList = await fetchCollectionData(COLLECTIONS.STAFF_USERS);
       const staffMember = staffList.find(
@@ -94,23 +108,23 @@ export const AuthProvider = ({ children }) => {
           displayName: staffMember.name || 'Staff Member',
           role: staffMember.role || 'receptionist',
           permissions: staffMember.permissions || ROLE_PRESETS[staffMember.role]?.permissions || {},
-          phone: staffMember.phone,
+          phone: staffMember.phone || '',
         };
         setUser(staffSession);
         localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(staffSession));
         return staffSession;
       }
     } catch (e) {
-      console.warn('Staff lookup error', e);
+      console.warn('Staff lookup:', e);
     }
 
-    // 2. Attempt standard Firebase Sign In for Owner
+    // 2. Standard Firebase Authentication for Owner
     try {
       const userCredential = await signInWithEmailAndPassword(auth, cleanEmail, cleanPass);
       const userData = {
         uid: userCredential.user.uid,
         email: userCredential.user.email,
-        displayName: 'Owner',
+        displayName: userCredential.user.displayName || 'Owner',
         role: 'owner',
         permissions: ROLE_PRESETS.owner.permissions,
       };
@@ -118,83 +132,37 @@ export const AuthProvider = ({ children }) => {
       localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(userData));
       return userData;
     } catch (err) {
-      console.warn('Firebase signIn fallback:', err.code, err.message);
-
-      // Auto-signup owner if new in Firebase
-      if (
-        err.code === 'auth/user-not-found' ||
-        err.code === 'auth/invalid-credential' ||
-        err.code === 'auth/invalid-login-credentials'
-      ) {
-        try {
-          const userCredential = await createUserWithEmailAndPassword(auth, cleanEmail, cleanPass);
-          const userData = {
-            uid: userCredential.user.uid,
-            email: userCredential.user.email,
-            displayName: 'Owner',
-            role: 'owner',
-            permissions: ROLE_PRESETS.owner.permissions,
-          };
-          setUser(userData);
-          localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(userData));
-          return userData;
-        } catch (signupErr) {
-          console.warn('Auto signup failed', signupErr.message);
-        }
+      // Friendly error messages
+      if (err.code === 'auth/user-not-found' || err.code === 'auth/invalid-credential' || err.code === 'auth/invalid-login-credentials') {
+        throw new Error('Invalid email or password. If you are a new owner, please sign up.');
+      } else if (err.code === 'auth/wrong-password') {
+        throw new Error('Incorrect password. Please try again.');
+      } else if (err.code === 'auth/too-many-requests') {
+        throw new Error('Too many failed attempts. Please try again later.');
       }
-
-      // 3. Fallback Owner authentication
-      if (
-        (cleanEmail === 'study@gmail.com' && cleanPass === 'study123') ||
-        (cleanEmail.includes('@') && cleanPass.length >= 6)
-      ) {
-        const userData = {
-          uid: 'owner_' + Date.now(),
-          email: cleanEmail,
-          displayName: 'Study Point Owner',
-          role: 'owner',
-          permissions: ROLE_PRESETS.owner.permissions,
-        };
-        setUser(userData);
-        localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(userData));
-        return userData;
-      }
-
-      throw new Error(err.message || 'Invalid email or password.');
+      throw new Error(err.message || 'Authentication failed. Please check credentials.');
     }
   };
 
-  const signup = async (email, password) => {
+  const signup = async (email, password, displayName = 'Owner') => {
     const cleanEmail = email.trim().toLowerCase();
     const cleanPass = password.trim();
 
-    try {
-      const userCredential = await createUserWithEmailAndPassword(auth, cleanEmail, cleanPass);
-      const userData = {
-        uid: userCredential.user.uid,
-        email: userCredential.user.email,
-        displayName: 'Owner',
-        role: 'owner',
-        permissions: ROLE_PRESETS.owner.permissions,
-      };
-      setUser(userData);
-      localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(userData));
-      return userData;
-    } catch (err) {
-      if (cleanEmail.includes('@') && cleanPass.length >= 6) {
-        const userData = {
-          uid: 'owner_' + Date.now(),
-          email: cleanEmail,
-          displayName: 'Study Point Owner',
-          role: 'owner',
-          permissions: ROLE_PRESETS.owner.permissions,
-        };
-        setUser(userData);
-        localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(userData));
-        return userData;
-      }
-      throw err;
+    if (cleanPass.length < 6) {
+      throw new Error('Password must be at least 6 characters long.');
     }
+
+    const userCredential = await createUserWithEmailAndPassword(auth, cleanEmail, cleanPass);
+    const userData = {
+      uid: userCredential.user.uid,
+      email: userCredential.user.email,
+      displayName: displayName || 'Owner',
+      role: 'owner',
+      permissions: ROLE_PRESETS.owner.permissions,
+    };
+    setUser(userData);
+    localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(userData));
+    return userData;
   };
 
   const logout = async () => {
