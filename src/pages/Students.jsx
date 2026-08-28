@@ -27,6 +27,7 @@ export default function Students() {
   const [editData, setEditData] = useState(null);
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [profileStudent, setProfileStudent] = useState(null);
+  const [statusTarget, setStatusTarget] = useState(null);
 
   const canCreate = hasPermission('students', 'create');
   const canEdit = hasPermission('students', 'edit');
@@ -66,7 +67,7 @@ export default function Students() {
       (s) => s.seatId === seatId && s.status === 'active' && s.id !== removeStudentId
     );
 
-    if (extraStudentData) {
+    if (extraStudentData && extraStudentData.status === 'active') {
       const existingIdx = seatStudents.findIndex((s) => s.id === extraStudentData.id);
       if (existingIdx >= 0) {
         seatStudents[existingIdx] = extraStudentData;
@@ -100,32 +101,31 @@ export default function Students() {
 
   const handleAddStudent = async (formData) => {
     const plan = plans.find((p) => p.id === formData.membershipPlanId);
-    const now = new Date();
-    const membershipEnd = plan
-      ? new Date(now.getFullYear(), now.getMonth() + (plan.durationMonths || 1), now.getDate())
-      : null;
+    const joinD = formData.joinDate ? new Date(formData.joinDate) : new Date();
+    const duration = plan?.durationMonths || 1;
+    const membershipEnd = new Date(joinD.getFullYear(), joinD.getMonth() + duration, joinD.getDate());
 
     const newStudentData = {
       name: formData.name,
       phone: formData.phone,
       email: formData.email || '',
       sectionId: formData.sectionId || '',
-      seatId: formData.seatId || '',
+      seatId: formData.status === 'left' ? '' : (formData.seatId || ''),
       shift: formData.shift || 'full_day',
       shiftTiming: formData.shiftTiming || 'Full Day',
       customStartTime: formData.customStartTime || '',
       customEndTime: formData.customEndTime || '',
       membershipPlanId: formData.membershipPlanId || '',
-      membershipStart: now.toISOString(),
-      membershipEnd: membershipEnd ? membershipEnd.toISOString() : null,
-      joinDate: now.toISOString(),
-      status: STUDENT_STATUS.ACTIVE,
+      joinDate: joinD.toISOString(),
+      membershipStart: joinD.toISOString(),
+      membershipEnd: membershipEnd.toISOString(),
+      status: formData.status || 'active',
     };
 
     const docRecord = await createDocument(COLLECTIONS.STUDENTS, newStudentData);
 
-    if (formData.seatId) {
-      await updateSeatStatusAfterChange(formData.seatId, { id: docRecord.id, ...newStudentData });
+    if (newStudentData.seatId) {
+      await updateSeatStatusAfterChange(newStudentData.seatId, { id: docRecord.id, ...newStudentData });
     }
     await fetchData();
   };
@@ -133,30 +133,58 @@ export default function Students() {
   const handleEditStudent = async (formData) => {
     if (!editData) return;
 
-    if (editData.seatId && editData.seatId !== formData.seatId) {
+    // If seat changed or student marked as left, release old seat
+    if (editData.seatId && (editData.seatId !== formData.seatId || formData.status === 'left')) {
       await updateSeatStatusAfterChange(editData.seatId, null, editData.id);
     }
+
+    const joinD = formData.joinDate ? new Date(formData.joinDate) : new Date();
+    const plan = plans.find((p) => p.id === formData.membershipPlanId);
+    const duration = plan?.durationMonths || 1;
+    const membershipEnd = new Date(joinD.getFullYear(), joinD.getMonth() + duration, joinD.getDate());
 
     const updatedData = {
       name: formData.name,
       phone: formData.phone,
       email: formData.email || '',
-      sectionId: formData.sectionId || '',
-      seatId: formData.seatId || '',
+      sectionId: formData.status === 'left' ? '' : (formData.sectionId || ''),
+      seatId: formData.status === 'left' ? '' : (formData.seatId || ''),
       shift: formData.shift || 'full_day',
       shiftTiming: formData.shiftTiming || 'Full Day',
       customStartTime: formData.customStartTime || '',
       customEndTime: formData.customEndTime || '',
       membershipPlanId: formData.membershipPlanId || '',
+      joinDate: joinD.toISOString(),
+      membershipStart: joinD.toISOString(),
+      membershipEnd: membershipEnd.toISOString(),
+      status: formData.status || 'active',
     };
 
     await updateDocument(COLLECTIONS.STUDENTS, editData.id, updatedData);
 
-    if (formData.seatId) {
-      await updateSeatStatusAfterChange(formData.seatId, { id: editData.id, ...updatedData });
+    if (updatedData.seatId && updatedData.status === 'active') {
+      await updateSeatStatusAfterChange(updatedData.seatId, { id: editData.id, ...updatedData });
     }
 
     setEditData(null);
+    await fetchData();
+  };
+
+  const handleToggleStatus = async (student) => {
+    const isCurrentlyActive = student.status === 'active';
+    const newStatus = isCurrentlyActive ? 'left' : 'active';
+
+    if (isCurrentlyActive && student.seatId) {
+      // Free seat
+      await updateSeatStatusAfterChange(student.seatId, null, student.id);
+    }
+
+    await updateDocument(COLLECTIONS.STUDENTS, student.id, {
+      status: newStatus,
+      seatId: newStatus === 'left' ? '' : student.seatId,
+      leftDate: newStatus === 'left' ? new Date().toISOString() : null,
+    });
+
     await fetchData();
   };
 
@@ -198,8 +226,8 @@ export default function Students() {
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <div>
             <h1 className="text-2xl font-bold text-gray-900">Students Management</h1>
-            <p className="text-gray-500 mt-1">
-              {students.filter((s) => s.status === 'active').length} active students • Full Day & Half Day Shifts
+            <p className="text-gray-500 text-xs sm:text-sm mt-0.5">
+              {students.filter((s) => s.status === 'active').length} active admissions • Joining Date billing cycles & Seat shifts
             </p>
           </div>
 
@@ -227,6 +255,7 @@ export default function Students() {
           onDelete={setDeleteTarget}
           onCollectFee={() => (window.location.href = '/fees')}
           onViewProfile={setProfileStudent}
+          onToggleStatus={handleToggleStatus}
           canEdit={canEdit}
           canDelete={canDelete}
           canCollectFee={canCollectFee}
@@ -251,9 +280,9 @@ export default function Students() {
         isOpen={!!deleteTarget}
         onClose={() => setDeleteTarget(null)}
         onConfirm={handleDeleteStudent}
-        title="Delete Student"
-        message={`Are you sure you want to delete "${deleteTarget?.name}"? Their seat shift slot will be freed up.`}
-        confirmText="Delete"
+        title="Delete Student Permanently?"
+        message={`Are you sure you want to delete "${deleteTarget?.name}"? All records will be removed and their seat slot will be freed up.`}
+        confirmText="Delete Student"
         variant="danger"
       />
 

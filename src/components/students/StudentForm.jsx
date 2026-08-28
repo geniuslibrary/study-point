@@ -2,7 +2,8 @@ import { useState, useEffect } from 'react';
 import Modal from '../common/Modal';
 import Button from '../common/Button';
 import { SHIFTS } from '../../utils/constants';
-import { Sun, Sunrise, Sunset, Clock, Armchair, AlertCircle } from 'lucide-react';
+import { Sun, Sunrise, Sunset, Clock, Armchair, AlertCircle, Calendar, UserX, CheckCircle } from 'lucide-react';
+import { formatDate } from '../../utils/helpers';
 
 export default function StudentForm({
   isOpen,
@@ -14,6 +15,8 @@ export default function StudentForm({
   plans = [],
   students = [],
 }) {
+  const getTodayInput = () => new Date().toISOString().split('T')[0];
+
   const [formData, setFormData] = useState({
     name: '',
     phone: '',
@@ -22,6 +25,8 @@ export default function StudentForm({
     seatId: '',
     membershipPlanId: '',
     shift: 'full_day',
+    joinDate: getTodayInput(),
+    status: 'active',
     customStartTime: '06:00',
     customEndTime: '14:00',
     notes: '',
@@ -32,6 +37,12 @@ export default function StudentForm({
 
   useEffect(() => {
     if (editData) {
+      const jDate = editData.joinDate
+        ? (editData.joinDate.toDate ? editData.joinDate.toDate() : new Date(editData.joinDate))
+            .toISOString()
+            .split('T')[0]
+        : getTodayInput();
+
       setFormData({
         name: editData.name || '',
         phone: editData.phone || '',
@@ -40,6 +51,8 @@ export default function StudentForm({
         seatId: editData.seatId || '',
         membershipPlanId: editData.membershipPlanId || '',
         shift: editData.shift || 'full_day',
+        joinDate: jDate,
+        status: editData.status || 'active',
         customStartTime: editData.customStartTime || '06:00',
         customEndTime: editData.customEndTime || '14:00',
         notes: editData.notes || '',
@@ -51,14 +64,45 @@ export default function StudentForm({
         email: '',
         sectionId: sections[0]?.id || '',
         seatId: '',
-        membershipPlanId: '',
+        membershipPlanId: plans[0]?.id || '',
         shift: 'full_day',
+        joinDate: getTodayInput(),
+        status: 'active',
         customStartTime: '06:00',
         customEndTime: '14:00',
         notes: '',
       });
     }
-  }, [editData, isOpen, sections]);
+  }, [editData, isOpen, sections, plans]);
+
+  // Calculate Subscription Period from Join Date & Plan Duration
+  const getBillingCycleInfo = () => {
+    const selectedPlan = plans.find((p) => p.id === formData.membershipPlanId);
+    const duration = selectedPlan?.durationMonths || 1;
+
+    try {
+      const [y, m, d] = formData.joinDate.split('-').map(Number);
+      const start = new Date(y, m - 1, d);
+      const end = new Date(y, m - 1 + duration, d);
+
+      return {
+        startDate: start,
+        endDate: end,
+        duration,
+        planName: selectedPlan?.name || '1 Month Plan',
+      };
+    } catch (e) {
+      const now = new Date();
+      return {
+        startDate: now,
+        endDate: new Date(now.getFullYear(), now.getMonth() + duration, now.getDate()),
+        duration,
+        planName: selectedPlan?.name || '1 Month Plan',
+      };
+    }
+  };
+
+  const cycleInfo = getBillingCycleInfo();
 
   // Compute available seats based on selected Section and Shift
   useEffect(() => {
@@ -71,13 +115,13 @@ export default function StudentForm({
       .filter((s) => s.sectionId === formData.sectionId)
       .sort((a, b) => (Number(a.seatNumber) || 0) - (Number(b.seatNumber) || 0));
 
-    // Find all active students currently occupying seats in this section
+    // Find active students only (exclude students who left or inactive)
     const activeStudents = students.filter(
       (s) =>
         s.status === 'active' &&
         s.sectionId === formData.sectionId &&
         s.seatId &&
-        s.id !== editData?.id // exclude currently edited student
+        s.id !== editData?.id
     );
 
     const evaluatedSeats = sectionSeats.map((seat) => {
@@ -86,7 +130,6 @@ export default function StudentForm({
       const hasFullDay = seatStudents.some((s) => !s.shift || s.shift === 'full_day');
       const hasFirstHalf = seatStudents.some((s) => s.shift === 'first_half');
       const hasSecondHalf = seatStudents.some((s) => s.shift === 'second_half');
-      const customStudents = seatStudents.filter((s) => s.shift === 'custom');
 
       let isAvailable = false;
       let statusHint = '';
@@ -101,7 +144,9 @@ export default function StudentForm({
           statusHint = 'Fully Available (All Shifts)';
         } else {
           isAvailable = false;
-          const occupants = seatStudents.map((s) => `${s.shift === 'first_half' ? '1st Half' : '2nd Half'}: ${s.name}`).join(', ');
+          const occupants = seatStudents
+            .map((s) => `${s.shift === 'first_half' ? '1st Half' : '2nd Half'}: ${s.name}`)
+            .join(', ');
           statusHint = `Not available for Full Day (Occupied by ${occupants})`;
         }
       } else if (formData.shift === 'first_half') {
@@ -173,7 +218,11 @@ export default function StudentForm({
     try {
       const payload = {
         ...formData,
+        seatId: formData.status === 'left' ? null : formData.seatId,
         shiftTiming: getShiftTimingString(),
+        joinDate: new Date(formData.joinDate).toISOString(),
+        membershipStart: cycleInfo.startDate.toISOString(),
+        membershipEnd: cycleInfo.endDate.toISOString(),
       };
       await onSubmit(payload);
       onClose();
@@ -198,164 +247,197 @@ export default function StudentForm({
   };
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title={editData ? 'Edit Student' : 'Add Student (with Shift & Seat)'} size="lg">
+    <Modal
+      isOpen={isOpen}
+      onClose={onClose}
+      title={editData ? 'Edit Student Admission & Shift' : 'Add New Student Admission'}
+      size="lg"
+    >
       <form onSubmit={handleSubmit} className="space-y-4">
         {/* Basic Info */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Student Name *</label>
+            <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
+              Student Full Name *
+            </label>
             <input
               type="text"
               required
               value={formData.name}
               onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm"
-              placeholder="e.g., Rahul Kumar"
+              className="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500 text-sm"
+              placeholder="e.g. Rahul Kumar"
             />
           </div>
+
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Phone Number *</label>
+            <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
+              Contact Phone * (10 Digits)
+            </label>
             <input
               type="tel"
               required
               value={formData.phone}
               onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm"
-              placeholder="e.g., 9876543210"
+              className="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500 text-sm"
+              placeholder="e.g. 9876543210"
             />
           </div>
         </div>
 
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Email Address (Optional)</label>
-          <input
-            type="email"
-            value={formData.email}
-            onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm"
-            placeholder="e.g., rahul@example.com"
-          />
+        {/* Joining Date & Student Status Row */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 bg-indigo-50/50 p-3.5 rounded-2xl border border-indigo-100/80">
+          <div>
+            <label className="block text-xs font-bold text-indigo-950 uppercase tracking-wider mb-1 flex items-center gap-1">
+              <Calendar className="w-3.5 h-3.5 text-indigo-600" />
+              <span>Joining Date * (एडमिशन / फीस शुरू दिनांक)</span>
+            </label>
+            <input
+              type="date"
+              required
+              value={formData.joinDate}
+              onChange={(e) => setFormData({ ...formData, joinDate: e.target.value })}
+              className="w-full px-3.5 py-2 border border-indigo-200 rounded-xl text-sm bg-white font-bold text-indigo-900 focus:ring-2 focus:ring-indigo-500"
+            />
+            <p className="text-[11px] text-slate-500 mt-1">
+              इस तारीख से छात्र का महीना और सब्सक्रिप्शन साइकिल शुरू होगा।
+            </p>
+          </div>
+
+          <div>
+            <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
+              Student Status (छात्र स्थिति)
+            </label>
+            <div className="grid grid-cols-2 gap-2 mt-1">
+              <button
+                type="button"
+                onClick={() => setFormData({ ...formData, status: 'active' })}
+                className={`py-2 px-3 rounded-xl border text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+                  formData.status === 'active'
+                    ? 'bg-emerald-600 text-white border-emerald-600 shadow-xs'
+                    : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
+                }`}
+              >
+                <CheckCircle className="w-3.5 h-3.5" />
+                <span>Active (जारी)</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setFormData({ ...formData, status: 'left', seatId: '' })}
+                className={`py-2 px-3 rounded-xl border text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+                  formData.status === 'left'
+                    ? 'bg-rose-600 text-white border-rose-600 shadow-xs'
+                    : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
+                }`}
+              >
+                <UserX className="w-3.5 h-3.5" />
+                <span>Left (छोड़ दिया)</span>
+              </button>
+            </div>
+            {formData.status === 'left' && (
+              <p className="text-[11px] text-rose-600 font-bold mt-1">
+                Seat automatically free ho jayegi aur active list se hat jayega.
+              </p>
+            )}
+          </div>
         </div>
 
         {/* Shift Selection (Full Day / Half Day) */}
-        <div className="bg-indigo-50/50 p-3.5 rounded-xl border border-indigo-100">
-          <label className="block text-sm font-bold text-gray-900 mb-2">
-            Seat Shift / Timing (फुल डे या हाफ डे) *
-          </label>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-            {SHIFTS.map((shift) => {
-              const isSelected = formData.shift === shift.id;
-              return (
-                <label
-                  key={shift.id}
-                  className={`flex items-start gap-3 p-2.5 rounded-lg border cursor-pointer transition-all ${
-                    isSelected
-                      ? 'border-indigo-600 bg-white shadow-xs ring-2 ring-indigo-500/20'
-                      : 'border-gray-200 bg-white/70 hover:bg-white hover:border-gray-300'
-                  }`}
-                >
-                  <input
-                    type="radio"
-                    name="shift"
-                    value={shift.id}
-                    checked={isSelected}
-                    onChange={() => setFormData({ ...formData, shift: shift.id, seatId: '' })}
-                    className="mt-1 text-indigo-600 focus:ring-indigo-500"
-                  />
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-1.5 font-medium text-xs sm:text-sm text-gray-900">
-                      {getShiftIcon(shift.id)}
-                      <span>{shift.label}</span>
-                    </div>
-                    <p className="text-xs text-gray-500 mt-0.5">{shift.timing}</p>
-                  </div>
-                </label>
-              );
-            })}
-          </div>
-
-          {/* Custom Time Slots if selected */}
-          {formData.shift === 'custom' && (
-            <div className="mt-3 pt-3 border-t border-indigo-100 grid grid-cols-2 gap-3">
-              <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">Start Time</label>
-                <input
-                  type="time"
-                  value={formData.customStartTime}
-                  onChange={(e) => setFormData({ ...formData, customStartTime: e.target.value })}
-                  className="w-full px-2.5 py-1.5 border border-gray-300 rounded-lg text-sm bg-white"
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">End Time</label>
-                <input
-                  type="time"
-                  value={formData.customEndTime}
-                  onChange={(e) => setFormData({ ...formData, customEndTime: e.target.value })}
-                  className="w-full px-2.5 py-1.5 border border-gray-300 rounded-lg text-sm bg-white"
-                />
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* Section & Seat Assignment */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Section *</label>
-            <select
-              value={formData.sectionId}
-              onChange={(e) => setFormData({ ...formData, sectionId: e.target.value, seatId: '' })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 text-sm"
-              required
-            >
-              <option value="">Select section</option>
-              {sections.map((s) => (
-                <option key={s.id} value={s.id}>
-                  {s.name} ({s.totalSeats} seats)
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Seat Selection *
+        {formData.status === 'active' && (
+          <div className="bg-slate-50 p-3.5 rounded-2xl border border-slate-200">
+            <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">
+              Seat Shift / Timing (फुल डे या हाफ डे) *
             </label>
-            <select
-              value={formData.seatId}
-              onChange={(e) => setFormData({ ...formData, seatId: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 text-sm"
-              disabled={!formData.sectionId}
-            >
-              <option value="">Select available seat</option>
-              {seatOptions
-                .filter((s) => s.isAvailable)
-                .sort((a, b) => (Number(a.seatNumber) || 0) - (Number(b.seatNumber) || 0))
-                .map((s) => (
-                  <option key={s.id} value={s.id}>
-                    Seat #{s.seatNumber} — {s.statusHint}
-                  </option>
-                ))}
-            </select>
-          </div>
-        </div>
-
-        {/* Helper message if no seats available */}
-        {formData.sectionId && seatOptions.filter((s) => s.isAvailable).length === 0 && (
-          <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg flex items-center gap-2 text-xs text-amber-800">
-            <AlertCircle className="w-4 h-4 text-amber-600 shrink-0" />
-            <span>No seats are currently available in this section for the selected shift ({formData.shift}). Try another shift or section.</span>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+              {SHIFTS.map((shift) => {
+                const isSelected = formData.shift === shift.id;
+                return (
+                  <label
+                    key={shift.id}
+                    className={`flex items-start gap-3 p-2.5 rounded-xl border cursor-pointer transition-all ${
+                      isSelected
+                        ? 'border-indigo-600 bg-white shadow-xs ring-2 ring-indigo-500/20'
+                        : 'border-slate-200 bg-white/70 hover:bg-white hover:border-slate-300'
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      name="shift"
+                      value={shift.id}
+                      checked={isSelected}
+                      onChange={() => setFormData({ ...formData, shift: shift.id, seatId: '' })}
+                      className="mt-1 text-indigo-600 focus:ring-indigo-500"
+                    />
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-1.5 font-bold text-xs sm:text-sm text-slate-900">
+                        {getShiftIcon(shift.id)}
+                        <span>{shift.label}</span>
+                      </div>
+                      <p className="text-xs text-slate-500 mt-0.5">{shift.timing}</p>
+                    </div>
+                  </label>
+                );
+              })}
+            </div>
           </div>
         )}
 
-        {/* Membership Plan */}
+        {/* Section & Seat Assignment (Only if active) */}
+        {formData.status === 'active' && (
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+            <div>
+              <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
+                Section *
+              </label>
+              <select
+                value={formData.sectionId}
+                onChange={(e) => setFormData({ ...formData, sectionId: e.target.value, seatId: '' })}
+                className="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl text-sm font-semibold bg-white"
+                required
+              >
+                <option value="">Select section</option>
+                {sections.map((s) => (
+                  <option key={s.id} value={s.id}>
+                    {s.name} ({s.totalSeats} seats)
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
+                Seat Selection *
+              </label>
+              <select
+                value={formData.seatId}
+                onChange={(e) => setFormData({ ...formData, seatId: e.target.value })}
+                className="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl text-sm font-semibold bg-white"
+                disabled={!formData.sectionId}
+              >
+                <option value="">Select available seat</option>
+                {seatOptions
+                  .filter((s) => s.isAvailable)
+                  .sort((a, b) => (Number(a.seatNumber) || 0) - (Number(b.seatNumber) || 0))
+                  .map((s) => (
+                    <option key={s.id} value={s.id}>
+                      Seat #{s.seatNumber} — {s.statusHint}
+                    </option>
+                  ))}
+              </select>
+            </div>
+          </div>
+        )}
+
+        {/* Membership Plan & Billing Cycle Preview */}
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Membership Plan</label>
+          <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
+            Membership Plan (सब्सक्रिप्शन प्लान)
+          </label>
           <select
             value={formData.membershipPlanId}
             onChange={(e) => setFormData({ ...formData, membershipPlanId: e.target.value })}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 text-sm"
+            className="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl text-sm bg-white"
           >
             <option value="">Select membership plan (Optional)</option>
             {plans
@@ -363,14 +445,27 @@ export default function StudentForm({
               .map((p) => (
                 <option key={p.id} value={p.id}>
                   {p.name} — ₹{p.price} ({p.durationMonths} Month{p.durationMonths > 1 ? 's' : ''})
-                  {p.isOffer ? ' 🔥 Offer' : ''}
                 </option>
               ))}
           </select>
+
+          {/* Dynamic Billing Cycle Preview Card */}
+          <div className="mt-2.5 p-3 bg-emerald-50/70 rounded-xl border border-emerald-200 text-xs text-emerald-950 flex items-center justify-between">
+            <div>
+              <span className="font-bold block">📅 Billing Cycle Period:</span>
+              <span className="text-[11px] text-emerald-800">
+                <strong>{formatDate(cycleInfo.startDate)}</strong> से लेकर{' '}
+                <strong>{formatDate(cycleInfo.endDate)}</strong> तक valid रहेगा।
+              </span>
+            </div>
+            <span className="font-black bg-emerald-100 text-emerald-900 px-2.5 py-1 rounded-lg text-xs shrink-0">
+              Next Due: {formatDate(cycleInfo.endDate)}
+            </span>
+          </div>
         </div>
 
         {/* Action Buttons */}
-        <div className="flex justify-end gap-3 pt-2">
+        <div className="flex justify-end gap-3 pt-3 border-t border-slate-100">
           <Button variant="secondary" onClick={onClose} type="button">
             Cancel
           </Button>
