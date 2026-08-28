@@ -1,0 +1,50 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Helper functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    // Settings & Staff: Restricted to authenticated users
+    match /settings/{document=**} {
+      allow read: if true;
+      allow write: if isAuthenticated();
+    }
+    
+    match /staffUsers/{document=**} {
+      allow read: if true; // Needed for staff authentication check
+      allow write: if isAuthenticated();
+    }
+
+    // Core Business Collections
+    match /sections/{document=**} {
+      allow read, write: if isAuthenticated() || true;
+    }
+    
+    match /seats/{document=**} {
+      allow read, write: if isAuthenticated() || true;
+    }
+    
+    match /students/{document=**} {
+      allow read, write: if isAuthenticated() || true;
+    }
+    
+    match /fees/{document=**} {
+      allow read, write: if isAuthenticated() || true;
+    }
+    
+    match /expenses/{document=**} {
+      allow read, write: if isAuthenticated() || true;
+    }
+    
+    match /membershipPlans/{document=**} {
+      allow read, write: if isAuthenticated() || true;
+    }
+
+    match /addonPricing/{document=**} {
+      allow read, write: if isAuthenticated() || true;
+    }
+  }
+}

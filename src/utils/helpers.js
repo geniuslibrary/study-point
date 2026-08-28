@@ -1,17 +1,19 @@
 import { SHIFTS } from './constants';
 
 export const formatCurrency = (amount) => {
+  const safeNum = Number(amount) || 0;
   return new Intl.NumberFormat('en-IN', {
     style: 'currency',
     currency: 'INR',
     minimumFractionDigits: 0,
     maximumFractionDigits: 0,
-  }).format(amount);
+  }).format(safeNum);
 };
 
 export const formatDate = (timestamp) => {
   if (!timestamp) return '—';
   const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
+  if (isNaN(date.getTime())) return '—';
   return date.toLocaleDateString('en-IN', {
     day: '2-digit',
     month: 'short',
@@ -22,6 +24,7 @@ export const formatDate = (timestamp) => {
 export const formatDateInput = (timestamp) => {
   if (!timestamp) return '';
   const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
+  if (isNaN(date.getTime())) return '';
   return date.toISOString().split('T')[0];
 };
 
@@ -31,6 +34,7 @@ export const getMonthYear = (date = new Date()) => {
 };
 
 export const getMonthName = (monthStr) => {
+  if (!monthStr || !monthStr.includes('-')) return '';
   const [year, month] = monthStr.split('-');
   const date = new Date(year, parseInt(month) - 1);
   return date.toLocaleDateString('en-IN', { month: 'long', year: 'numeric' });
@@ -51,13 +55,31 @@ export const daysUntil = (date) => {
 };
 
 export const calculateTotalFee = (baseFee, addons = {}, addonPricing = []) => {
-  let total = baseFee || 0;
+  let total = Number(baseFee) || 0;
   addonPricing.forEach((addon) => {
     if (addons[addon.name?.toLowerCase()]) {
-      total += addon.monthlyCharge || 0;
+      total += Number(addon.monthlyCharge) || 0;
     }
   });
   return total;
+};
+
+// Security: XSS & HTML Sanitizer
+export const sanitizeInput = (str) => {
+  if (typeof str !== 'string') return str;
+  return str
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#x27;')
+    .trim();
+};
+
+// Security: Phone Sanitizer (Keeps strictly digits)
+export const sanitizePhone = (phone) => {
+  if (!phone) return '';
+  return phone.replace(/\D/g, '').slice(-10);
 };
 
 export const generateId = () => {
