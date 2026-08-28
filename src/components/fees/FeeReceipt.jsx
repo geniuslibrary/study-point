@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import Modal from '../common/Modal';
 import Button from '../common/Button';
 import { formatCurrency, formatDate } from '../../utils/helpers';
-import { Printer, BookOpen, Download, MessageSquare, CheckCircle2, ShieldCheck, Image as ImageIcon } from 'lucide-react';
+import { Printer, BookOpen, Download, MessageSquare, CheckCircle2, ShieldCheck, Tag } from 'lucide-react';
 import { doc, getDoc } from 'firebase/firestore';
 import { db } from '../../firebase/config';
 import { COLLECTIONS } from '../../utils/constants';
@@ -53,6 +53,14 @@ export default function FeeReceipt({ isOpen, onClose, fee, student, section, sea
   const libraryOwner = libraryInfo.ownerName || 'Study Point Owner';
   const libraryLogo = libraryInfo.logoUrl || '';
   const receiptNo = `SP-${fee.month?.replace('-', '') || '2026'}-${(fee.id || '001').slice(-4).toUpperCase()}`;
+
+  const planTitle = fee.planName
+    ? `${fee.planName}${fee.planDuration ? ` (${fee.planDuration} Months)` : ''}`
+    : `Monthly Membership (${fee.month})`;
+
+  const validityText = fee.periodStart && fee.periodEnd
+    ? `${formatDate(fee.periodStart)} to ${formatDate(fee.periodEnd)}`
+    : fee.month;
 
   const handlePrintOrSavePDF = () => {
     const printWindow = window.open('', '_blank', 'width=800,height=900');
@@ -125,8 +133,8 @@ export default function FeeReceipt({ isOpen, onClose, fee, student, section, sea
                 <div class="meta-val">${section?.name || 'Main Hall'} • Seat #${student?.seatId?.split('_seat_')?.pop() || '—'}</div>
               </div>
               <div class="meta-item" style="text-align: right;">
-                <div class="meta-label">Shift / Timing</div>
-                <div class="meta-val">${student?.shiftTiming || 'Full Day'}</div>
+                <div class="meta-label">Membership Validity</div>
+                <div class="meta-val" style="color: #166534;">${validityText}</div>
               </div>
             </div>
 
@@ -139,7 +147,7 @@ export default function FeeReceipt({ isOpen, onClose, fee, student, section, sea
               </thead>
               <tbody>
                 <tr>
-                  <td>${libraryTitle} Monthly Membership Fee (${fee.month})</td>
+                  <td>${libraryTitle} - ${planTitle}</td>
                   <td style="text-align: right; font-weight: 600;">${formatCurrency(fee.baseFee || fee.amount)}</td>
                 </tr>
                 ${
@@ -153,6 +161,15 @@ export default function FeeReceipt({ isOpen, onClose, fee, student, section, sea
                         </tr>`
                         )
                         .join('')
+                    : ''
+                }
+                ${
+                  fee.discountAmount > 0
+                    ? `
+                        <tr style="color: #166534;">
+                          <td>Special Discount / Concession</td>
+                          <td style="text-align: right; font-weight: 600;">- ${formatCurrency(fee.discountAmount)}</td>
+                        </tr>`
                     : ''
                 }
                 <tr class="total-row">
@@ -194,8 +211,10 @@ export default function FeeReceipt({ isOpen, onClose, fee, student, section, sea
     const message = `🎉 *FEE PAYMENT RECEIPT - ${libraryTitle.toUpperCase()}*\n\n` +
       `👤 *Student Name:* ${student?.name || 'Student'}\n` +
       `🧾 *Receipt No:* ${receiptNo}\n` +
-      `📅 *Month:* ${fee.month}\n` +
+      `📦 *Plan:* ${planTitle}\n` +
+      `📅 *Validity Period:* ${validityText}\n` +
       `💵 *Amount Paid:* ₹${fee.amount}\n` +
+      (fee.discountAmount > 0 ? `🏷️ *Discount Given:* ₹${fee.discountAmount}\n` : '') +
       `💳 *Payment Mode:* ${(fee.paymentMode || 'CASH').toUpperCase()}\n` +
       `📍 *Seat Allocated:* Seat #${student?.seatId?.split('_seat_')?.pop() || '—'} (${student?.shiftTiming || 'Shift'})\n` +
       `🗓️ *Date:* ${formatDate(fee.paidDate)}\n` +
@@ -211,7 +230,7 @@ export default function FeeReceipt({ isOpen, onClose, fee, student, section, sea
   return (
     <Modal isOpen={isOpen} onClose={onClose} title="Official Fee Bill & Receipt" size="lg">
       <div className="space-y-5">
-        {/* Receipt Container Preview with Logo */}
+        {/* Receipt Container Preview */}
         <div id="printable-fee-receipt" className="p-6 bg-white rounded-2xl border-2 border-slate-200 shadow-sm space-y-4">
           {/* Header */}
           <div className="text-center border-b border-slate-200 pb-4">
@@ -254,11 +273,9 @@ export default function FeeReceipt({ isOpen, onClose, fee, student, section, sea
               <p className="text-[11px] text-slate-500">{student?.phone || ''}</p>
             </div>
             <div className="text-right">
-              <span className="text-slate-400 font-bold uppercase text-[10px]">Seat & Shift</span>
-              <p className="font-bold text-indigo-900 mt-0.5">
-                {section?.name || 'Main'} • Seat #{student?.seatId?.split('_seat_')?.pop() || '—'}
-              </p>
-              <p className="text-[11px] text-slate-500">{student?.shiftTiming || 'Full Day'}</p>
+              <span className="text-slate-400 font-bold uppercase text-[10px]">Validity Period</span>
+              <p className="font-bold text-emerald-800 mt-0.5">{validityText}</p>
+              <p className="text-[11px] text-slate-500">Seat #{student?.seatId?.split('_seat_')?.pop() || '—'} • {student?.shiftTiming || 'Shift'}</p>
             </div>
           </div>
 
@@ -278,7 +295,7 @@ export default function FeeReceipt({ isOpen, onClose, fee, student, section, sea
               <tbody className="divide-y divide-slate-100">
                 <tr>
                   <td className="px-4 py-3 text-slate-800 font-medium">
-                    {libraryTitle} Monthly Fee ({fee.month})
+                    {libraryTitle} - {planTitle}
                   </td>
                   <td className="px-4 py-3 text-right font-bold text-slate-900">
                     {formatCurrency(fee.baseFee || fee.amount)}
@@ -293,6 +310,12 @@ export default function FeeReceipt({ isOpen, onClose, fee, student, section, sea
                       </td>
                     </tr>
                   ))}
+                {fee.discountAmount > 0 && (
+                  <tr className="text-emerald-700 font-semibold bg-emerald-50/50">
+                    <td className="px-4 py-2.5">Special Concession / Discount</td>
+                    <td className="px-4 py-2.5 text-right">- {formatCurrency(fee.discountAmount)}</td>
+                  </tr>
+                )}
                 <tr className="bg-indigo-50/80 font-extrabold text-sm">
                   <td className="px-4 py-3 text-indigo-950">TOTAL AMOUNT RECEIVED</td>
                   <td className="px-4 py-3 text-right text-indigo-700 text-base">

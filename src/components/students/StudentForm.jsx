@@ -2,8 +2,8 @@ import { useState, useEffect } from 'react';
 import Modal from '../common/Modal';
 import Button from '../common/Button';
 import { SHIFTS } from '../../utils/constants';
-import { Sun, Sunrise, Sunset, Clock, Armchair, AlertCircle, Calendar, UserX, CheckCircle } from 'lucide-react';
-import { formatDate } from '../../utils/helpers';
+import { Sun, Sunrise, Sunset, Clock, Armchair, AlertCircle, Calendar, UserX, CheckCircle, Tag, IndianRupee } from 'lucide-react';
+import { formatDate, formatCurrency } from '../../utils/helpers';
 
 export default function StudentForm({
   isOpen,
@@ -24,6 +24,7 @@ export default function StudentForm({
     sectionId: '',
     seatId: '',
     membershipPlanId: '',
+    discountAmount: 0,
     shift: 'full_day',
     joinDate: getTodayInput(),
     status: 'active',
@@ -50,6 +51,7 @@ export default function StudentForm({
         sectionId: editData.sectionId || '',
         seatId: editData.seatId || '',
         membershipPlanId: editData.membershipPlanId || '',
+        discountAmount: editData.discountAmount || 0,
         shift: editData.shift || 'full_day',
         joinDate: jDate,
         status: editData.status || 'active',
@@ -65,6 +67,7 @@ export default function StudentForm({
         sectionId: sections[0]?.id || '',
         seatId: '',
         membershipPlanId: plans[0]?.id || '',
+        discountAmount: 0,
         shift: 'full_day',
         joinDate: getTodayInput(),
         status: 'active',
@@ -79,6 +82,9 @@ export default function StudentForm({
   const getBillingCycleInfo = () => {
     const selectedPlan = plans.find((p) => p.id === formData.membershipPlanId);
     const duration = selectedPlan?.durationMonths || 1;
+    const planPrice = Number(selectedPlan?.price) || 0;
+    const discount = Number(formData.discountAmount) || 0;
+    const finalPrice = Math.max(0, planPrice - discount);
 
     try {
       const [y, m, d] = formData.joinDate.split('-').map(Number);
@@ -90,6 +96,9 @@ export default function StudentForm({
         endDate: end,
         duration,
         planName: selectedPlan?.name || '1 Month Plan',
+        planPrice,
+        discount,
+        finalPrice,
       };
     } catch (e) {
       const now = new Date();
@@ -98,6 +107,9 @@ export default function StudentForm({
         endDate: new Date(now.getFullYear(), now.getMonth() + duration, now.getDate()),
         duration,
         planName: selectedPlan?.name || '1 Month Plan',
+        planPrice,
+        discount,
+        finalPrice,
       };
     }
   };
@@ -115,7 +127,6 @@ export default function StudentForm({
       .filter((s) => s.sectionId === formData.sectionId)
       .sort((a, b) => (Number(a.seatNumber) || 0) - (Number(b.seatNumber) || 0));
 
-    // Find active students only (exclude students who left or inactive)
     const activeStudents = students.filter(
       (s) =>
         s.status === 'active' &&
@@ -218,6 +229,7 @@ export default function StudentForm({
     try {
       const payload = {
         ...formData,
+        discountAmount: Number(formData.discountAmount) || 0,
         seatId: formData.status === 'left' ? null : formData.seatId,
         shiftTiming: getShiftTimingString(),
         joinDate: new Date(formData.joinDate).toISOString(),
@@ -383,7 +395,7 @@ export default function StudentForm({
           </div>
         )}
 
-        {/* Section & Seat Assignment (Only if active) */}
+        {/* Section & Seat Assignment */}
         {formData.status === 'active' && (
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
             <div>
@@ -429,37 +441,64 @@ export default function StudentForm({
           </div>
         )}
 
-        {/* Membership Plan & Billing Cycle Preview */}
-        <div>
-          <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
-            Membership Plan (सब्सक्रिप्शन प्लान)
-          </label>
-          <select
-            value={formData.membershipPlanId}
-            onChange={(e) => setFormData({ ...formData, membershipPlanId: e.target.value })}
-            className="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl text-sm bg-white"
-          >
-            <option value="">Select membership plan (Optional)</option>
-            {plans
-              .filter((p) => p.isActive !== false)
-              .map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.name} — ₹{p.price} ({p.durationMonths} Month{p.durationMonths > 1 ? 's' : ''})
-                </option>
-              ))}
-          </select>
+        {/* Membership Plan & Special Discount */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
+          <div className="sm:col-span-2">
+            <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
+              Membership Plan (सब्सक्रिप्शन प्लान) *
+            </label>
+            <select
+              value={formData.membershipPlanId}
+              onChange={(e) => setFormData({ ...formData, membershipPlanId: e.target.value })}
+              className="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl text-sm bg-white font-semibold"
+            >
+              <option value="">Select membership plan</option>
+              {plans
+                .filter((p) => p.isActive !== false)
+                .map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.name} — ₹{p.price} ({p.durationMonths} Month{p.durationMonths > 1 ? 's' : ''})
+                  </option>
+                ))}
+            </select>
+          </div>
 
-          {/* Dynamic Billing Cycle Preview Card */}
-          <div className="mt-2.5 p-3 bg-emerald-50/70 rounded-xl border border-emerald-200 text-xs text-emerald-950 flex items-center justify-between">
-            <div>
-              <span className="font-bold block">📅 Billing Cycle Period:</span>
-              <span className="text-[11px] text-emerald-800">
-                <strong>{formatDate(cycleInfo.startDate)}</strong> से लेकर{' '}
-                <strong>{formatDate(cycleInfo.endDate)}</strong> तक valid रहेगा।
-              </span>
-            </div>
-            <span className="font-black bg-emerald-100 text-emerald-900 px-2.5 py-1 rounded-lg text-xs shrink-0">
+          <div>
+            <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1 flex items-center gap-1">
+              <Tag className="w-3.5 h-3.5 text-emerald-600" />
+              <span>Discount (छूट ₹)</span>
+            </label>
+            <input
+              type="number"
+              min="0"
+              value={formData.discountAmount}
+              onChange={(e) => setFormData({ ...formData, discountAmount: Number(e.target.value) || 0 })}
+              className="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl text-sm bg-white font-bold text-emerald-700"
+              placeholder="0"
+            />
+          </div>
+        </div>
+
+        {/* Dynamic Billing Cycle & Price Preview Card */}
+        <div className="p-3.5 bg-emerald-50/70 rounded-2xl border border-emerald-200 text-xs text-emerald-950 space-y-1.5">
+          <div className="flex items-center justify-between">
+            <span className="font-bold block">📅 Billing Period ({cycleInfo.duration} Month{cycleInfo.duration > 1 ? 's' : ''}):</span>
+            <span className="font-black bg-emerald-100 text-emerald-900 px-2.5 py-0.5 rounded-md text-xs">
               Next Due: {formatDate(cycleInfo.endDate)}
+            </span>
+          </div>
+
+          <p className="text-[11px] text-emerald-800">
+            <strong>{formatDate(cycleInfo.startDate)}</strong> से <strong>{formatDate(cycleInfo.endDate)}</strong> तक valid रहेगा।
+          </p>
+
+          <div className="pt-1 border-t border-emerald-200/60 flex items-center justify-between text-xs">
+            <span>
+              Plan Rate: <strong>₹{cycleInfo.planPrice}</strong>
+              {cycleInfo.discount > 0 && <span className="text-emerald-700 font-bold ml-1.5">(-₹{cycleInfo.discount} Discount)</span>}
+            </span>
+            <span className="font-black text-sm text-emerald-900">
+              Payable: {formatCurrency(cycleInfo.finalPrice)}
             </span>
           </div>
         </div>

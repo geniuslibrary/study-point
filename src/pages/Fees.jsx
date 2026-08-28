@@ -1,12 +1,21 @@
 import { useState, useEffect } from 'react';
 import Layout from '../components/layout/Layout';
-import Button from '../components/common/Button';
 import FeeTracker from '../components/fees/FeeTracker';
 import CollectFeeModal from '../components/fees/CollectFeeModal';
 import FeeReceipt from '../components/fees/FeeReceipt';
-import { Plus, Loader2, IndianRupee, AlertCircle, CheckCircle } from 'lucide-react';
+import Button from '../components/common/Button';
+import {
+  IndianRupee,
+  Plus,
+  Loader2,
+  Calendar,
+  TrendingUp,
+  CheckCircle,
+  AlertCircle,
+  RefreshCw,
+} from 'lucide-react';
 import { COLLECTIONS } from '../utils/constants';
-import { formatCurrency } from '../utils/helpers';
+import { formatCurrency, getMonthYear } from '../utils/helpers';
 import {
   fetchCollectionData,
   createDocument,
@@ -21,10 +30,10 @@ export default function Fees() {
   const [plans, setPlans] = useState([]);
   const [addonPricing, setAddonPricing] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [selectedMonth, setSelectedMonth] = useState('');
+  const [generating, setGenerating] = useState(false);
+  const [selectedMonth, setSelectedMonth] = useState(getMonthYear());
   const [collectFee, setCollectFee] = useState(null);
   const [receiptFee, setReceiptFee] = useState(null);
-  const [generating, setGenerating] = useState(false);
 
   const fetchData = async () => {
     setLoading(true);
@@ -54,23 +63,25 @@ export default function Fees() {
     fetchData();
   }, []);
 
-  const getCurrentMonth = () => {
-    const now = new Date();
-    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-  };
+  const getCurrentMonth = () => getMonthYear();
 
   const handleGenerateMonthlyFees = async () => {
     setGenerating(true);
-    const currentMonth = getCurrentMonth();
-    const activeStudents = students.filter((s) => s.status === 'active');
     try {
+      const currentMonth = getCurrentMonth();
+      const activeStudents = students.filter((s) => s.status === 'active');
+
       for (const student of activeStudents) {
-        const existingFee = fees.find((f) => f.studentId === student.id && f.month === currentMonth);
+        const existingFee = fees.find(
+          (f) => f.studentId === student.id && f.month === currentMonth
+        );
         if (existingFee) continue;
 
         const plan = plans.find((p) => p.id === student.membershipPlanId);
         const seat = seats.find((s) => s.id === student.seatId);
-        const baseFee = plan ? Math.round(plan.price / (plan.durationMonths || 1)) : 0;
+        const baseFee = plan ? Number(plan.price) : 800;
+        const discount = Number(student.discountAmount) || 0;
+
         const addonCharges = {};
         let addonTotal = 0;
         if (seat?.addons) {
@@ -89,8 +100,9 @@ export default function Fees() {
 
         await createDocument(COLLECTIONS.FEES, {
           studentId: student.id,
-          amount: baseFee + addonTotal,
+          amount: Math.max(0, baseFee + addonTotal - discount),
           baseFee,
+          discountAmount: discount,
           addonCharges,
           dueDate: dueDate.toISOString(),
           paidDate: null,
@@ -110,6 +122,8 @@ export default function Fees() {
 
   const handleCollectFee = async (paymentData) => {
     if (!collectFee) return;
+
+    // 1. Update Fee Record
     await updateDocument(COLLECTIONS.FEES, collectFee.id, {
       status: 'paid',
       paidDate: new Date().toISOString(),
@@ -117,8 +131,24 @@ export default function Fees() {
       notes: paymentData.notes,
       amount: paymentData.amount,
       baseFee: paymentData.baseFee,
+      discountAmount: paymentData.discountAmount || 0,
       addonCharges: paymentData.addonCharges,
+      planName: paymentData.planName,
+      planDuration: paymentData.planDuration,
+      periodStart: paymentData.periodStart,
+      periodEnd: paymentData.periodEnd,
     });
+
+    // 2. Automatically Renew Student's Membership Validity Cycle
+    if (collectFee.studentId && paymentData.periodEnd) {
+      await updateDocument(COLLECTIONS.STUDENTS, collectFee.studentId, {
+        membershipPlanId: paymentData.planId,
+        membershipStart: paymentData.periodStart,
+        membershipEnd: paymentData.periodEnd,
+        status: 'active',
+      });
+    }
+
     setCollectFee(null);
     await fetchData();
   };
@@ -138,7 +168,7 @@ export default function Fees() {
 
   if (loading) {
     return (
-      <Layout title="Fees">
+      <Layout title="Fee Management">
         <div className="flex items-center justify-center h-64">
           <Loader2 className="w-8 h-8 animate-spin text-indigo-600" />
         </div>
@@ -149,44 +179,53 @@ export default function Fees() {
   return (
     <Layout title="Fee Management">
       <div className="space-y-6">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">Fee Management</h1>
-            <p className="text-gray-500 mt-1">Track collections, dues, and issue printable receipts</p>
+            <h1 className="text-2xl font-bold text-gray-900">Fee & Subscription Management</h1>
+            <p className="text-gray-500 text-xs sm:text-sm mt-0.5">
+              Collect fees, renew membership cycles, apply discounts & print official bills
+            </p>
           </div>
-          <Button icon={<Plus className="w-4 h-4" />} onClick={handleGenerateMonthlyFees} loading={generating}>
-            Generate Monthly Fees
+
+          <Button
+            variant="primary"
+            icon={generating ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
+            onClick={handleGenerateMonthlyFees}
+            disabled={generating}
+          >
+            {generating ? 'Generating...' : 'Generate Monthly Due Bills'}
           </Button>
         </div>
 
+        {/* 3 Overview Stat Cards */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <div className="bg-white rounded-xl shadow-sm p-4 flex items-center gap-3 border border-gray-100">
-            <div className="w-11 h-11 bg-green-100 rounded-xl flex items-center justify-center">
-              <IndianRupee className="w-5 h-5 text-green-600" />
+          <div className="bg-white rounded-2xl shadow-xs p-4.5 flex items-center gap-3.5 border border-slate-200/80">
+            <div className="w-12 h-12 bg-emerald-100 rounded-2xl flex items-center justify-center text-emerald-700">
+              <TrendingUp className="w-6 h-6" />
             </div>
             <div>
-              <p className="text-xs text-gray-500 font-medium uppercase tracking-wider">Total Revenue</p>
-              <p className="text-xl font-bold text-gray-900">{formatCurrency(totalRevenue)}</p>
+              <p className="text-xs text-slate-500 font-bold uppercase tracking-wider">Total Lifetime Revenue</p>
+              <p className="text-xl font-black text-slate-900">{formatCurrency(totalRevenue)}</p>
             </div>
           </div>
 
-          <div className="bg-white rounded-xl shadow-sm p-4 flex items-center gap-3 border border-gray-100">
-            <div className="w-11 h-11 bg-blue-100 rounded-xl flex items-center justify-center">
-              <CheckCircle className="w-5 h-5 text-blue-600" />
+          <div className="bg-white rounded-2xl shadow-xs p-4.5 flex items-center gap-3.5 border border-slate-200/80">
+            <div className="w-12 h-12 bg-indigo-100 rounded-2xl flex items-center justify-center text-indigo-700">
+              <CheckCircle className="w-6 h-6" />
             </div>
             <div>
-              <p className="text-xs text-gray-500 font-medium uppercase tracking-wider">Collected (Month)</p>
-              <p className="text-xl font-bold text-gray-900">{formatCurrency(monthCollected)}</p>
+              <p className="text-xs text-slate-500 font-bold uppercase tracking-wider">Collected ({selectedMonth || currentMonth})</p>
+              <p className="text-xl font-black text-slate-900">{formatCurrency(monthCollected)}</p>
             </div>
           </div>
 
-          <div className="bg-white rounded-xl shadow-sm p-4 flex items-center gap-3 border border-gray-100">
-            <div className="w-11 h-11 bg-red-100 rounded-xl flex items-center justify-center">
-              <AlertCircle className="w-5 h-5 text-red-600" />
+          <div className="bg-white rounded-2xl shadow-xs p-4.5 flex items-center gap-3.5 border border-slate-200/80">
+            <div className="w-12 h-12 bg-rose-100 rounded-2xl flex items-center justify-center text-rose-700">
+              <AlertCircle className="w-6 h-6" />
             </div>
             <div>
-              <p className="text-xs text-gray-500 font-medium uppercase tracking-wider">Pending Dues</p>
-              <p className="text-xl font-bold text-gray-900">{pendingCount} students</p>
+              <p className="text-xs text-slate-500 font-bold uppercase tracking-wider">Pending Dues</p>
+              <p className="text-xl font-black text-slate-900">{pendingCount} students</p>
             </div>
           </div>
         </div>
@@ -208,6 +247,7 @@ export default function Fees() {
         onSubmit={handleCollectFee}
         student={collectFeeStudent}
         plan={collectFeePlan}
+        plans={plans}
         seat={collectFeeSeat}
         addonPricing={addonPricing}
       />
