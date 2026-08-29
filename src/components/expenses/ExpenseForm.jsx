@@ -20,26 +20,26 @@ export default function ExpenseForm({ isOpen, onClose, onSubmit, editData }) {
 
   // Electricity specific calculator fields
   const [meterData, setMeterData] = useState({
-    meterNumber: 'MTR-1082',
+    meterNumber: '',
     prevReading: '',
     currReading: '',
     ratePerUnit: '9',
     unitsConsumed: 0,
-    fixedCharges: '250',
+    fixedCharges: '',
     directBillAmount: '',
     isAutoCalculate: true,
   });
 
   // Staff Salary specific calculator fields
   const [salaryData, setSalaryData] = useState({
-    staffName: 'Ramesh Kumar (Caretaker)',
-    role: 'Caretaker & Front Desk',
-    baseSalary: '8000',
+    staffName: '',
+    role: '',
+    baseSalary: '',
     daysInMonth: '30',
     daysWorked: '30',
-    bonus: '0',
-    deductions: '0',
-    netSalary: 8000,
+    bonus: '',
+    deductions: '',
+    netSalary: 0,
     paymentMode: 'upi',
   });
 
@@ -53,7 +53,7 @@ export default function ExpenseForm({ isOpen, onClose, onSubmit, editData }) {
 
       setFormData({
         ...editData,
-        amount: editData.amount || '',
+        amount: editData.amount !== undefined && editData.amount !== null ? String(editData.amount) : '',
         date: dStr,
         category: editData.category || 'Electricity',
         description: editData.description || '',
@@ -71,6 +71,27 @@ export default function ExpenseForm({ isOpen, onClose, onSubmit, editData }) {
         date: new Date().toISOString().split('T')[0],
         description: '',
         expenseType: 'general',
+      });
+      setMeterData({
+        meterNumber: '',
+        prevReading: '',
+        currReading: '',
+        ratePerUnit: '9',
+        unitsConsumed: 0,
+        fixedCharges: '',
+        directBillAmount: '',
+        isAutoCalculate: true,
+      });
+      setSalaryData({
+        staffName: '',
+        role: '',
+        baseSalary: '',
+        daysInMonth: '30',
+        daysWorked: '30',
+        bonus: '',
+        deductions: '',
+        netSalary: 0,
+        paymentMode: 'upi',
       });
       setFormMode('general');
     }
@@ -91,7 +112,7 @@ export default function ExpenseForm({ isOpen, onClose, onSubmit, editData }) {
         if (total > 0) {
           setFormData((prevD) => ({
             ...prevD,
-            amount: total,
+            amount: String(total),
             category: 'Electricity',
             description: `Electricity Bill (${units} units @ ₹${rate}/unit + ₹${fixed} fixed charges)`,
           }));
@@ -99,7 +120,7 @@ export default function ExpenseForm({ isOpen, onClose, onSubmit, editData }) {
       } else if (meterData.directBillAmount) {
         setFormData((prevD) => ({
           ...prevD,
-          amount: Number(meterData.directBillAmount),
+          amount: String(meterData.directBillAmount),
           category: 'Electricity',
           description: `Electricity Monthly Bill (Direct Invoice)`,
         }));
@@ -129,12 +150,14 @@ export default function ExpenseForm({ isOpen, onClose, onSubmit, editData }) {
       const finalNet = Math.max(0, earned);
 
       setSalaryData((prevD) => ({ ...prevD, netSalary: finalNet }));
-      setFormData((prevD) => ({
-        ...prevD,
-        amount: finalNet,
-        category: 'Staff Salary',
-        description: `Salary for ${salaryData.staffName} (${salaryData.role}) [${daysWorked}/${daysTotal} days + Bonus ₹${bonus} - Deduct ₹${deductions}]`,
-      }));
+      if (base > 0) {
+        setFormData((prevD) => ({
+          ...prevD,
+          amount: String(finalNet),
+          category: 'Staff Salary',
+          description: `Salary for ${salaryData.staffName || 'Staff'} (${salaryData.role || 'Role'}) [${daysWorked}/${daysTotal} days + Bonus ₹${bonus} - Deduct ₹${deductions}]`,
+        }));
+      }
     }
   }, [
     formMode,
@@ -151,15 +174,16 @@ export default function ExpenseForm({ isOpen, onClose, onSubmit, editData }) {
     const { name, value } = e.target;
     setFormData((prev) => ({
       ...prev,
-      [name]: name === 'amount' ? (value === '' ? '' : Number(value)) : value,
+      [name]: value,
     }));
   };
 
   const handleSubmit = (e) => {
     e.preventDefault();
+    const finalAmount = formData.amount === '' ? 0 : Number(formData.amount) || 0;
     onSubmit({
       ...formData,
-      amount: Number(formData.amount),
+      amount: finalAmount,
       date: new Date(formData.date).toISOString(),
       expenseType: formMode,
       meterDetails: formMode === 'electricity' ? meterData : null,
@@ -207,7 +231,7 @@ export default function ExpenseForm({ isOpen, onClose, onSubmit, editData }) {
               }`}
             >
               <Zap className="w-3.5 h-3.5" />
-              <span>⚡ Light Bill</span>
+              <span>⚡ Electricity</span>
             </button>
 
             <button
@@ -218,7 +242,7 @@ export default function ExpenseForm({ isOpen, onClose, onSubmit, editData }) {
               }}
               className={`py-2 px-2 rounded-lg flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
                 formMode === 'salary'
-                  ? 'bg-indigo-600 text-white shadow-xs'
+                  ? 'bg-blue-600 text-white shadow-xs'
                   : 'text-gray-600 hover:text-gray-900'
               }`}
             >
@@ -230,7 +254,7 @@ export default function ExpenseForm({ isOpen, onClose, onSubmit, editData }) {
               type="button"
               onClick={() => {
                 setFormMode('additional');
-                setFormData((prev) => ({ ...prev, category: 'Maintenance / Repairs' }));
+                setFormData((prev) => ({ ...prev, category: 'Maintenance' }));
               }}
               className={`py-2 px-2 rounded-lg flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
                 formMode === 'additional'
@@ -239,49 +263,64 @@ export default function ExpenseForm({ isOpen, onClose, onSubmit, editData }) {
               }`}
             >
               <Wrench className="w-3.5 h-3.5" />
-              <span>🛠️ Additional</span>
+              <span>🛠️ Repair/Other</span>
             </button>
           </div>
         )}
 
         <form onSubmit={handleSubmit} className="space-y-4">
-          {/* ================================================================= */}
-          {/* ELECTRICITY BILL CALCULATOR VIEW                                  */}
-          {/* ================================================================= */}
+          {/* Mode 1: ELECTRICITY METER CALCULATOR */}
           {formMode === 'electricity' && (
-            <div className="bg-amber-50/70 border border-amber-200 p-4 rounded-xl space-y-3">
+            <div className="bg-amber-50/70 border border-amber-200 p-4 rounded-xl space-y-3.5">
               <div className="flex items-center justify-between">
-                <h4 className="text-xs font-bold text-amber-900 uppercase tracking-wider flex items-center gap-1.5">
+                <div className="flex items-center gap-2">
                   <Zap className="w-4 h-4 text-amber-600" />
-                  Monthly Electricity Bill Calculator (बिजली बिल)
-                </h4>
-                <label className="flex items-center gap-1.5 text-xs text-amber-900 cursor-pointer font-medium">
+                  <h4 className="text-xs font-bold text-amber-900 uppercase tracking-wider">
+                    Electricity Meter Unit Billing Calculator
+                  </h4>
+                </div>
+                <label className="flex items-center gap-1.5 text-xs text-amber-900 font-semibold cursor-pointer">
                   <input
                     type="checkbox"
                     checked={meterData.isAutoCalculate}
                     onChange={(e) =>
                       setMeterData((prev) => ({ ...prev, isAutoCalculate: e.target.checked }))
                     }
-                    className="rounded border-amber-300 text-amber-600"
+                    className="rounded text-amber-600 focus:ring-amber-500"
                   />
-                  <span>Meter Reading Mode</span>
+                  <span>Calculate by Units</span>
                 </label>
               </div>
 
               {meterData.isAutoCalculate ? (
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                   <div>
                     <label className="block text-[11px] font-bold text-gray-700 mb-1">
-                      Prev Reading (Units)
+                      Meter No.
+                    </label>
+                    <input
+                      type="text"
+                      value={meterData.meterNumber}
+                      onChange={(e) =>
+                        setMeterData((prev) => ({ ...prev, meterNumber: e.target.value }))
+                      }
+                      placeholder="e.g. MTR-1082"
+                      className="w-full px-2.5 py-1.5 bg-white border border-amber-200 rounded-lg text-xs"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-[11px] font-bold text-gray-700 mb-1">
+                      Prev Reading
                     </label>
                     <input
                       type="number"
-                      placeholder="e.g. 12400"
                       value={meterData.prevReading}
                       onChange={(e) =>
                         setMeterData((prev) => ({ ...prev, prevReading: e.target.value }))
                       }
-                      className="w-full px-2.5 py-1.5 bg-white border border-gray-300 rounded-lg text-sm"
+                      placeholder="e.g. 1420"
+                      className="w-full px-2.5 py-1.5 bg-white border border-amber-200 rounded-lg text-xs"
                     />
                   </div>
 
@@ -291,115 +330,103 @@ export default function ExpenseForm({ isOpen, onClose, onSubmit, editData }) {
                     </label>
                     <input
                       type="number"
-                      placeholder="e.g. 12950"
                       value={meterData.currReading}
                       onChange={(e) =>
                         setMeterData((prev) => ({ ...prev, currReading: e.target.value }))
                       }
-                      className="w-full px-2.5 py-1.5 bg-white border border-gray-300 rounded-lg text-sm"
+                      placeholder="e.g. 1780"
+                      className="w-full px-2.5 py-1.5 bg-white border border-amber-200 rounded-lg text-xs"
                     />
                   </div>
 
                   <div>
                     <label className="block text-[11px] font-bold text-gray-700 mb-1">
-                      Rate / Unit (₹)
+                      Rate/Unit (₹)
                     </label>
                     <input
                       type="number"
-                      step="0.5"
                       value={meterData.ratePerUnit}
                       onChange={(e) =>
                         setMeterData((prev) => ({ ...prev, ratePerUnit: e.target.value }))
                       }
-                      className="w-full px-2.5 py-1.5 bg-white border border-gray-300 rounded-lg text-sm"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-[11px] font-bold text-gray-700 mb-1">
-                      Fixed/Surcharge (₹)
-                    </label>
-                    <input
-                      type="number"
-                      value={meterData.fixedCharges}
-                      onChange={(e) =>
-                        setMeterData((prev) => ({ ...prev, fixedCharges: e.target.value }))
-                      }
-                      className="w-full px-2.5 py-1.5 bg-white border border-gray-300 rounded-lg text-sm"
+                      placeholder="9"
+                      className="w-full px-2.5 py-1.5 bg-white border border-amber-200 rounded-lg text-xs font-semibold"
                     />
                   </div>
                 </div>
               ) : (
                 <div>
                   <label className="block text-xs font-bold text-gray-700 mb-1">
-                    Direct Bill Invoice Amount (₹)
+                    Direct Invoice Bill Amount (₹)
                   </label>
                   <input
                     type="number"
-                    placeholder="Enter total bill amount as per EB invoice"
                     value={meterData.directBillAmount}
                     onChange={(e) =>
                       setMeterData((prev) => ({ ...prev, directBillAmount: e.target.value }))
                     }
-                    className="w-full px-3 py-2 bg-white border border-gray-300 rounded-lg text-sm"
+                    placeholder="e.g. 4500"
+                    className="w-full px-3 py-2 bg-white border border-amber-200 rounded-lg text-sm font-bold text-gray-900"
                   />
                 </div>
               )}
 
               {meterData.isAutoCalculate && meterData.unitsConsumed > 0 && (
-                <div className="bg-white p-2.5 rounded-lg border border-amber-200 text-xs flex items-center justify-between text-amber-900">
+                <div className="flex items-center justify-between text-xs bg-white/80 p-2 rounded-lg border border-amber-200/60 font-semibold text-amber-950">
                   <span>
-                    ⚡ Consumption: <strong>{meterData.unitsConsumed} Units</strong> (@ ₹
+                    Consumed: <strong>{meterData.unitsConsumed} Units</strong> (@ ₹
                     {meterData.ratePerUnit}/unit)
                   </span>
-                  <span className="font-bold text-amber-700">
-                    Calculated: {formatCurrency(formData.amount)}
+                  <span className="text-amber-800 font-extrabold text-sm">
+                    Total: {formatCurrency(formData.amount || 0)}
                   </span>
                 </div>
               )}
             </div>
           )}
 
-          {/* ================================================================= */}
-          {/* STAFF SALARY CALCULATOR VIEW                                      */}
-          {/* ================================================================= */}
+          {/* Mode 2: STAFF SALARY CALCULATOR */}
           {formMode === 'salary' && (
-            <div className="bg-indigo-50/70 border border-indigo-200 p-4 rounded-xl space-y-3">
-              <h4 className="text-xs font-bold text-indigo-900 uppercase tracking-wider flex items-center gap-1.5">
-                <Users className="w-4 h-4 text-indigo-600" />
-                Monthly Staff Salary Calculator (स्टाफ सैलरी)
-              </h4>
+            <div className="bg-blue-50/70 border border-blue-200 p-4 rounded-xl space-y-3.5">
+              <div className="flex items-center gap-2">
+                <Users className="w-4 h-4 text-blue-600" />
+                <h4 className="text-xs font-bold text-blue-900 uppercase tracking-wider">
+                  Staff Salary & Attendance Calculator
+                </h4>
+              </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-[11px] font-bold text-gray-700 mb-1">Staff Name *</label>
+                  <label className="block text-[11px] font-bold text-gray-700 mb-1">
+                    Staff Name *
+                  </label>
                   <input
                     type="text"
                     required
                     value={salaryData.staffName}
-                    onChange={(e) => setSalaryData((prev) => ({ ...prev, staffName: e.target.value }))}
-                    className="w-full px-3 py-1.5 bg-white border border-gray-300 rounded-lg text-sm"
+                    onChange={(e) =>
+                      setSalaryData((prev) => ({ ...prev, staffName: e.target.value }))
+                    }
                     placeholder="e.g. Ramesh Kumar"
+                    className="w-full px-2.5 py-1.5 bg-white border border-blue-200 rounded-lg text-xs"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-[11px] font-bold text-gray-700 mb-1">Designation / Role</label>
-                  <select
+                  <label className="block text-[11px] font-bold text-gray-700 mb-1">
+                    Role / Designation
+                  </label>
+                  <input
+                    type="text"
                     value={salaryData.role}
                     onChange={(e) => setSalaryData((prev) => ({ ...prev, role: e.target.value }))}
-                    className="w-full px-3 py-1.5 bg-white border border-gray-300 rounded-lg text-sm"
-                  >
-                    <option value="Caretaker & Front Desk">Caretaker & Front Desk</option>
-                    <option value="Night Shift Guard">Night Shift Guard</option>
-                    <option value="Housekeeping & Cleaning Staff">Housekeeping & Cleaning Staff</option>
-                    <option value="Library Assistant">Library Assistant</option>
-                    <option value="Manager / Operator">Manager / Operator</option>
-                  </select>
+                    placeholder="e.g. Caretaker, Receptionist"
+                    className="w-full px-2.5 py-1.5 bg-white border border-blue-200 rounded-lg text-xs"
+                  />
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                 <div>
                   <label className="block text-[11px] font-bold text-gray-700 mb-1">
                     Monthly Base (₹)
@@ -407,65 +434,77 @@ export default function ExpenseForm({ isOpen, onClose, onSubmit, editData }) {
                   <input
                     type="number"
                     value={salaryData.baseSalary}
-                    onChange={(e) => setSalaryData((prev) => ({ ...prev, baseSalary: e.target.value }))}
-                    className="w-full px-2.5 py-1.5 bg-white border border-gray-300 rounded-lg text-sm"
+                    onChange={(e) =>
+                      setSalaryData((prev) => ({ ...prev, baseSalary: e.target.value }))
+                    }
+                    placeholder="e.g. 8000"
+                    className="w-full px-2.5 py-1.5 bg-white border border-blue-200 rounded-lg text-xs font-semibold"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-[11px] font-bold text-gray-700 mb-1">Days Worked</label>
+                  <label className="block text-[11px] font-bold text-gray-700 mb-1">
+                    Days Worked
+                  </label>
                   <input
                     type="number"
-                    max="31"
                     value={salaryData.daysWorked}
-                    onChange={(e) => setSalaryData((prev) => ({ ...prev, daysWorked: e.target.value }))}
-                    className="w-full px-2.5 py-1.5 bg-white border border-gray-300 rounded-lg text-sm"
+                    onChange={(e) =>
+                      setSalaryData((prev) => ({ ...prev, daysWorked: e.target.value }))
+                    }
+                    placeholder="30"
+                    className="w-full px-2.5 py-1.5 bg-white border border-blue-200 rounded-lg text-xs"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-[11px] font-bold text-gray-700 mb-1">Bonus/OT (₹)</label>
+                  <label className="block text-[11px] font-bold text-gray-700 mb-1">
+                    Bonus / Incentive (₹)
+                  </label>
                   <input
                     type="number"
                     value={salaryData.bonus}
-                    onChange={(e) => setSalaryData((prev) => ({ ...prev, bonus: e.target.value }))}
-                    className="w-full px-2.5 py-1.5 bg-white border border-gray-300 rounded-lg text-sm"
+                    onChange={(e) =>
+                      setSalaryData((prev) => ({ ...prev, bonus: e.target.value }))
+                    }
+                    placeholder="0"
+                    className="w-full px-2.5 py-1.5 bg-white border border-blue-200 rounded-lg text-xs text-green-700"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-[11px] font-bold text-gray-700 mb-1">Deductions (₹)</label>
+                  <label className="block text-[11px] font-bold text-gray-700 mb-1">
+                    Deduction (₹)
+                  </label>
                   <input
                     type="number"
                     value={salaryData.deductions}
                     onChange={(e) =>
                       setSalaryData((prev) => ({ ...prev, deductions: e.target.value }))
                     }
-                    className="w-full px-2.5 py-1.5 bg-white border border-gray-300 rounded-lg text-sm"
+                    placeholder="0"
+                    className="w-full px-2.5 py-1.5 bg-white border border-blue-200 rounded-lg text-xs text-red-700"
                   />
                 </div>
               </div>
 
-              <div className="bg-white p-2.5 rounded-lg border border-indigo-200 text-xs flex items-center justify-between text-indigo-900">
-                <span>
-                  💼 Net Payable Salary: <strong>{salaryData.staffName}</strong>
-                </span>
-                <span className="font-bold text-base text-indigo-700">
-                  {formatCurrency(salaryData.netSalary)}
+              <div className="flex items-center justify-between text-xs bg-white/80 p-2.5 rounded-lg border border-blue-200/60 font-bold text-blue-950">
+                <span>Calculated Net Payable Salary:</span>
+                <span className="text-blue-700 text-sm font-black">
+                  {formatCurrency(salaryData.netSalary || 0)}
                 </span>
               </div>
             </div>
           )}
 
-          {/* Standard Fields (Category, Amount, Date, Description) */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          {/* Standard Expense Fields */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">
-                Category *
+                Expense Category *
               </label>
               <select
                 name="category"
-                required
                 value={formData.category}
                 onChange={handleChange}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white focus:ring-2 focus:ring-indigo-500"
@@ -480,50 +519,50 @@ export default function ExpenseForm({ isOpen, onClose, onSubmit, editData }) {
 
             <div>
               <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">
-                Final Amount (₹) *
+                Expense Date *
               </label>
               <input
-                type="number"
-                name="amount"
-                min="0"
+                type="date"
+                name="date"
                 required
-                placeholder="0"
-                value={formData.amount}
+                value={formData.date}
                 onChange={handleChange}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm font-bold text-gray-900 focus:ring-2 focus:ring-indigo-500"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white focus:ring-2 focus:ring-indigo-500"
               />
             </div>
           </div>
 
           <div>
             <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">
-              Expense / Payment Date *
+              Total Amount (₹) *
             </label>
             <input
-              type="date"
-              name="date"
+              type="number"
+              name="amount"
+              min="0"
               required
-              value={formData.date}
+              value={formData.amount}
               onChange={handleChange}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white focus:ring-2 focus:ring-indigo-500"
+              placeholder="e.g. 500 or 1500"
+              className="w-full px-3.5 py-2.5 border border-gray-300 rounded-xl text-base font-extrabold text-gray-900 focus:ring-2 focus:ring-indigo-500"
             />
           </div>
 
           <div>
             <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">
-              Description / Memo Details
+              Description / Notes
             </label>
             <textarea
               name="description"
-              rows={2}
               value={formData.description}
               onChange={handleChange}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white focus:ring-2 focus:ring-indigo-500"
-              placeholder="e.g. Electricity bill with meter units, staff salary, AC repair service, RO filter..."
+              rows="2"
+              placeholder="e.g. Paid monthly rent / Purchased water bottles..."
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500"
             />
           </div>
 
-          <div className="mt-5 flex justify-end gap-3 pt-3 border-t border-gray-100">
+          <div className="flex justify-end gap-3 pt-3 border-t border-gray-100">
             <Button variant="secondary" onClick={onClose} type="button">
               Cancel
             </Button>

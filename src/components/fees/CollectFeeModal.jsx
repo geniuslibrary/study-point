@@ -15,7 +15,7 @@ export default function CollectFeeModal({
   addonPricing = [],
 }) {
   const [selectedPlanId, setSelectedPlanId] = useState('');
-  const [discountAmount, setDiscountAmount] = useState(0);
+  const [discountAmount, setDiscountAmount] = useState('');
   const [paymentMode, setPaymentMode] = useState('cash');
   const [notes, setNotes] = useState('');
   const [loading, setLoading] = useState(false);
@@ -23,7 +23,11 @@ export default function CollectFeeModal({
   useEffect(() => {
     if (student) {
       setSelectedPlanId(student.membershipPlanId || (plans[0]?.id || ''));
-      setDiscountAmount(Number(student.discountAmount) || 0);
+      setDiscountAmount(
+        student.discountAmount !== undefined && student.discountAmount !== null && student.discountAmount !== 0
+          ? String(student.discountAmount)
+          : ''
+      );
       setPaymentMode('cash');
       setNotes('');
     }
@@ -53,7 +57,7 @@ export default function CollectFeeModal({
     });
   }
 
-  const discount = Number(discountAmount) || 0;
+  const discount = discountAmount === '' ? 0 : Number(discountAmount) || 0;
   const totalPayable = Math.max(0, planPrice + addonTotal - discount);
 
   // Compute Renewal Period
@@ -63,7 +67,6 @@ export default function CollectFeeModal({
       const prevEnd = student.membershipEnd.toDate
         ? student.membershipEnd.toDate()
         : new Date(student.membershipEnd);
-      // If previous membership hasn't expired yet, start from previous end date
       if (prevEnd > new Date()) {
         start = prevEnd;
       }
@@ -156,9 +159,9 @@ export default function CollectFeeModal({
               type="number"
               min="0"
               value={discountAmount}
-              onChange={(e) => setDiscountAmount(Number(e.target.value) || 0)}
+              onChange={(e) => setDiscountAmount(e.target.value)}
               className="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl text-sm font-bold text-emerald-700 bg-white focus:ring-2 focus:ring-emerald-500"
-              placeholder="0"
+              placeholder="e.g. 100"
             />
           </div>
         </div>

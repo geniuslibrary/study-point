@@ -24,7 +24,7 @@ export default function StudentForm({
     sectionId: '',
     seatId: '',
     membershipPlanId: '',
-    discountAmount: 0,
+    discountAmount: '',
     shift: 'full_day',
     joinDate: getTodayInput(),
     status: 'active',
@@ -51,7 +51,7 @@ export default function StudentForm({
         sectionId: editData.sectionId || '',
         seatId: editData.seatId || '',
         membershipPlanId: editData.membershipPlanId || '',
-        discountAmount: editData.discountAmount || 0,
+        discountAmount: editData.discountAmount !== undefined && editData.discountAmount !== null && editData.discountAmount !== 0 ? String(editData.discountAmount) : '',
         shift: editData.shift || 'full_day',
         joinDate: jDate,
         status: editData.status || 'active',
@@ -67,7 +67,7 @@ export default function StudentForm({
         sectionId: sections[0]?.id || '',
         seatId: '',
         membershipPlanId: plans[0]?.id || '',
-        discountAmount: 0,
+        discountAmount: '',
         shift: 'full_day',
         joinDate: getTodayInput(),
         status: 'active',
@@ -83,7 +83,7 @@ export default function StudentForm({
     const selectedPlan = plans.find((p) => p.id === formData.membershipPlanId);
     const duration = selectedPlan?.durationMonths || 1;
     const planPrice = Number(selectedPlan?.price) || 0;
-    const discount = Number(formData.discountAmount) || 0;
+    const discount = formData.discountAmount === '' ? 0 : Number(formData.discountAmount) || 0;
     const finalPrice = Math.max(0, planPrice - discount);
 
     try {
@@ -229,7 +229,7 @@ export default function StudentForm({
     try {
       const payload = {
         ...formData,
-        discountAmount: Number(formData.discountAmount) || 0,
+        discountAmount: formData.discountAmount === '' ? 0 : Number(formData.discountAmount) || 0,
         seatId: formData.status === 'left' ? null : formData.seatId,
         shiftTiming: getShiftTimingString(),
         joinDate: new Date(formData.joinDate).toISOString(),
@@ -472,9 +472,9 @@ export default function StudentForm({
               type="number"
               min="0"
               value={formData.discountAmount}
-              onChange={(e) => setFormData({ ...formData, discountAmount: Number(e.target.value) || 0 })}
-              className="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl text-sm bg-white font-bold text-emerald-700"
-              placeholder="0"
+              onChange={(e) => setFormData({ ...formData, discountAmount: e.target.value })}
+              className="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl text-sm bg-white font-bold text-emerald-700 focus:ring-2 focus:ring-emerald-500"
+              placeholder="e.g. 100"
             />
           </div>
         </div>

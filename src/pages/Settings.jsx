@@ -12,11 +12,14 @@ import {
   Image as ImageIcon,
   X,
   BookOpen,
+  Edit2,
+  Check,
 } from 'lucide-react';
-import { doc, getDoc, setDoc, collection, getDocs, deleteDoc, addDoc } from 'firebase/firestore';
+import { doc, getDoc, setDoc, collection, getDocs, deleteDoc, addDoc, updateDoc } from 'firebase/firestore';
 import { db } from '../firebase/config';
 
 const SETTINGS_LOCAL_KEY = 'studypoint_settings';
+const ADDONS_LOCAL_KEY = 'studypoint_addons';
 
 export default function Settings() {
   const fileInputRef = useRef(null);
@@ -31,11 +34,13 @@ export default function Settings() {
 
   const [addons, setAddons] = useState([]);
   const [newAddon, setNewAddon] = useState({ name: '', monthlyCharge: '' });
+  const [editingAddonId, setEditingAddonId] = useState(null);
+  const [editAddonData, setEditAddonData] = useState({ name: '', monthlyCharge: '' });
   const [isSaving, setIsSaving] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
 
   const fetchSettings = async () => {
-    // 1. Check LocalStorage first
+    // 1. Check LocalStorage first for instantaneous render
     const local = localStorage.getItem(SETTINGS_LOCAL_KEY);
     if (local) {
       try {
@@ -54,18 +59,43 @@ export default function Settings() {
       console.warn('Settings fetch warning:', e.message);
     }
 
+    // 2. Fetch Add-ons
     try {
+      const localAddons = localStorage.getItem(ADDONS_LOCAL_KEY);
+      if (localAddons) {
+        try {
+          setAddons(JSON.parse(localAddons));
+        } catch (e) {}
+      }
+
       const addonSnap = await getDocs(collection(db, COLLECTIONS.ADDON_PRICING));
       const addonsData = addonSnap.docs.map((d) => ({ id: d.id, ...d.data() }));
 
-      if (addonsData.length === 0) {
-        setAddons(DEFAULT_ADDONS.map((a, i) => ({ id: 'addon_' + i, ...a })));
+      if (addonsData.length === 0 && !localStorage.getItem('studypoint_addons_initialized')) {
+        // Initial first-time seed to Firestore
+        const seeded = [];
+        for (const def of DEFAULT_ADDONS) {
+          try {
+            const added = await addDoc(collection(db, COLLECTIONS.ADDON_PRICING), {
+              name: def.name,
+              monthlyCharge: Number(def.monthlyCharge) || 0,
+              isActive: true,
+            });
+            seeded.push({ id: added.id, name: def.name, monthlyCharge: def.monthlyCharge, isActive: true });
+          } catch (err) {
+            seeded.push({ id: 'addon_' + Math.random().toString(36).substr(2, 6), ...def });
+          }
+        }
+        localStorage.setItem('studypoint_addons_initialized', 'true');
+        localStorage.setItem(ADDONS_LOCAL_KEY, JSON.stringify(seeded));
+        setAddons(seeded);
       } else {
+        localStorage.setItem('studypoint_addons_initialized', 'true');
+        localStorage.setItem(ADDONS_LOCAL_KEY, JSON.stringify(addonsData));
         setAddons(addonsData);
       }
     } catch (e) {
-      console.warn('Addons fetch warning:', e.message);
-      setAddons(DEFAULT_ADDONS.map((a, i) => ({ id: 'addon_' + i, ...a })));
+      console.warn('Addons fetch error:', e.message);
     }
   };
 
@@ -82,7 +112,6 @@ export default function Settings() {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    // Check size (< 2MB)
     if (file.size > 2 * 1024 * 1024) {
       alert('Logo image size should be less than 2MB');
       return;
@@ -122,27 +151,83 @@ export default function Settings() {
     setIsSaving(false);
   };
 
-  const handleAddAddon = async () => {
-    if (newAddon.name && newAddon.monthlyCharge !== '') {
+  // Add new Add-on Facility
+  const handleAddAddon = async (e) => {
+    if (e) e.preventDefault();
+    if (!newAddon.name.trim()) return;
+
+    const chargeNum = newAddon.monthlyCharge === '' ? 0 : Number(newAddon.monthlyCharge) || 0;
+    try {
+      let newDocId = 'addon_' + Date.now();
       try {
-        await addDoc(collection(db, COLLECTIONS.ADDON_PRICING), {
-          name: newAddon.name,
-          monthlyCharge: Number(newAddon.monthlyCharge),
+        const added = await addDoc(collection(db, COLLECTIONS.ADDON_PRICING), {
+          name: newAddon.name.trim(),
+          monthlyCharge: chargeNum,
           isActive: true,
         });
-        setNewAddon({ name: '', monthlyCharge: '' });
-        await fetchSettings();
-        showToast('Facility Add-on added!');
-      } catch (e) {
-        console.error('Error adding addon:', e);
+        newDocId = added.id;
+      } catch (err) {
+        console.warn('Addon add cloud error:', err);
       }
+
+      const updated = [...addons, { id: newDocId, name: newAddon.name.trim(), monthlyCharge: chargeNum, isActive: true }];
+      setAddons(updated);
+      localStorage.setItem(ADDONS_LOCAL_KEY, JSON.stringify(updated));
+      setNewAddon({ name: '', monthlyCharge: '' });
+      showToast(`Facility "${newAddon.name.trim()}" added successfully!`);
+    } catch (e) {
+      console.error('Error adding addon:', e);
     }
   };
 
+  // Start Editing an Add-on
+  const handleStartEdit = (addon) => {
+    setEditingAddonId(addon.id);
+    setEditAddonData({
+      name: addon.name || '',
+      monthlyCharge: addon.monthlyCharge !== undefined && addon.monthlyCharge !== null ? String(addon.monthlyCharge) : '',
+    });
+  };
+
+  // Save Edit of an Add-on
+  const handleSaveEditAddon = async (id) => {
+    if (!editAddonData.name.trim()) return;
+    const chargeNum = editAddonData.monthlyCharge === '' ? 0 : Number(editAddonData.monthlyCharge) || 0;
+
+    try {
+      try {
+        await updateDoc(doc(db, COLLECTIONS.ADDON_PRICING, id), {
+          name: editAddonData.name.trim(),
+          monthlyCharge: chargeNum,
+        });
+      } catch (err) {
+        console.warn('Cloud update addon error:', err);
+      }
+
+      const updated = addons.map((a) =>
+        a.id === id ? { ...a, name: editAddonData.name.trim(), monthlyCharge: chargeNum } : a
+      );
+      setAddons(updated);
+      localStorage.setItem(ADDONS_LOCAL_KEY, JSON.stringify(updated));
+      setEditingAddonId(null);
+      showToast('Facility details updated successfully!');
+    } catch (e) {
+      console.error('Error updating addon:', e);
+    }
+  };
+
+  // Delete an Add-on
   const handleDeleteAddon = async (id) => {
     try {
-      await deleteDoc(doc(db, COLLECTIONS.ADDON_PRICING, id));
-      await fetchSettings();
+      try {
+        await deleteDoc(doc(db, COLLECTIONS.ADDON_PRICING, id));
+      } catch (err) {
+        console.warn('Cloud delete addon error:', err);
+      }
+
+      const updated = addons.filter((a) => a.id !== id);
+      setAddons(updated);
+      localStorage.setItem(ADDONS_LOCAL_KEY, JSON.stringify(updated));
       showToast('Facility Add-on removed');
     } catch (e) {
       console.error('Error deleting addon:', e);
@@ -161,7 +246,7 @@ export default function Settings() {
           <div>
             <h1 className="text-2xl font-bold text-gray-900">Study Point Settings</h1>
             <p className="text-gray-500 text-sm mt-0.5">
-              Manage library profile, official logo for bills & facility pricing
+              Manage library profile, official logo for bills & seat facility pricing
             </p>
           </div>
         </div>
@@ -319,62 +404,122 @@ export default function Settings() {
             </form>
           </Card>
 
-          {/* Add-on Facility Pricing */}
+          {/* Add-on Facility Pricing with Full Edit, Update & Delete */}
           <Card title="Seat Add-on Facility Pricing (Monthly Charges)">
             <div className="space-y-4">
-              <div className="flex flex-col sm:flex-row gap-2.5 items-end bg-gray-50 p-3 rounded-xl border border-gray-100">
+              {/* Form to Add New Addon */}
+              <form onSubmit={handleAddAddon} className="flex flex-col sm:flex-row gap-2.5 items-end bg-slate-50 p-3.5 rounded-2xl border border-slate-200">
                 <div className="flex-grow w-full">
-                  <label className="block text-xs font-bold text-gray-700 mb-1">Facility Name</label>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">Facility Name</label>
                   <input
                     type="text"
                     value={newAddon.name}
                     onChange={(e) => setNewAddon((prev) => ({ ...prev, name: e.target.value }))}
                     placeholder="e.g. Locker, Air Cooler, WiFi"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white"
+                    className="w-full px-3.5 py-2 border border-slate-300 rounded-xl text-sm bg-white focus:ring-2 focus:ring-indigo-500"
+                    required
                   />
                 </div>
                 <div className="w-full sm:w-1/3">
-                  <label className="block text-xs font-bold text-gray-700 mb-1">Monthly (₹)</label>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">Monthly (₹)</label>
                   <input
                     type="number"
+                    min="0"
                     value={newAddon.monthlyCharge}
                     onChange={(e) => setNewAddon((prev) => ({ ...prev, monthlyCharge: e.target.value }))}
-                    placeholder="200"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white"
+                    placeholder="0"
+                    className="w-full px-3.5 py-2 border border-slate-300 rounded-xl text-sm bg-white focus:ring-2 focus:ring-indigo-500"
                   />
                 </div>
-                <Button variant="primary" onClick={handleAddAddon} type="button">
+                <Button variant="primary" type="submit">
                   <Plus size={18} />
                 </Button>
-              </div>
+              </form>
 
+              {/* List of Addons with Inline Edit & Delete */}
               <div>
-                <h4 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">
-                  Configured Facility Rates
+                <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2.5">
+                  Configured Facilities ({addons.length})
                 </h4>
                 {addons.length > 0 ? (
-                  <ul className="divide-y divide-gray-100 border border-gray-200 rounded-xl overflow-hidden">
-                    {addons.map((addon) => (
-                      <li key={addon.id} className="flex justify-between items-center p-3.5 hover:bg-gray-50 bg-white">
-                        <span className="font-medium text-gray-900 text-sm">{addon.name}</span>
-                        <div className="flex items-center gap-3">
-                          <span className="text-indigo-600 font-bold text-sm">
-                            ₹{addon.monthlyCharge || addon.price || 0}/mo
-                          </span>
-                          <button
-                            onClick={() => handleDeleteAddon(addon.id)}
-                            className="text-red-500 hover:text-red-700 hover:bg-red-50 p-1.5 rounded-lg transition-colors"
-                            title="Delete facility"
-                          >
-                            <Trash2 size={16} />
-                          </button>
-                        </div>
-                      </li>
-                    ))}
+                  <ul className="divide-y divide-slate-100 border border-slate-200 rounded-2xl overflow-hidden bg-white">
+                    {addons.map((addon) => {
+                      const isEditing = editingAddonId === addon.id;
+
+                      if (isEditing) {
+                        return (
+                          <li key={addon.id} className="p-3 bg-indigo-50/60 flex flex-col sm:flex-row items-center gap-2">
+                            <input
+                              type="text"
+                              value={editAddonData.name}
+                              onChange={(e) => setEditAddonData((prev) => ({ ...prev, name: e.target.value }))}
+                              className="w-full sm:w-1/2 px-3 py-1.5 border border-indigo-300 rounded-lg text-sm bg-white font-semibold"
+                              placeholder="Facility Name"
+                            />
+                            <div className="flex items-center gap-1 w-full sm:w-1/3">
+                              <span className="text-xs font-bold text-slate-500">₹</span>
+                              <input
+                                type="number"
+                                min="0"
+                                value={editAddonData.monthlyCharge}
+                                onChange={(e) => setEditAddonData((prev) => ({ ...prev, monthlyCharge: e.target.value }))}
+                                className="w-full px-3 py-1.5 border border-indigo-300 rounded-lg text-sm bg-white font-bold text-indigo-700"
+                                placeholder="0"
+                              />
+                            </div>
+                            <div className="flex items-center gap-1 shrink-0 self-end sm:self-auto">
+                              <button
+                                type="button"
+                                onClick={() => handleSaveEditAddon(addon.id)}
+                                className="p-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold transition-all flex items-center gap-1 cursor-pointer"
+                                title="Save changes"
+                              >
+                                <Check size={16} />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setEditingAddonId(null)}
+                                className="p-1.5 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-lg text-xs font-bold transition-all cursor-pointer"
+                                title="Cancel"
+                              >
+                                <X size={16} />
+                              </button>
+                            </div>
+                          </li>
+                        );
+                      }
+
+                      return (
+                        <li key={addon.id} className="flex justify-between items-center p-3.5 hover:bg-slate-50 transition-colors">
+                          <span className="font-semibold text-slate-900 text-sm">{addon.name}</span>
+                          <div className="flex items-center gap-3">
+                            <span className="text-indigo-700 font-black text-sm bg-indigo-50 px-2.5 py-1 rounded-lg border border-indigo-100">
+                              ₹{addon.monthlyCharge || addon.price || 0}/mo
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => handleStartEdit(addon)}
+                              className="text-indigo-600 hover:text-indigo-800 hover:bg-indigo-50 p-1.5 rounded-lg transition-colors cursor-pointer"
+                              title="Edit facility name / charge"
+                            >
+                              <Edit2 size={16} />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteAddon(addon.id)}
+                              className="text-rose-500 hover:text-rose-700 hover:bg-rose-50 p-1.5 rounded-lg transition-colors cursor-pointer"
+                              title="Delete facility"
+                            >
+                              <Trash2 size={16} />
+                            </button>
+                          </div>
+                        </li>
+                      );
+                    })}
                   </ul>
                 ) : (
-                  <p className="text-sm text-gray-500 italic p-4 text-center bg-gray-50 rounded-xl">
-                    No add-on facilities defined.
+                  <p className="text-sm text-slate-500 italic p-6 text-center bg-slate-50 rounded-2xl border border-slate-200">
+                    No add-on facilities defined. Add one above!
                   </p>
                 )}
               </div>
