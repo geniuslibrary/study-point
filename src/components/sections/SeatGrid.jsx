@@ -9,8 +9,21 @@ export default function SeatGrid({ seats = [], onSeatClick }) {
     );
   }
 
-  // Proper numerical sorting: 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, ...
-  const sortedSeats = [...seats].sort(
+  // Deduplicate and Sort numerically by seatNumber: 1, 2, 3...
+  const uniqueMap = new Map();
+  seats.forEach((seat) => {
+    const num = Number(seat.seatNumber) || seat.seatNumber;
+    if (!uniqueMap.has(num)) {
+      uniqueMap.set(num, seat);
+    } else {
+      const existing = uniqueMap.get(num);
+      if ((!existing.assignedStudents || existing.assignedStudents.length === 0) && seat.assignedStudents?.length > 0) {
+        uniqueMap.set(num, seat);
+      }
+    }
+  });
+
+  const sortedSeats = Array.from(uniqueMap.values()).sort(
     (a, b) => (Number(a.seatNumber) || 0) - (Number(b.seatNumber) || 0)
   );
 
@@ -61,106 +74,94 @@ export default function SeatGrid({ seats = [], onSeatClick }) {
 
           return (
             <div
-              key={seat.id}
+              key={seat.id || `seat_${seat.seatNumber}`}
               onClick={() => onSeatClick && onSeatClick(seat)}
-              className={`border-2 rounded-2xl p-3.5 cursor-pointer transition-all duration-150 flex flex-col justify-between hover:-translate-y-0.5 group ${cardStyle}`}
+              className={`relative p-3.5 rounded-2xl border transition-all duration-200 cursor-pointer flex flex-col justify-between min-h-[140px] group ${cardStyle}`}
             >
-              {/* Header: Seat Number + Facilities */}
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-xs font-black text-slate-900 bg-white/90 px-2.5 py-1 rounded-lg shadow-2xs border border-slate-200 group-hover:border-slate-300">
-                  Seat #{seat.seatNumber}
-                </span>
+              {/* Top Row: Seat Number & Facilities */}
+              <div className="flex items-start justify-between gap-1">
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 rounded-xl bg-white shadow-2xs border border-slate-200/80 flex items-center justify-center font-black text-xs text-slate-800">
+                    #{seat.seatNumber}
+                  </div>
+                  <span className="text-[10px] font-black uppercase tracking-wider text-slate-400">Seat</span>
+                </div>
 
-                <div className="flex items-center gap-1.5">
+                {/* Facility Icons */}
+                <div className="flex items-center gap-1">
                   {seat.addons?.locker && (
-                    <span className="p-1 bg-amber-100 text-amber-800 rounded-md" title="Locker Included">
+                    <span title="Locker Facility" className="p-1 rounded-md bg-white border border-slate-200 text-indigo-600 shadow-2xs">
                       <Lock className="w-3 h-3" />
                     </span>
                   )}
                   {seat.addons?.wifi && (
-                    <span className="p-1 bg-blue-100 text-blue-800 rounded-md" title="High Speed WiFi">
+                    <span title="High-speed WiFi" className="p-1 rounded-md bg-white border border-slate-200 text-teal-600 shadow-2xs">
                       <Wifi className="w-3 h-3" />
                     </span>
                   )}
                   {seat.addons?.light && (
-                    <span className="p-1 bg-yellow-100 text-yellow-800 rounded-md" title="Dedicated Desk Lamp">
+                    <span title="Personal Desk Lamp" className="p-1 rounded-md bg-white border border-slate-200 text-amber-500 shadow-2xs">
                       <Lamp className="w-3 h-3" />
                     </span>
                   )}
-                  <Armchair className="w-4 h-4 text-slate-400 ml-0.5" />
                 </div>
               </div>
 
-              {/* Occupant Shifts Content */}
-              <div className="space-y-1.5 text-xs my-1">
-                {fullDayStudent ? (
-                  <div className="bg-white/95 p-2 rounded-xl border border-indigo-100 shadow-2xs">
-                    <div className="flex items-center gap-1.5 font-bold text-indigo-900">
-                      <Sun className="w-3.5 h-3.5 text-indigo-600 shrink-0" />
-                      <span className="truncate">{fullDayStudent.name}</span>
-                    </div>
-                    <p className="text-[11px] text-slate-500 mt-0.5 font-medium">Full Day (6 AM - 11 PM)</p>
+              {/* Middle Row: Shift Occupancy Breakdown */}
+              <div className="my-2.5 space-y-1.5">
+                {/* 1. Full Day Booking */}
+                {fullDayStudent && (
+                  <div className="flex items-center gap-1.5 text-xs bg-indigo-100/90 text-indigo-900 px-2 py-1 rounded-lg font-bold">
+                    <Sun className="w-3.5 h-3.5 text-indigo-600 shrink-0" />
+                    <span className="truncate">{fullDayStudent.name}</span>
                   </div>
-                ) : firstHalfStudent || secondHalfStudent || customStudents.length > 0 ? (
-                  <div className="space-y-1.5">
-                    {/* 1st Half Shift */}
-                    <div
-                      className={`p-1.5 rounded-lg border text-[11px] flex items-center justify-between ${
-                        firstHalfStudent
-                          ? 'bg-white/95 border-amber-200 text-amber-950 font-bold shadow-2xs'
-                          : 'bg-emerald-50 border-emerald-200 text-emerald-800 font-semibold'
-                      }`}
-                    >
-                      <span className="flex items-center gap-1 truncate">
-                        <Sunrise className="w-3 h-3 text-amber-600 shrink-0" />
-                        <span className="truncate">{firstHalfStudent ? firstHalfStudent.name : '1st Half: Free'}</span>
-                      </span>
-                      <span className="text-[10px] text-slate-400 font-normal shrink-0 ml-1">6 AM-2 PM</span>
-                    </div>
+                )}
 
-                    {/* 2nd Half Shift */}
-                    <div
-                      className={`p-1.5 rounded-lg border text-[11px] flex items-center justify-between ${
-                        secondHalfStudent
-                          ? 'bg-white/95 border-purple-200 text-purple-950 font-bold shadow-2xs'
-                          : 'bg-emerald-50 border-emerald-200 text-emerald-800 font-semibold'
-                      }`}
-                    >
-                      <span className="flex items-center gap-1 truncate">
-                        <Sunset className="w-3 h-3 text-purple-600 shrink-0" />
-                        <span className="truncate">{secondHalfStudent ? secondHalfStudent.name : '2nd Half: Free'}</span>
-                      </span>
-                      <span className="text-[10px] text-slate-400 font-normal shrink-0 ml-1">2 PM-11 PM</span>
+                {/* 2. First Half / Morning */}
+                {!fullDayStudent && (
+                  <div
+                    className={`flex items-center justify-between text-[11px] px-2 py-1 rounded-lg ${
+                      firstHalfStudent
+                        ? 'bg-amber-100/90 text-amber-900 font-bold'
+                        : 'bg-emerald-50 text-emerald-800 border border-dashed border-emerald-300'
+                    }`}
+                  >
+                    <div className="flex items-center gap-1 truncate">
+                      <Sunrise className="w-3 h-3 text-amber-600 shrink-0" />
+                      <span className="truncate">{firstHalfStudent ? firstHalfStudent.name : '1st Half Free'}</span>
                     </div>
-
-                    {/* Custom Shifts */}
-                    {customStudents.map((cs) => (
-                      <div
-                        key={cs.id}
-                        className="p-1.5 rounded-lg border bg-white/95 border-teal-200 text-[11px] text-teal-950 font-bold flex items-center justify-between"
-                      >
-                        <span className="flex items-center gap-1 truncate">
-                          <Clock className="w-3 h-3 text-teal-600 shrink-0" />
-                          <span className="truncate">{cs.name}</span>
-                        </span>
-                        <span className="text-[10px] text-slate-400 font-normal shrink-0 ml-1">
-                          {cs.shiftTiming || 'Custom'}
-                        </span>
-                      </div>
-                    ))}
+                    <span className="text-[9px] font-black opacity-75">6AM-2PM</span>
                   </div>
-                ) : (
-                  <div className="bg-white/80 p-2.5 rounded-xl border border-emerald-200/80 text-center">
-                    <p className="font-extrabold text-emerald-700 text-xs">Available</p>
-                    <p className="text-[11px] text-slate-500 font-medium">All shifts open</p>
+                )}
+
+                {/* 3. Second Half / Evening */}
+                {!fullDayStudent && (
+                  <div
+                    className={`flex items-center justify-between text-[11px] px-2 py-1 rounded-lg ${
+                      secondHalfStudent
+                        ? 'bg-purple-100/90 text-purple-900 font-bold'
+                        : 'bg-emerald-50 text-emerald-800 border border-dashed border-emerald-300'
+                    }`}
+                  >
+                    <div className="flex items-center gap-1 truncate">
+                      <Sunset className="w-3 h-3 text-purple-600 shrink-0" />
+                      <span className="truncate">{secondHalfStudent ? secondHalfStudent.name : '2nd Half Free'}</span>
+                    </div>
+                    <span className="text-[9px] font-black opacity-75">2PM-11PM</span>
                   </div>
                 )}
               </div>
 
-              {/* Click to manage footer */}
-              <div className="text-[11px] text-slate-400 font-bold text-right pt-1.5 flex items-center justify-end gap-1 group-hover:text-indigo-600 transition-colors">
-                <span>Manage seat</span>
-                <span>→</span>
+              {/* Bottom Quick Hint */}
+              <div className="flex items-center justify-between pt-1 border-t border-black/5 text-[10px] font-semibold text-slate-400 group-hover:text-slate-700">
+                <span>
+                  {assignedStudents.length === 0
+                    ? '🟢 Free to Book'
+                    : fullDayStudent || (firstHalfStudent && secondHalfStudent)
+                    ? '🔴 Full'
+                    : '🟡 1 Half Open'}
+                </span>
+                <span className="text-indigo-600 group-hover:underline">Manage ⚙️</span>
               </div>
             </div>
           );

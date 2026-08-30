@@ -1,25 +1,30 @@
-import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
 import Layout from '../components/layout/Layout';
 import StatsCards from '../components/dashboard/StatsCards';
 import RevenueChart from '../components/dashboard/RevenueChart';
-import RecentActivity from '../components/dashboard/RecentActivity';
 import OccupancyOverview from '../components/dashboard/OccupancyOverview';
-import Button from '../components/common/Button';
-import {
-  UserPlus,
-  IndianRupee,
-  Loader2,
-  Building2,
-  Calendar,
-} from 'lucide-react';
+import RecentActivity from '../components/dashboard/RecentActivity';
 import { COLLECTIONS } from '../utils/constants';
 import { fetchCollectionData } from '../firebase/storageService';
 import { useAuth } from '../context/AuthContext';
+import { useNavigate } from 'react-router-dom';
+import {
+  Users,
+  UserPlus,
+  IndianRupee,
+  Armchair,
+  BookOpen,
+  Sparkles,
+  ShieldAlert,
+  Loader2,
+  Calendar,
+} from 'lucide-react';
+import { formatDate } from '../utils/helpers';
 
 export default function Dashboard() {
+  const { user, userRole, hasPermission } = useAuth();
   const navigate = useNavigate();
-  const { user, hasPermission } = useAuth();
+
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState({
     totalStudents: 0,
@@ -45,6 +50,14 @@ export default function Dashboard() {
       const activeStudents = students.filter((s) => s.status === 'active');
       const occupiedSeatIds = new Set(activeStudents.map((s) => s.seatId).filter(Boolean));
 
+      // Deduplicate seats to get exact physical seat count
+      const uniqueSeatsMap = new Map();
+      allSeats.forEach((seat) => {
+        const key = `${seat.sectionId}_${Number(seat.seatNumber) || seat.seatNumber}`;
+        if (!uniqueSeatsMap.has(key)) uniqueSeatsMap.set(key, seat);
+      });
+      const uniqueSeatsList = Array.from(uniqueSeatsMap.values());
+
       const now = new Date();
       const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
       const currentMonthFees = allFees.filter((f) => f.month === currentMonth);
@@ -56,7 +69,7 @@ export default function Dashboard() {
       setStats({
         totalStudents: activeStudents.length,
         seatsOccupied: occupiedSeatIds.size,
-        totalSeats: allSeats.length,
+        totalSeats: uniqueSeatsList.length,
         revenue,
         pendingFees,
       });
@@ -98,19 +111,19 @@ export default function Dashboard() {
 
       // Section Occupancy
       const occData = allSections.map((sec) => {
-        const secSeats = allSeats.filter((s) => s.sectionId === sec.id);
-        const secStudents = activeStudents.filter((s) => s.sectionId === sec.id && s.seatId);
-        const secOccupiedSeats = new Set(secStudents.map((s) => s.seatId));
+        const secSeats = uniqueSeatsList.filter((s) => s.sectionId === sec.id);
+        const occupied = secSeats.filter((s) => occupiedSeatIds.has(s.id)).length;
         return {
+          id: sec.id,
           name: sec.name,
-          occupied: secOccupiedSeats.size,
-          totalSeats: secSeats.length,
-          studentCount: secStudents.length,
+          totalSeats: secSeats.length || sec.totalSeats || 0,
+          occupied,
+          percentage: secSeats.length > 0 ? Math.round((occupied / secSeats.length) * 100) : 0,
         };
       });
       setOccupancyData(occData);
     } catch (err) {
-      console.error('Dashboard fetch error:', err);
+      console.error('Error fetching dashboard metrics:', err);
     } finally {
       setLoading(false);
     }
@@ -138,30 +151,31 @@ export default function Dashboard() {
   return (
     <Layout title="Dashboard">
       <div className="space-y-6">
-        {/* Modern Welcome Banner */}
-        <div className="relative overflow-hidden bg-gradient-to-r from-indigo-900 via-indigo-800 to-purple-900 rounded-3xl p-6 sm:p-8 text-white shadow-xl shadow-indigo-950/10">
-          <div className="relative z-10 flex flex-col md:flex-row md:items-center md:justify-between gap-6">
+        {/* Welcome Header */}
+        <div className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-indigo-900 via-indigo-800 to-indigo-950 p-6 sm:p-8 text-white shadow-xl shadow-indigo-950/20">
+          <div className="relative z-10 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
             <div>
-              <div className="flex items-center gap-2 text-indigo-200 text-xs font-bold uppercase tracking-wider mb-2">
-                <Calendar className="w-3.5 h-3.5" />
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/10 backdrop-blur-md text-xs font-bold text-indigo-200 mb-3 border border-white/10">
+                <Calendar className="w-3.5 h-3.5 text-indigo-300" />
                 <span>{todayStr}</span>
               </div>
-              <h1 className="text-2xl sm:text-3xl font-black tracking-tight">
-                Welcome back, {user?.displayName || 'Study Point Owner'}! 👋
+              <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight">
+                Welcome back, {user?.displayName || user?.name || (userRole === 'owner' ? 'Library Owner' : 'Team Member')} 👋
               </h1>
-              <p className="text-indigo-100/80 text-sm mt-1 max-w-xl font-medium">
-                Live monitoring of seat occupancy, shifts, admissions & revenue collections.
+              <p className="text-indigo-200/90 text-sm mt-1 max-w-xl font-medium">
+                Live Study Point Management • Track physical seats, fee collections & student records in real time.
               </p>
             </div>
 
-            <div className="flex flex-wrap items-center gap-2.5 shrink-0">
+            {/* Quick Action Shortcuts */}
+            <div className="flex flex-wrap items-center gap-2.5 pt-2 md:pt-0">
               {hasPermission('students', 'create') && (
                 <button
                   onClick={() => navigate('/students')}
                   className="px-4 py-2.5 bg-white text-indigo-900 hover:bg-indigo-50 rounded-2xl text-xs font-extrabold transition-all shadow-md flex items-center gap-1.5 cursor-pointer"
                 >
                   <UserPlus className="w-4 h-4 text-indigo-600" />
-                  <span>+ Add Student</span>
+                  <span>New Admission</span>
                 </button>
               )}
 

@@ -5,7 +5,7 @@ import Modal from '../components/common/Modal';
 import ConfirmDialog from '../components/common/ConfirmDialog';
 import SectionList from '../components/sections/SectionList';
 import SectionForm from '../components/sections/SectionForm';
-import { Plus, Loader2, UserX, UserPlus, Trash2, PlusCircle } from 'lucide-react';
+import { Plus, Loader2, UserX, UserPlus, Trash2, PlusCircle, Sparkles } from 'lucide-react';
 import { COLLECTIONS, SEAT_STATUS } from '../utils/constants';
 import {
   fetchCollectionData,
@@ -45,8 +45,37 @@ export default function Sections() {
       setSections(secDocs);
       setStudents(stuDocs);
 
+      // Deduplicate seats by sectionId and seatNumber to ensure strictly 1 physical record per seat number
+      const uniqueSeatsMap = new Map();
+      const duplicateIdsToDelete = [];
+
+      seatDocs.forEach((seat) => {
+        const key = `${seat.sectionId}_${Number(seat.seatNumber) || seat.seatNumber}`;
+        if (!uniqueSeatsMap.has(key)) {
+          uniqueSeatsMap.set(key, seat);
+        } else {
+          const existing = uniqueSeatsMap.get(key);
+          const hasStudent = stuDocs.some((s) => s.seatId === seat.id && s.status === 'active');
+          const existingHasStudent = stuDocs.some((s) => s.seatId === existing.id && s.status === 'active');
+
+          if (hasStudent && !existingHasStudent) {
+            duplicateIdsToDelete.push(existing.id);
+            uniqueSeatsMap.set(key, seat);
+          } else {
+            duplicateIdsToDelete.push(seat.id);
+          }
+        }
+      });
+
+      // Automatically clean up duplicate ghost seats in background if found
+      if (duplicateIdsToDelete.length > 0) {
+        Promise.all(duplicateIdsToDelete.map((id) => removeDocument(COLLECTIONS.SEATS, id))).catch(console.warn);
+      }
+
+      const deduplicatedSeats = Array.from(uniqueSeatsMap.values());
+
       // Enrich seats with assigned active students
-      const enrichedSeats = seatDocs.map((seat) => {
+      const enrichedSeats = deduplicatedSeats.map((seat) => {
         const assignedStudents = stuDocs.filter(
           (s) => s.seatId === seat.id && s.status === 'active'
         );
@@ -166,7 +195,6 @@ export default function Sections() {
     );
     const nextSeatNum = maxSeatNum + 1;
 
-    // Create the new physical seat
     await createDocument(
       COLLECTIONS.SEATS,
       {
@@ -179,63 +207,72 @@ export default function Sections() {
       `${sectionId}_seat_${nextSeatNum}`
     );
 
-    // Update section totalSeats count
+    // Update section totalSeats
     await updateDocument(COLLECTIONS.SECTIONS, sectionId, {
-      totalSeats: sectionSeats.length + 1,
+      totalSeats: nextSeatNum,
     });
 
     await fetchData();
   };
 
-  // 4. Delete an Individual Empty Seat
-  const handleDeleteSingleSeat = async () => {
-    if (!deleteSeatTarget) return;
-
-    // Remove seat document
-    await removeDocument(COLLECTIONS.SEATS, deleteSeatTarget.id);
-
-    // Update section totalSeats
-    const section = sections.find((s) => s.id === deleteSeatTarget.sectionId);
-    if (section) {
-      const remainingSectionSeats = seats.filter(
-        (s) => s.sectionId === section.id && s.id !== deleteSeatTarget.id
-      );
-      await updateDocument(COLLECTIONS.SECTIONS, section.id, {
-        totalSeats: remainingSectionSeats.length,
-      });
-    }
-
-    setDeleteSeatTarget(null);
-    setSeatModalOpen(false);
-    await fetchData();
-  };
-
-  // 5. Delete Entire Section
+  // 4. Delete an Entire Section (and all its physical seats)
   const handleDeleteSection = async () => {
     if (!deleteTarget) return;
+
     const sectionSeats = seats.filter((s) => s.sectionId === deleteTarget.id);
-    await Promise.all(sectionSeats.map((s) => removeDocument(COLLECTIONS.SEATS, s.id)));
+    const deleteSeatPromises = sectionSeats.map((s) => removeDocument(COLLECTIONS.SEATS, s.id));
+    await Promise.all(deleteSeatPromises);
+
+    // Clear seatId on assigned students
+    const sectionStudents = students.filter((s) => s.sectionId === deleteTarget.id);
+    const updateStudentPromises = sectionStudents.map((s) =>
+      updateDocument(COLLECTIONS.STUDENTS, s.id, { seatId: null, sectionId: null })
+    );
+    await Promise.all(updateStudentPromises);
+
     await removeDocument(COLLECTIONS.SECTIONS, deleteTarget.id);
     setDeleteTarget(null);
     await fetchData();
   };
 
-  // 6. Handle Seat Click Modal
+  // 5. Delete an Individual Seat
+  const handleDeleteIndividualSeat = async () => {
+    if (!deleteSeatTarget) return;
+
+    // If seat has students, unassign them first
+    if (deleteSeatTarget.assignedStudents?.length > 0) {
+      const unassignPromises = deleteSeatTarget.assignedStudents.map((st) =>
+        updateDocument(COLLECTIONS.STUDENTS, st.id, { seatId: null })
+      );
+      await Promise.all(unassignPromises);
+    }
+
+    await removeDocument(COLLECTIONS.SEATS, deleteSeatTarget.id);
+    setDeleteSeatTarget(null);
+    setSeatModalOpen(false);
+    await fetchData();
+  };
+
+  // 6. Handle Seat Click & Open Details / Quick-Assignment Modal
   const handleSeatClick = (seat) => {
     setSelectedSeat(seat);
     setSeatAddons(seat.addons || { locker: false, wifi: false, light: false });
     setQuickAssignStudentId('');
-    setQuickAssignShift('first_half');
     setSeatModalOpen(true);
   };
 
-  const handleUpdateAddons = async () => {
+  // 7. Save Seat Add-ons (Locker, WiFi, Light)
+  const handleSaveSeatAddons = async () => {
     if (!selectedSeat) return;
+
     await updateDocument(COLLECTIONS.SEATS, selectedSeat.id, {
       addons: seatAddons,
     });
+
+    setSeats((prev) =>
+      prev.map((s) => (s.id === selectedSeat.id ? { ...s, addons: seatAddons } : s))
+    );
     setSeatModalOpen(false);
-    await fetchData();
   };
 
   const handleUnassignStudent = async (studentId) => {
@@ -324,8 +361,8 @@ export default function Sections() {
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <div>
             <h1 className="text-2xl font-bold text-gray-900">Sections & Seats Layout</h1>
-            <p className="text-gray-500 mt-1">
-              {sections.length} Sections • {seats.length} Total Physical Seats • Full & Half Day Shift Management
+            <p className="text-gray-500 mt-1 text-xs sm:text-sm">
+              {sections.length} Sections • <strong>{seats.length} Total Physical Seats</strong> • Full & Half Day Shift Management
             </p>
           </div>
           <Button
@@ -379,170 +416,176 @@ export default function Sections() {
       <ConfirmDialog
         isOpen={!!deleteSeatTarget}
         onClose={() => setDeleteSeatTarget(null)}
-        onConfirm={handleDeleteSingleSeat}
-        title="Delete Seat"
-        message={`Are you sure you want to remove Seat #${deleteSeatTarget?.seatNumber}?`}
-        confirmText="Delete Seat"
+        onConfirm={handleDeleteIndividualSeat}
+        title={`Delete Seat #${deleteSeatTarget?.seatNumber}?`}
+        message={`Are you sure you want to delete physical Seat #${deleteSeatTarget?.seatNumber}? Any student assigned to this seat will become unassigned.`}
+        confirmText="Yes, Delete Seat"
         variant="danger"
       />
 
-      {/* Manage Individual Seat Modal */}
-      <Modal
-        isOpen={seatModalOpen}
-        onClose={() => setSeatModalOpen(false)}
-        title={`Seat #${selectedSeat?.seatNumber} Management`}
-        size="lg"
-      >
-        <div className="space-y-5">
-          {/* Current Occupants List */}
-          <div>
-            <h4 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2.5">
-              Current Assigned Students (Shifts)
-            </h4>
+      {/* Manage Seat Pod Modal */}
+      {selectedSeat && (
+        <Modal
+          isOpen={seatModalOpen}
+          onClose={() => setSeatModalOpen(false)}
+          title={`Manage Physical Seat #${selectedSeat.seatNumber}`}
+        >
+          <div className="space-y-4">
+            {/* Occupancy Status Box */}
+            <div className="bg-slate-50 p-3.5 rounded-2xl border border-slate-200">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Current Status</span>
+                <span
+                  className={`text-xs font-extrabold px-2.5 py-0.5 rounded-full ${
+                    selectedSeat.assignedStudents?.length === 0
+                      ? 'bg-emerald-100 text-emerald-800'
+                      : selectedSeat.assignedStudents?.length >= 2 ||
+                        selectedSeat.assignedStudents?.some((s) => s.shift === 'full_day')
+                      ? 'bg-indigo-100 text-indigo-800'
+                      : 'bg-amber-100 text-amber-800'
+                  }`}
+                >
+                  {selectedSeat.assignedStudents?.length === 0
+                    ? '🟢 Available (Empty)'
+                    : selectedSeat.assignedStudents?.length >= 2 ||
+                      selectedSeat.assignedStudents?.some((s) => s.shift === 'full_day')
+                    ? '🔴 Fully Occupied'
+                    : '🟡 Partially Occupied'}
+                </span>
+              </div>
 
-            {selectedSeat?.assignedStudents && selectedSeat.assignedStudents.length > 0 ? (
-              <div className="space-y-2">
-                {selectedSeat.assignedStudents.map((st) => (
-                  <div
-                    key={st.id}
-                    className="flex items-center justify-between p-3 bg-gray-50 rounded-xl border border-gray-200"
-                  >
-                    <div className="flex items-center gap-2.5">
-                      <div className="w-8 h-8 bg-indigo-100 rounded-full flex items-center justify-center font-bold text-indigo-600 text-xs">
-                        {st.name?.charAt(0)}
-                      </div>
-                      <div>
-                        <p className="font-semibold text-gray-900 text-sm">{st.name}</p>
-                        <p className="text-xs text-gray-500">{st.shiftTiming || st.shift || 'Full Day'}</p>
-                      </div>
-                    </div>
-
-                    <button
-                      onClick={() => handleUnassignStudent(st.id)}
-                      className="px-2.5 py-1 text-xs font-medium text-red-600 hover:bg-red-50 rounded-lg flex items-center gap-1 transition-colors cursor-pointer"
-                      title="Unassign this student from seat"
+              {/* Assigned Students */}
+              <div className="mt-3 space-y-2">
+                <h5 className="text-xs font-bold text-slate-700">Allocated Students:</h5>
+                {selectedSeat.assignedStudents?.length > 0 ? (
+                  selectedSeat.assignedStudents.map((st) => (
+                    <div
+                      key={st.id}
+                      className="flex items-center justify-between bg-white p-2.5 rounded-xl border border-slate-200 text-xs"
                     >
-                      <UserX className="w-3.5 h-3.5" /> Remove
-                    </button>
-                  </div>
-                ))}
+                      <div>
+                        <p className="font-bold text-slate-900">{st.name}</p>
+                        <p className="text-[11px] text-slate-500">{st.shiftTiming || st.shift}</p>
+                      </div>
+                      <button
+                        onClick={() => handleUnassignStudent(st.id)}
+                        className="px-2 py-1 text-rose-600 hover:bg-rose-50 rounded-lg text-xs font-bold transition-colors cursor-pointer flex items-center gap-1"
+                        title="Remove student from this seat"
+                      >
+                        <UserX className="w-3.5 h-3.5" />
+                        <span>Remove</span>
+                      </button>
+                    </div>
+                  ))
+                ) : (
+                  <p className="text-xs text-slate-400 italic">No students assigned to this seat yet.</p>
+                )}
               </div>
-            ) : (
-              <div className="p-4 bg-green-50 rounded-xl border border-green-200 text-center text-xs text-green-800 font-medium">
-                This seat is completely free for all shifts.
-              </div>
-            )}
-          </div>
+            </div>
 
-          {/* Quick Assign Student for this Seat */}
-          {(!selectedSeat?.assignedStudents ||
-            (!selectedSeat.assignedStudents.some((s) => s.shift === 'full_day') &&
-              selectedSeat.assignedStudents.length < 2)) && (
-            <div className="p-4 bg-indigo-50/60 rounded-xl border border-indigo-100 space-y-3">
-              <h4 className="text-xs font-bold text-indigo-900 uppercase tracking-wider flex items-center gap-1.5">
-                <UserPlus className="w-3.5 h-3.5 text-indigo-600" />
-                Quick Assign Student to this Seat
-              </h4>
+            {/* Quick Assign Student (if seat is not full) */}
+            {(!selectedSeat.assignedStudents?.some((s) => s.shift === 'full_day') &&
+              (selectedSeat.assignedStudents?.length || 0) < 2) && (
+              <div className="bg-indigo-50/70 p-3.5 rounded-2xl border border-indigo-100 space-y-3">
+                <h5 className="text-xs font-bold text-indigo-950 flex items-center gap-1">
+                  <UserPlus className="w-3.5 h-3.5 text-indigo-600" />
+                  <span>Quick Assign Student to this Seat:</span>
+                </h5>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-medium text-gray-700 mb-1">Select Student</label>
+                <div className="space-y-2">
                   <select
                     value={quickAssignStudentId}
                     onChange={(e) => setQuickAssignStudentId(e.target.value)}
-                    className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-lg bg-white"
+                    className="w-full px-3 py-2 bg-white border border-indigo-200 rounded-xl text-xs font-semibold focus:ring-2 focus:ring-indigo-500"
                   >
-                    <option value="">Choose unassigned student...</option>
+                    <option value="">Select unassigned student...</option>
                     {unassignedStudents.map((s) => (
                       <option key={s.id} value={s.id}>
                         {s.name} ({s.phone})
                       </option>
                     ))}
                   </select>
-                </div>
 
-                <div>
-                  <label className="block text-xs font-medium text-gray-700 mb-1">Shift / Time Slot</label>
-                  <select
-                    value={quickAssignShift}
-                    onChange={(e) => setQuickAssignShift(e.target.value)}
-                    className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-lg bg-white"
-                  >
-                    {(!selectedSeat?.assignedStudents || selectedSeat.assignedStudents.length === 0) && (
-                      <option value="full_day">☀️ Full Day (6 AM - 11 PM)</option>
-                    )}
-                    {!selectedSeat?.assignedStudents?.some((s) => s.shift === 'first_half') && (
-                      <option value="first_half">🌅 1st Half / Morning (6 AM - 2 PM)</option>
-                    )}
-                    {!selectedSeat?.assignedStudents?.some((s) => s.shift === 'second_half') && (
-                      <option value="second_half">🌆 2nd Half / Evening (2 PM - 11 PM)</option>
-                    )}
-                  </select>
+                  <div className="flex gap-2">
+                    <select
+                      value={quickAssignShift}
+                      onChange={(e) => setQuickAssignShift(e.target.value)}
+                      className="w-full px-3 py-2 bg-white border border-indigo-200 rounded-xl text-xs font-semibold focus:ring-2 focus:ring-indigo-500"
+                    >
+                      <option value="first_half">1st Half (6:00 AM - 2:00 PM)</option>
+                      <option value="second_half">2nd Half (2:00 PM - 11:00 PM)</option>
+                      <option value="full_day">Full Day (6:00 AM - 11:00 PM)</option>
+                    </select>
+
+                    <button
+                      onClick={handleQuickAssign}
+                      disabled={!quickAssignStudentId}
+                      className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white rounded-xl text-xs font-bold shrink-0 transition-all cursor-pointer"
+                    >
+                      Assign
+                    </button>
+                  </div>
                 </div>
               </div>
+            )}
 
-              <div className="flex justify-end">
-                <Button
-                  size="sm"
-                  onClick={handleQuickAssign}
-                  disabled={!quickAssignStudentId}
-                >
-                  Assign to Shift
+            {/* Seat Facilities & Add-ons (Locker, WiFi, Lamp) */}
+            <div className="space-y-2">
+              <h5 className="text-xs font-bold text-slate-700 uppercase tracking-wider">
+                Seat Hardware Facilities:
+              </h5>
+              <div className="grid grid-cols-3 gap-2">
+                {[
+                  { key: 'locker', label: 'Locker' },
+                  { key: 'wifi', label: 'WiFi' },
+                  { key: 'light', label: 'Desk Light' },
+                ].map((item) => (
+                  <label
+                    key={item.key}
+                    className={`flex items-center justify-center gap-2 p-2.5 rounded-xl border text-xs font-bold cursor-pointer transition-all ${
+                      seatAddons[item.key]
+                        ? 'border-indigo-600 bg-indigo-50 text-indigo-700'
+                        : 'border-slate-200 bg-white hover:bg-slate-50 text-slate-600'
+                    }`}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={!!seatAddons[item.key]}
+                      onChange={(e) =>
+                        setSeatAddons({ ...seatAddons, [item.key]: e.target.checked })
+                      }
+                      className="rounded text-indigo-600 focus:ring-indigo-500"
+                    />
+                    <span>{item.label}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+
+            {/* Modal Actions */}
+            <div className="flex items-center justify-between pt-3 border-t border-slate-100">
+              <button
+                type="button"
+                onClick={() => setDeleteSeatTarget(selectedSeat)}
+                className="px-3 py-2 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer"
+                title="Delete this individual seat"
+              >
+                <Trash2 className="w-3.5 h-3.5 text-rose-600" />
+                <span>Delete Seat</span>
+              </button>
+
+              <div className="flex gap-2">
+                <Button variant="secondary" onClick={() => setSeatModalOpen(false)}>
+                  Close
+                </Button>
+                <Button variant="primary" onClick={handleSaveSeatAddons}>
+                  Save Facilities
                 </Button>
               </div>
             </div>
-          )}
-
-          {/* Seat Facilities & Addons */}
-          <div className="border-t pt-4">
-            <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-2">
-              Seat Facilities & Add-ons (Locker / WiFi / Light)
-            </label>
-            <div className="grid grid-cols-3 gap-2.5">
-              {['locker', 'wifi', 'light'].map((addon) => (
-                <label
-                  key={addon}
-                  className={`flex items-center gap-2 p-2.5 rounded-lg border cursor-pointer text-xs font-medium transition-all ${
-                    seatAddons[addon]
-                      ? 'border-indigo-600 bg-indigo-50 text-indigo-900'
-                      : 'border-gray-200 hover:bg-gray-50 text-gray-700'
-                  }`}
-                >
-                  <input
-                    type="checkbox"
-                    checked={seatAddons[addon]}
-                    onChange={(e) => setSeatAddons({ ...seatAddons, [addon]: e.target.checked })}
-                    className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
-                  />
-                  <span className="capitalize">{addon === 'light' ? 'Desk Light' : addon}</span>
-                </label>
-              ))}
-            </div>
           </div>
-
-          {/* Modal Footer with Delete Seat Action */}
-          <div className="flex items-center justify-between pt-3 border-t">
-            {(!selectedSeat?.assignedStudents || selectedSeat.assignedStudents.length === 0) ? (
-              <button
-                onClick={() => setDeleteSeatTarget(selectedSeat)}
-                className="text-xs text-red-600 hover:text-red-800 font-bold flex items-center gap-1 p-1 rounded hover:bg-red-50 cursor-pointer"
-              >
-                <Trash2 className="w-3.5 h-3.5" />
-                <span>Delete This Seat</span>
-              </button>
-            ) : (
-              <div />
-            )}
-
-            <div className="flex gap-2">
-              <Button variant="secondary" onClick={() => setSeatModalOpen(false)}>
-                Close
-              </Button>
-              <Button onClick={handleUpdateAddons}>Save Facilities</Button>
-            </div>
-          </div>
-        </div>
-      </Modal>
+        </Modal>
+      )}
     </Layout>
   );
 }
