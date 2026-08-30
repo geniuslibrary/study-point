@@ -4,7 +4,7 @@ import Button from '../components/common/Button';
 import ConfirmDialog from '../components/common/ConfirmDialog';
 import PlanForm from '../components/memberships/PlanForm';
 import PlanList from '../components/memberships/PlanList';
-import { Plus, Loader2 } from 'lucide-react';
+import { Plus, Loader2, CheckCircle2 } from 'lucide-react';
 import { COLLECTIONS } from '../utils/constants';
 import {
   fetchCollectionData,
@@ -21,6 +21,7 @@ export default function Memberships() {
   const [editData, setEditData] = useState(null);
   const [deleteData, setDeleteData] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [toastMessage, setToastMessage] = useState('');
 
   const fetchData = async () => {
     setLoading(true);
@@ -41,7 +42,7 @@ export default function Memberships() {
       });
       setStudentCounts(counts);
     } catch (error) {
-      console.error('Error fetching data:', error);
+      console.error('Error fetching plans data:', error);
     } finally {
       setLoading(false);
     }
@@ -50,6 +51,11 @@ export default function Memberships() {
   useEffect(() => {
     fetchData();
   }, []);
+
+  const showToast = (msg) => {
+    setToastMessage(msg);
+    setTimeout(() => setToastMessage(''), 4000);
+  };
 
   const handleAdd = () => {
     setEditData(null);
@@ -67,24 +73,37 @@ export default function Memberships() {
 
   const handleToggle = async (plan) => {
     await updateDocument(COLLECTIONS.MEMBERSHIP_PLANS, plan.id, { isActive: !plan.isActive });
-    fetchData();
+    showToast(`Plan status ${!plan.isActive ? 'Activated' : 'Deactivated'}`);
+    await fetchData();
   };
 
   const handleFormSubmit = async (data) => {
-    if (editData) {
-      await updateDocument(COLLECTIONS.MEMBERSHIP_PLANS, editData.id, data);
-    } else {
-      await createDocument(COLLECTIONS.MEMBERSHIP_PLANS, data);
+    try {
+      if (editData) {
+        await updateDocument(COLLECTIONS.MEMBERSHIP_PLANS, editData.id, data);
+        showToast(`Membership plan "${data.name}" updated successfully!`);
+      } else {
+        await createDocument(COLLECTIONS.MEMBERSHIP_PLANS, data);
+        showToast(`New membership plan "${data.name}" added successfully!`);
+      }
+      setIsFormOpen(false);
+      await fetchData();
+    } catch (e) {
+      console.error('Error saving plan:', e);
+      showToast('Error saving plan: ' + e.message);
     }
-    setIsFormOpen(false);
-    fetchData();
   };
 
   const confirmDelete = async () => {
     if (deleteData) {
-      await removeDocument(COLLECTIONS.MEMBERSHIP_PLANS, deleteData.id);
-      setDeleteData(null);
-      fetchData();
+      try {
+        await removeDocument(COLLECTIONS.MEMBERSHIP_PLANS, deleteData.id);
+        showToast(`Plan "${deleteData.name}" removed`);
+        setDeleteData(null);
+        await fetchData();
+      } catch (e) {
+        console.error('Error deleting plan:', e);
+      }
     }
   };
 
@@ -110,6 +129,13 @@ export default function Memberships() {
             Add Membership Plan
           </Button>
         </div>
+
+        {toastMessage && (
+          <div className="p-3.5 bg-green-50 text-green-800 border border-green-200 rounded-xl text-xs font-semibold flex items-center gap-2 transition-all">
+            <CheckCircle2 className="w-4 h-4 text-green-600" />
+            <span>{toastMessage}</span>
+          </div>
+        )}
 
         <PlanList
           plans={plans}

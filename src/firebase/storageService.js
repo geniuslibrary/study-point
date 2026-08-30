@@ -3,7 +3,6 @@ import {
   doc,
   getDocs,
   setDoc,
-  addDoc,
   updateDoc,
   deleteDoc,
   serverTimestamp,
@@ -34,7 +33,7 @@ export const setLocalCollection = (coll, items) => {
 };
 
 // Fast timeout helper to prevent hanging on blocked/pending Firestore network calls
-const fetchWithTimeout = (promise, ms = 1200) => {
+const fetchWithTimeout = (promise, ms = 1500) => {
   return Promise.race([
     promise,
     new Promise((_, reject) => setTimeout(() => reject(new Error('Firestore connection timeout')), ms)),
@@ -42,16 +41,19 @@ const fetchWithTimeout = (promise, ms = 1200) => {
 };
 
 export const fetchCollectionData = async (collectionName) => {
-  // 1. Try to read from Firestore with a fast 1.2s timeout
+  // 1. Try to read from Firestore
   try {
-    const snap = await fetchWithTimeout(getDocs(collection(db, collectionName)), 1200);
-    if (snap && snap.docs && snap.docs.length > 0) {
-      const items = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
-      setLocalCollection(collectionName, items);
-      return items;
+    const snap = await fetchWithTimeout(getDocs(collection(db, collectionName)), 1500);
+    if (snap && snap.docs) {
+      const cloudItems = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+
+      if (cloudItems.length > 0) {
+        setLocalCollection(collectionName, cloudItems);
+        return cloudItems;
+      }
     }
   } catch (err) {
-    // Graceful fallback to local cache
+    // Graceful fallback to local cache on timeout/offline
   }
 
   // 2. Return local collection data
@@ -64,7 +66,7 @@ export const fetchCollectionData = async (collectionName) => {
 };
 
 export const createDocument = async (collectionName, data, customId = null) => {
-  const docId = customId || 'id_' + Date.now().toString(36) + Math.random().toString(36).substr(2, 5);
+  const docId = customId || 'doc_' + Date.now().toString(36) + Math.random().toString(36).substr(2, 6);
   const now = new Date();
   const newRecord = {
     ...data,
@@ -72,7 +74,7 @@ export const createDocument = async (collectionName, data, customId = null) => {
     createdAt: now.toISOString(),
   };
 
-  // 1. Save to LocalStorage immediately
+  // 1. Save to LocalStorage immediately for instant UI response
   const localList = getLocalCollection(collectionName);
   const existingIdx = localList.findIndex((i) => i.id === docId);
   if (existingIdx >= 0) {
@@ -82,30 +84,22 @@ export const createDocument = async (collectionName, data, customId = null) => {
   }
   setLocalCollection(collectionName, localList);
 
-  // 2. Attempt Firestore save in background
+  // 2. Save to Firestore with guaranteed matching ID
   try {
-    if (customId) {
-      setDoc(doc(db, collectionName, customId), {
-        ...data,
-        createdAt: serverTimestamp(),
-      }).catch(() => {});
-    } else {
-      addDoc(collection(db, collectionName), {
-        ...data,
-        createdAt: serverTimestamp(),
-      }).then((docRef) => {
-        newRecord.id = docRef.id;
-      }).catch(() => {});
-    }
+    await setDoc(doc(db, collectionName, docId), {
+      ...data,
+      id: docId,
+      createdAt: serverTimestamp(),
+    }, { merge: true });
   } catch (err) {
-    // Ignore background error
+    console.warn(`Firestore save warning (${collectionName}):`, err.message);
   }
 
   return newRecord;
 };
 
 export const updateDocument = async (collectionName, docId, updates) => {
-  // 1. Update LocalStorage
+  // 1. Update LocalStorage immediately
   const localList = getLocalCollection(collectionName);
   const index = localList.findIndex((i) => i.id === docId);
   if (index >= 0) {
@@ -113,28 +107,28 @@ export const updateDocument = async (collectionName, docId, updates) => {
     setLocalCollection(collectionName, localList);
   }
 
-  // 2. Update Firestore
+  // 2. Update Firestore with setDoc merge
   try {
-    updateDoc(doc(db, collectionName, docId), {
+    await setDoc(doc(db, collectionName, docId), {
       ...updates,
       updatedAt: serverTimestamp(),
-    }).catch(() => {});
+    }, { merge: true });
   } catch (err) {
-    // Ignore
+    console.warn(`Firestore update warning (${collectionName}):`, err.message);
   }
 };
 
 export const removeDocument = async (collectionName, docId) => {
-  // 1. Remove from LocalStorage
+  // 1. Remove from LocalStorage immediately
   const localList = getLocalCollection(collectionName);
   const filtered = localList.filter((i) => i.id !== docId);
   setLocalCollection(collectionName, filtered);
 
   // 2. Remove from Firestore
   try {
-    deleteDoc(doc(db, collectionName, docId)).catch(() => {});
+    await deleteDoc(doc(db, collectionName, docId));
   } catch (err) {
-    // Ignore
+    console.warn(`Firestore delete warning (${collectionName}):`, err.message);
   }
 };
 
