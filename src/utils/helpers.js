@@ -10,22 +10,37 @@ export const formatCurrency = (amount) => {
   }).format(safeNum);
 };
 
+// Strict Day/Month/Year Format (DD/MM/YYYY, e.g. 30/08/2026)
 export const formatDate = (timestamp) => {
   if (!timestamp) return '—';
   const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
   if (isNaN(date.getTime())) return '—';
-  return date.toLocaleDateString('en-IN', {
-    day: '2-digit',
-    month: 'short',
-    year: 'numeric',
-  });
+  const day = String(date.getDate()).padStart(2, '0');
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const year = date.getFullYear();
+  return `${day}/${month}/${year}`;
+};
+
+// Day/Month/Year with month name (e.g. 30 Aug 2026)
+export const formatDateText = (timestamp) => {
+  if (!timestamp) return '—';
+  const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
+  if (isNaN(date.getTime())) return '—';
+  const day = String(date.getDate()).padStart(2, '0');
+  const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  const month = monthNames[date.getMonth()];
+  const year = date.getFullYear();
+  return `${day} ${month} ${year}`;
 };
 
 export const formatDateInput = (timestamp) => {
   if (!timestamp) return '';
   const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
   if (isNaN(date.getTime())) return '';
-  return date.toISOString().split('T')[0];
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
 };
 
 export const getMonthYear = (date = new Date()) => {
