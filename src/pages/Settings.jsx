@@ -14,6 +14,7 @@ import {
   BookOpen,
   Edit2,
   Check,
+  PenTool,
 } from 'lucide-react';
 import { doc, getDoc, setDoc, collection, getDocs, deleteDoc, addDoc, updateDoc } from 'firebase/firestore';
 import { db } from '../firebase/config';
@@ -23,6 +24,8 @@ const ADDONS_LOCAL_KEY = 'studypoint_addons';
 
 export default function Settings() {
   const fileInputRef = useRef(null);
+  const signInputRef = useRef(null);
+
   const [info, setInfo] = useState({
     studyPointName: 'Royal Study Point & Library',
     ownerName: 'Manish',
@@ -30,6 +33,7 @@ export default function Settings() {
     email: 'study@gmail.com',
     address: 'Near Metro Station, Main Road, Study Zone',
     logoUrl: '',
+    signatureUrl: '',
   });
 
   const [addons, setAddons] = useState([]);
@@ -72,7 +76,6 @@ export default function Settings() {
       const addonsData = addonSnap.docs.map((d) => ({ id: d.id, ...d.data() }));
 
       if (addonsData.length === 0 && !localStorage.getItem('studypoint_addons_initialized')) {
-        // Initial first-time seed to Firestore
         const seeded = [];
         for (const def of DEFAULT_ADDONS) {
           try {
@@ -120,7 +123,7 @@ export default function Settings() {
     const reader = new FileReader();
     reader.onload = () => {
       setInfo((prev) => ({ ...prev, logoUrl: reader.result }));
-      showToast('Logo image uploaded! Click "Save" to apply.');
+      showToast('Logo image selected! Click "Save Details & Signature" to apply.');
     };
     reader.readAsDataURL(file);
   };
@@ -129,6 +132,29 @@ export default function Settings() {
     setInfo((prev) => ({ ...prev, logoUrl: '' }));
     if (fileInputRef.current) fileInputRef.current.value = '';
     showToast('Logo removed');
+  };
+
+  const handleSignatureUpload = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > 2 * 1024 * 1024) {
+      alert('Signature image size should be less than 2MB');
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      setInfo((prev) => ({ ...prev, signatureUrl: reader.result }));
+      showToast('Signature image selected! Click "Save Details & Signature" to apply.');
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleRemoveSignature = () => {
+    setInfo((prev) => ({ ...prev, signatureUrl: '' }));
+    if (signInputRef.current) signInputRef.current.value = '';
+    showToast('Signature removed');
   };
 
   const handleSaveInfo = async (e) => {
@@ -143,7 +169,7 @@ export default function Settings() {
         console.warn('Cloud save warning:', cloudErr.message);
       }
 
-      showToast('🎉 Library details & Logo saved successfully! All Bills will now display your Logo.');
+      showToast('🎉 Library details, Logo & Signature saved successfully! All Bills will now display your Signature.');
     } catch (e) {
       console.error('Error saving settings:', e);
       showToast('Error saving settings: ' + e.message);
@@ -246,7 +272,7 @@ export default function Settings() {
           <div>
             <h1 className="text-2xl font-bold text-gray-900">Study Point Settings</h1>
             <p className="text-gray-500 text-sm mt-0.5">
-              Manage library profile, official logo for bills & seat facility pricing
+              Manage library profile, official logo, signature for bills & seat facility pricing
             </p>
           </div>
         </div>
@@ -259,63 +285,121 @@ export default function Settings() {
         )}
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* General Study Point Info & Logo */}
+          {/* General Study Point Info, Logo & Signature */}
           <Card title="Study Point / Library Information (Prints on Bill)">
             <form onSubmit={handleSaveInfo} className="space-y-5">
-              {/* Logo Upload Box */}
-              <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl">
-                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">
-                  Library Official Logo (बिल व रसीद पर लोगो)
-                </label>
+              {/* Logo & Signature Upload Cards */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                {/* 1. Logo Box */}
+                <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-2xl">
+                  <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">
+                    Library Logo (लोगो)
+                  </label>
 
-                <div className="flex items-center gap-4">
-                  <div className="w-20 h-20 rounded-2xl bg-white border-2 border-dashed border-indigo-200 flex items-center justify-center overflow-hidden shrink-0 shadow-xs">
-                    {info.logoUrl ? (
-                      <img
-                        src={info.logoUrl}
-                        alt="Library Logo Preview"
-                        className="w-full h-full object-contain p-1"
-                      />
-                    ) : (
-                      <div className="text-center p-2">
-                        <ImageIcon className="w-6 h-6 text-indigo-400 mx-auto" />
-                        <span className="text-[9px] font-bold text-slate-400 block mt-1">No Logo</span>
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="space-y-1.5 flex-1">
-                    <div className="flex items-center gap-2">
-                      <input
-                        type="file"
-                        ref={fileInputRef}
-                        accept="image/png, image/jpeg, image/webp, image/svg+xml"
-                        onChange={handleLogoUpload}
-                        className="hidden"
-                        id="logo-file-input"
-                      />
-                      <label
-                        htmlFor="logo-file-input"
-                        className="px-3.5 py-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-xs"
-                      >
-                        <Upload className="w-3.5 h-3.5" />
-                        <span>{info.logoUrl ? 'Change Logo' : 'Upload Logo'}</span>
-                      </label>
-
-                      {info.logoUrl && (
-                        <button
-                          type="button"
-                          onClick={handleRemoveLogo}
-                          className="px-2.5 py-2 text-rose-600 hover:bg-rose-50 rounded-xl text-xs font-bold transition-colors cursor-pointer"
-                          title="Remove logo"
-                        >
-                          <X className="w-4 h-4" />
-                        </button>
+                  <div className="flex items-center gap-3">
+                    <div className="w-16 h-16 rounded-xl bg-white border-2 border-dashed border-indigo-200 flex items-center justify-center overflow-hidden shrink-0 shadow-xs">
+                      {info.logoUrl ? (
+                        <img
+                          src={info.logoUrl}
+                          alt="Library Logo Preview"
+                          className="w-full h-full object-contain p-1"
+                        />
+                      ) : (
+                        <div className="text-center p-1">
+                          <ImageIcon className="w-5 h-5 text-indigo-400 mx-auto" />
+                          <span className="text-[8px] font-bold text-slate-400 block mt-0.5">No Logo</span>
+                        </div>
                       )}
                     </div>
-                    <p className="text-[11px] text-slate-400">
-                      Upload PNG/JPG logo. It will be printed at the top of all Fee Bills & Receipts.
-                    </p>
+
+                    <div className="space-y-1 flex-1">
+                      <div className="flex items-center gap-1.5">
+                        <input
+                          type="file"
+                          ref={fileInputRef}
+                          accept="image/png, image/jpeg, image/webp, image/svg+xml"
+                          onChange={handleLogoUpload}
+                          className="hidden"
+                          id="logo-file-input"
+                        />
+                        <label
+                          htmlFor="logo-file-input"
+                          className="px-2.5 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 rounded-lg text-xs font-bold transition-all flex items-center gap-1 cursor-pointer shadow-xs"
+                        >
+                          <Upload className="w-3 h-3" />
+                          <span>{info.logoUrl ? 'Change' : 'Upload'}</span>
+                        </label>
+
+                        {info.logoUrl && (
+                          <button
+                            type="button"
+                            onClick={handleRemoveLogo}
+                            className="p-1.5 text-rose-600 hover:bg-rose-50 rounded-lg text-xs font-bold transition-colors cursor-pointer"
+                            title="Remove logo"
+                          >
+                            <X className="w-3.5 h-3.5" />
+                          </button>
+                        )}
+                      </div>
+                      <p className="text-[10px] text-slate-400">Printed at top of bills</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* 2. Signature Box */}
+                <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-2xl">
+                  <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2 flex items-center gap-1">
+                    <PenTool className="w-3.5 h-3.5 text-indigo-600" />
+                    <span>Signature / Stamp (हस्ताक्षर)</span>
+                  </label>
+
+                  <div className="flex items-center gap-3">
+                    <div className="w-16 h-16 rounded-xl bg-white border-2 border-dashed border-indigo-200 flex items-center justify-center overflow-hidden shrink-0 shadow-xs">
+                      {info.signatureUrl ? (
+                        <img
+                          src={info.signatureUrl}
+                          alt="Signature Preview"
+                          className="w-full h-full object-contain p-1"
+                        />
+                      ) : (
+                        <div className="text-center p-1">
+                          <PenTool className="w-5 h-5 text-indigo-400 mx-auto" />
+                          <span className="text-[8px] font-bold text-slate-400 block mt-0.5">No Sign</span>
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="space-y-1 flex-1">
+                      <div className="flex items-center gap-1.5">
+                        <input
+                          type="file"
+                          ref={signInputRef}
+                          accept="image/png, image/jpeg, image/webp, image/svg+xml"
+                          onChange={handleSignatureUpload}
+                          className="hidden"
+                          id="signature-file-input"
+                        />
+                        <label
+                          htmlFor="signature-file-input"
+                          className="px-2.5 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 rounded-lg text-xs font-bold transition-all flex items-center gap-1 cursor-pointer shadow-xs"
+                        >
+                          <Upload className="w-3 h-3" />
+                          <span>{info.signatureUrl ? 'Change' : 'Upload'}</span>
+                        </label>
+
+                        {info.signatureUrl && (
+                          <button
+                            type="button"
+                            onClick={handleRemoveSignature}
+                            className="p-1.5 text-rose-600 hover:bg-rose-50 rounded-lg text-xs font-bold transition-colors cursor-pointer"
+                            title="Remove signature"
+                          >
+                            <X className="w-3.5 h-3.5" />
+                          </button>
+                        )}
+                      </div>
+                      <p className="text-[10px] text-slate-400">Printed at signatory line</p>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -397,7 +481,7 @@ export default function Settings() {
                 <Button variant="primary" type="submit" disabled={isSaving}>
                   <span className="flex items-center gap-2">
                     <Save size={16} />
-                    {isSaving ? 'Saving...' : 'Save Study Point Details & Logo'}
+                    {isSaving ? 'Saving...' : 'Save Details, Logo & Signature'}
                   </span>
                 </Button>
               </div>

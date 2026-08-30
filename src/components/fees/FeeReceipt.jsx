@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import Modal from '../common/Modal';
 import Button from '../common/Button';
 import { formatCurrency, formatDate } from '../../utils/helpers';
-import { Printer, BookOpen, Download, MessageSquare, CheckCircle2, ShieldCheck, Tag } from 'lucide-react';
+import { Printer, BookOpen, Download, MessageSquare, CheckCircle2, ShieldCheck, Tag, PenTool } from 'lucide-react';
 import { doc, getDoc } from 'firebase/firestore';
 import { db } from '../../firebase/config';
 import { COLLECTIONS } from '../../utils/constants';
@@ -17,6 +17,7 @@ export default function FeeReceipt({ isOpen, onClose, fee, student, section, sea
     email: 'study@gmail.com',
     address: 'Near Metro Station, Main Road, Study Zone',
     logoUrl: '',
+    signatureUrl: '',
   });
 
   useEffect(() => {
@@ -52,6 +53,7 @@ export default function FeeReceipt({ isOpen, onClose, fee, student, section, sea
   const libraryPhone = libraryInfo.phone || '';
   const libraryOwner = libraryInfo.ownerName || 'Study Point Owner';
   const libraryLogo = libraryInfo.logoUrl || '';
+  const librarySignature = libraryInfo.signatureUrl || '';
   const receiptNo = `SP-${fee.month?.replace('-', '') || '2026'}-${(fee.id || '001').slice(-4).toUpperCase()}`;
 
   const planTitle = fee.planName
@@ -68,6 +70,10 @@ export default function FeeReceipt({ isOpen, onClose, fee, student, section, sea
     const logoHtml = libraryLogo
       ? `<img src="${libraryLogo}" alt="Logo" style="max-height: 65px; max-width: 140px; object-fit: contain; margin-bottom: 8px; border-radius: 8px;" />`
       : `<div style="display: inline-block; width: 44px; height: 44px; line-height: 44px; background: #4338ca; color: #fff; border-radius: 12px; font-size: 20px; font-weight: bold; margin-bottom: 8px;">📚</div>`;
+
+    const signHtml = librarySignature
+      ? `<img src="${librarySignature}" alt="Authorized Signature" style="max-height: 48px; max-width: 140px; object-fit: contain; margin-bottom: 2px;" /><br/>`
+      : '';
 
     printWindow.document.write(`
       <!DOCTYPE html>
@@ -187,6 +193,7 @@ export default function FeeReceipt({ isOpen, onClose, fee, student, section, sea
               </div>
               <div>
                 <div class="sign-box">
+                  ${signHtml}
                   Authorized Signatory<br/>
                   <span style="font-size: 10px; color: #4338ca; font-weight: 700;">${libraryOwner}</span>
                 </div>
@@ -326,8 +333,8 @@ export default function FeeReceipt({ isOpen, onClose, fee, student, section, sea
             </table>
           </div>
 
-          {/* Payment Mode & Status Badge */}
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 bg-slate-50 p-3.5 rounded-xl border border-slate-200 text-xs">
+          {/* Payment Mode, Status Badge & Signature Preview */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-slate-50 p-4 rounded-xl border border-slate-200 text-xs">
             <div>
               <p className="text-slate-500">
                 Payment Mode:{' '}
@@ -336,12 +343,33 @@ export default function FeeReceipt({ isOpen, onClose, fee, student, section, sea
                 </strong>
               </p>
               {fee.notes && <p className="text-slate-400 text-[11px] mt-0.5">Remarks: {fee.notes}</p>}
+              <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-emerald-100 text-emerald-800 border border-emerald-200 rounded-full font-black text-xs uppercase mt-2">
+                <CheckCircle2 className="w-3.5 h-3.5" />
+                <span>PAID & VERIFIED</span>
+              </span>
             </div>
 
-            <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-emerald-100 text-emerald-800 border border-emerald-200 rounded-full font-black text-xs uppercase self-start sm:self-auto">
-              <CheckCircle2 className="w-3.5 h-3.5" />
-              <span>PAID & VERIFIED</span>
-            </span>
+            {/* Signature Preview Box */}
+            <div className="text-center sm:text-right border-t sm:border-t-0 pt-2 sm:pt-0">
+              {librarySignature ? (
+                <div className="inline-block text-center">
+                  <img
+                    src={librarySignature}
+                    alt="Authorized Signature"
+                    className="max-h-12 max-w-28 object-contain mx-auto"
+                  />
+                  <p className="text-[10px] text-slate-400 font-bold uppercase mt-0.5 border-t border-slate-300 pt-0.5">
+                    Authorized Signatory
+                  </p>
+                  <p className="text-[11px] font-bold text-indigo-700">{libraryOwner}</p>
+                </div>
+              ) : (
+                <div className="text-slate-400 text-center">
+                  <p className="text-[10px] uppercase font-bold border-t border-slate-300 pt-1">Authorized Signatory</p>
+                  <p className="text-[11px] font-bold text-slate-700">{libraryOwner}</p>
+                </div>
+              )}
+            </div>
           </div>
         </div>
 
