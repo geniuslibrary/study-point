@@ -13,6 +13,7 @@ import Memberships from './pages/Memberships';
 import Expenses from './pages/Expenses';
 import StaffRoles from './pages/StaffRoles';
 import Settings from './pages/Settings';
+import PublicReceipt from './pages/PublicReceipt';
 
 const ProtectedRoute = ({ children, requiredModule = null }) => {
   const { user, loading, hasPermission } = useAuth();
@@ -41,6 +42,7 @@ function AppRoutes() {
   return (
     <Routes>
       <Route path="/login" element={<Login />} />
+      <Route path="/receipt/:id" element={<PublicReceipt />} />
       <Route
         path="/"
         element={

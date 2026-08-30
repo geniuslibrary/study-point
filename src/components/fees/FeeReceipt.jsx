@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import Modal from '../common/Modal';
 import Button from '../common/Button';
 import { formatCurrency, formatDate } from '../../utils/helpers';
-import { BookOpen, Download, MessageSquare, CheckCircle2, PenTool, Loader2, Share2 } from 'lucide-react';
+import { BookOpen, Download, MessageSquare, CheckCircle2, PenTool, Loader2, ExternalLink } from 'lucide-react';
 import { doc, getDoc } from 'firebase/firestore';
 import { db } from '../../firebase/config';
 import { COLLECTIONS } from '../../utils/constants';
@@ -70,8 +70,9 @@ export default function FeeReceipt({ isOpen, onClose, fee, student, section, sea
     : fee.month;
 
   const pdfFileName = `Fee_Receipt_${(student?.name || 'Student').replace(/\s+/g, '_')}_${receiptNo}.pdf`;
+  const onlineReceiptUrl = `${window.location.origin}/receipt/${fee.id}`;
 
-  // 1. Generate & Direct Download Real PDF
+  // 1. Direct Download High-Resolution PDF
   const handleDownloadPDF = async () => {
     if (!receiptRef.current) return;
     setIsGeneratingPdf(true);
@@ -96,7 +97,7 @@ export default function FeeReceipt({ isOpen, onClose, fee, student, section, sea
     }
   };
 
-  // 2. Share PDF Directly to WhatsApp
+  // 2. Share PDF & Live Digital Bill on WhatsApp
   const handleShareWhatsAppPDF = async () => {
     if (!receiptRef.current) return;
     setIsGeneratingPdf(true);
@@ -113,46 +114,31 @@ export default function FeeReceipt({ isOpen, onClose, fee, student, section, sea
     };
 
     try {
-      // Generate real PDF Blob
-      const pdfBlob = await html2pdf().set(opt).from(receiptRef.current).outputPdf('blob');
-      const pdfFile = new File([pdfBlob], pdfFileName, { type: 'application/pdf' });
+      // 1. Trigger local PDF download
+      await html2pdf().set(opt).from(receiptRef.current).save();
 
-      // If device supports Web Share API with files (Android / iOS mobile devices):
-      if (navigator.canShare && navigator.canShare({ files: [pdfFile] })) {
-        await navigator.share({
-          title: `Fee Receipt - ${student?.name || 'Student'}`,
-          text: `Official Fee Payment Receipt from ${libraryTitle} (Receipt: ${receiptNo})`,
-          files: [pdfFile],
-        });
-        setPdfToast('PDF Bill Shared Successfully!');
-        setTimeout(() => setPdfToast(''), 4000);
-      } else {
-        // Desktop / Unsupported browser: Download PDF file & open WhatsApp Chat
-        await html2pdf().set(opt).from(receiptRef.current).save();
+      // 2. Prepare rich WhatsApp message with live PDF bill link
+      const message = `🎉 *FEE PAYMENT RECEIPT - ${libraryTitle.toUpperCase()}*\n\n` +
+        `Hello *${student?.name || 'Student'}*,\n` +
+        `Your official fee payment of *₹${fee.amount}* has been confirmed!\n\n` +
+        `🧾 *Receipt No:* ${receiptNo}\n` +
+        `📦 *Plan:* ${planTitle}\n` +
+        `📅 *Validity Period:* ${validityText}\n` +
+        `📍 *Seat Allocated:* Seat #${student?.seatId?.split('_seat_')?.pop() || '—'} (${student?.shiftTiming || 'Shift'})\n` +
+        `💳 *Payment Mode:* ${(fee.paymentMode || 'CASH').toUpperCase()}\n` +
+        `✅ *Status:* PAID & VERIFIED\n\n` +
+        `📄 *View & Download Official PDF Receipt:* \n👉 ${onlineReceiptUrl}\n\n` +
+        `Thank you for studying at ${libraryTitle}! 🙏`;
 
-        const message = `🎉 *FEE PAYMENT RECEIPT - ${libraryTitle.toUpperCase()}*\n\n` +
-          `Hello *${student?.name || 'Student'}*,\n` +
-          `Your official Fee Receipt PDF (*${receiptNo}*) for ₹${fee.amount} has been generated.\n\n` +
-          `📦 *Plan:* ${planTitle}\n` +
-          `📅 *Validity:* ${validityText}\n` +
-          `📍 *Seat:* Seat #${student?.seatId?.split('_seat_')?.pop() || '—'} (${student?.shiftTiming || 'Shift'})\n` +
-          `✅ *Status:* PAID & CONFIRMED\n\n` +
-          `*(Attached PDF: ${pdfFileName})*\n` +
-          `Thank you for studying at ${libraryTitle}! 🙏`;
+      const waUrl = `https://api.whatsapp.com/send?phone=${phoneWithCountry}&text=${encodeURIComponent(message)}`;
+      window.open(waUrl, '_blank');
 
-        const waUrl = `https://api.whatsapp.com/send?phone=${phoneWithCountry}&text=${encodeURIComponent(message)}`;
-        window.open(waUrl, '_blank');
-
-        setPdfToast('📥 PDF Downloaded! Please attach the PDF in WhatsApp chat.');
-        setTimeout(() => setPdfToast(''), 5000);
-      }
+      setPdfToast('🎉 PDF Downloaded & WhatsApp Redirected!');
+      setTimeout(() => setPdfToast(''), 5000);
     } catch (err) {
-      if (err.name !== 'AbortError') {
-        console.error('WhatsApp PDF Share error:', err);
-        // Fallback open WhatsApp
-        const waUrl = `https://api.whatsapp.com/send?phone=${phoneWithCountry}&text=${encodeURIComponent(`Receipt No: ${receiptNo} for ₹${fee.amount} from ${libraryTitle}`)}`;
-        window.open(waUrl, '_blank');
-      }
+      console.error('WhatsApp PDF Share error:', err);
+      const waUrl = `https://api.whatsapp.com/send?phone=${phoneWithCountry}&text=${encodeURIComponent(`Receipt No: ${receiptNo} for ₹${fee.amount} from ${libraryTitle}\nView Bill: ${onlineReceiptUrl}`)}`;
+      window.open(waUrl, '_blank');
     } finally {
       setIsGeneratingPdf(false);
     }
@@ -325,7 +311,7 @@ export default function FeeReceipt({ isOpen, onClose, fee, student, section, sea
               onClick={handleShareWhatsAppPDF}
               disabled={isGeneratingPdf}
               className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white rounded-xl text-xs font-bold transition-all shadow-md flex items-center gap-2 cursor-pointer"
-              title="Share actual PDF Bill on WhatsApp"
+              title="Share PDF & Live Bill on WhatsApp"
             >
               {isGeneratingPdf ? (
                 <Loader2 className="w-4 h-4 animate-spin" />
@@ -339,7 +325,7 @@ export default function FeeReceipt({ isOpen, onClose, fee, student, section, sea
               onClick={handleDownloadPDF}
               disabled={isGeneratingPdf}
               className="px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white rounded-xl text-xs font-black transition-all shadow-md flex items-center gap-2 cursor-pointer"
-              title="Download or Print PDF Receipt"
+              title="Download PDF Receipt"
             >
               {isGeneratingPdf ? (
                 <Loader2 className="w-4 h-4 animate-spin" />
