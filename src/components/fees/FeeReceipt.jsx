@@ -1,15 +1,20 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import Modal from '../common/Modal';
 import Button from '../common/Button';
 import { formatCurrency, formatDate } from '../../utils/helpers';
-import { Printer, BookOpen, Download, MessageSquare, CheckCircle2, ShieldCheck, Tag, PenTool } from 'lucide-react';
+import { BookOpen, Download, MessageSquare, CheckCircle2, PenTool, Loader2, Share2 } from 'lucide-react';
 import { doc, getDoc } from 'firebase/firestore';
 import { db } from '../../firebase/config';
 import { COLLECTIONS } from '../../utils/constants';
+import html2pdf from 'html2pdf.js';
 
 const SETTINGS_LOCAL_KEY = 'studypoint_settings';
 
 export default function FeeReceipt({ isOpen, onClose, fee, student, section, seat }) {
+  const receiptRef = useRef(null);
+  const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
+  const [pdfToast, setPdfToast] = useState('');
+
   const [libraryInfo, setLibraryInfo] = useState({
     studyPointName: 'Royal Study Point & Library',
     ownerName: 'Manish',
@@ -64,181 +69,111 @@ export default function FeeReceipt({ isOpen, onClose, fee, student, section, sea
     ? `${formatDate(fee.periodStart)} to ${formatDate(fee.periodEnd)}`
     : fee.month;
 
-  const handlePrintOrSavePDF = () => {
-    const printWindow = window.open('', '_blank', 'width=800,height=900');
+  const pdfFileName = `Fee_Receipt_${(student?.name || 'Student').replace(/\s+/g, '_')}_${receiptNo}.pdf`;
 
-    const logoHtml = libraryLogo
-      ? `<img src="${libraryLogo}" alt="Logo" style="max-height: 65px; max-width: 140px; object-fit: contain; margin-bottom: 8px; border-radius: 8px;" />`
-      : `<div style="display: inline-block; width: 44px; height: 44px; line-height: 44px; background: #4338ca; color: #fff; border-radius: 12px; font-size: 20px; font-weight: bold; margin-bottom: 8px;">📚</div>`;
+  // 1. Generate & Direct Download Real PDF
+  const handleDownloadPDF = async () => {
+    if (!receiptRef.current) return;
+    setIsGeneratingPdf(true);
 
-    const signHtml = librarySignature
-      ? `<img src="${librarySignature}" alt="Authorized Signature" style="max-height: 48px; max-width: 140px; object-fit: contain; margin-bottom: 2px;" /><br/>`
-      : '';
+    const opt = {
+      margin: [8, 8, 8, 8],
+      filename: pdfFileName,
+      image: { type: 'jpeg', quality: 0.98 },
+      html2canvas: { scale: 2, useCORS: true, logging: false },
+      jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
+    };
 
-    printWindow.document.write(`
-      <!DOCTYPE html>
-      <html>
-        <head>
-          <title>Fee Receipt - ${student?.name || 'Student'} - ${receiptNo}</title>
-          <style>
-            @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&display=swap');
-            * { box-sizing: border-box; font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; }
-            body { margin: 0; padding: 24px; color: #0f172a; background: #fff; }
-            .receipt-container { max-width: 650px; margin: 0 auto; border: 2px solid #e2e8f0; border-radius: 16px; padding: 32px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); }
-            .header { text-align: center; border-bottom: 2px dashed #cbd5e1; padding-bottom: 18px; margin-bottom: 20px; }
-            .logo-title { font-size: 24px; font-weight: 900; color: #4338ca; letter-spacing: -0.5px; margin: 4px 0 0 0; text-transform: uppercase; }
-            .sub-title { font-size: 11px; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 1.5px; margin-top: 4px; }
-            .tagline { font-size: 12px; color: #475569; margin-top: 4px; font-weight: 500; }
-            .contact-tag { font-size: 11px; color: #64748b; margin-top: 2px; }
-            .meta-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 24px; background: #f8fafc; border: 1px solid #f1f5f9; padding: 16px; border-radius: 12px; }
-            .meta-item { font-size: 12px; }
-            .meta-label { color: #64748b; font-size: 11px; font-weight: 600; text-transform: uppercase; }
-            .meta-val { font-weight: 700; color: #0f172a; margin-top: 2px; font-size: 13px; }
-            .table-wrap { width: 100%; border-collapse: collapse; margin-bottom: 24px; }
-            .table-wrap th { background: #f1f5f9; text-align: left; padding: 10px 14px; font-size: 11px; font-weight: 700; text-transform: uppercase; color: #475569; border-bottom: 1px solid #e2e8f0; }
-            .table-wrap td { padding: 12px 14px; font-size: 12px; border-bottom: 1px solid #f1f5f9; }
-            .table-wrap .total-row td { background: #eef2ff; font-weight: 800; font-size: 14px; color: #3730a3; border-top: 2px solid #c7d2fe; }
-            .paid-badge { display: inline-block; padding: 4px 12px; background: #dcfce7; color: #166534; font-size: 11px; font-weight: 800; border-radius: 9999px; border: 1px solid #bbf7d0; text-transform: uppercase; }
-            .footer-notes { display: grid; grid-template-columns: 1.2fr 0.8fr; gap: 16px; align-items: flex-end; margin-top: 28px; padding-top: 16px; border-top: 1px solid #e2e8f0; }
-            .sign-box { text-align: center; border-top: 1px solid #94a3b8; padding-top: 6px; font-size: 11px; font-weight: 700; color: #475569; margin-top: 40px; }
-            @media print {
-              body { padding: 0; }
-              .receipt-container { border: none; box-shadow: none; padding: 16px; }
-            }
-          </style>
-        </head>
-        <body>
-          <div class="receipt-container">
-            <div class="header">
-              ${logoHtml}
-              <h1 class="logo-title">${libraryTitle}</h1>
-              <div class="sub-title">Official Fee Payment Receipt</div>
-              <div class="tagline">${libraryAddress}</div>
-              ${libraryPhone ? `<div class="contact-tag">Contact: <strong>${libraryPhone}</strong> ${libraryInfo.email ? `• ${libraryInfo.email}` : ''}</div>` : ''}
-            </div>
-
-            <div class="meta-grid">
-              <div class="meta-item">
-                <div class="meta-label">Receipt Number</div>
-                <div class="meta-val" style="font-family: monospace; color: #4338ca;">${receiptNo}</div>
-              </div>
-              <div class="meta-item" style="text-align: right;">
-                <div class="meta-label">Payment Date</div>
-                <div class="meta-val">${formatDate(fee.paidDate)}</div>
-              </div>
-              <div class="meta-item">
-                <div class="meta-label">Student Name</div>
-                <div class="meta-val">${student?.name || '—'}</div>
-              </div>
-              <div class="meta-item" style="text-align: right;">
-                <div class="meta-label">Contact Number</div>
-                <div class="meta-val">${student?.phone || '—'}</div>
-              </div>
-              <div class="meta-item">
-                <div class="meta-label">Section & Seat</div>
-                <div class="meta-val">${section?.name || 'Main Hall'} • Seat #${student?.seatId?.split('_seat_')?.pop() || '—'}</div>
-              </div>
-              <div class="meta-item" style="text-align: right;">
-                <div class="meta-label">Membership Validity</div>
-                <div class="meta-val" style="color: #166534;">${validityText}</div>
-              </div>
-            </div>
-
-            <table class="table-wrap">
-              <thead>
-                <tr>
-                  <th>Description</th>
-                  <th style="text-align: right;">Amount</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr>
-                  <td>${libraryTitle} - ${planTitle}</td>
-                  <td style="text-align: right; font-weight: 600;">${formatCurrency(fee.baseFee || fee.amount)}</td>
-                </tr>
-                ${
-                  fee.addonCharges
-                    ? Object.entries(fee.addonCharges)
-                        .map(
-                          ([name, amt]) => `
-                        <tr>
-                          <td>${name} Facility & Locker Add-on</td>
-                          <td style="text-align: right; font-weight: 600;">${formatCurrency(amt)}</td>
-                        </tr>`
-                        )
-                        .join('')
-                    : ''
-                }
-                ${
-                  fee.discountAmount > 0
-                    ? `
-                        <tr style="color: #166534;">
-                          <td>Special Discount / Concession</td>
-                          <td style="text-align: right; font-weight: 600;">- ${formatCurrency(fee.discountAmount)}</td>
-                        </tr>`
-                    : ''
-                }
-                <tr class="total-row">
-                  <td>TOTAL AMOUNT RECEIVED</td>
-                  <td style="text-align: right;">${formatCurrency(fee.amount)}</td>
-                </tr>
-              </tbody>
-            </table>
-
-            <div class="footer-notes">
-              <div style="font-size: 11px; color: #64748b;">
-                <p style="margin: 0 0 4px 0;"><strong>Payment Mode:</strong> <span style="text-transform: uppercase; color: #4338ca; font-weight: 800;">${fee.paymentMode || 'CASH'}</span></p>
-                <p style="margin: 0 0 4px 0;"><strong>Status:</strong> <span class="paid-badge">✓ PAYMENT VERIFIED & RECEIVED</span></p>
-                <p style="margin: 0; color: #94a3b8; font-size: 10px;">Computer-generated official receipt issued by ${libraryTitle}.</p>
-              </div>
-              <div>
-                <div class="sign-box">
-                  ${signHtml}
-                  Authorized Signatory<br/>
-                  <span style="font-size: 10px; color: #4338ca; font-weight: 700;">${libraryOwner}</span>
-                </div>
-              </div>
-            </div>
-          </div>
-        </body>
-      </html>
-    `);
-
-    printWindow.document.close();
-    printWindow.focus();
-    setTimeout(() => {
-      printWindow.print();
-    }, 400);
+    try {
+      await html2pdf().set(opt).from(receiptRef.current).save();
+      setPdfToast('🎉 PDF Receipt Downloaded Successfully!');
+      setTimeout(() => setPdfToast(''), 4000);
+    } catch (err) {
+      console.error('PDF generate error, falling back to print:', err);
+      window.print();
+    } finally {
+      setIsGeneratingPdf(false);
+    }
   };
 
-  const handleSendWhatsAppReceipt = () => {
+  // 2. Share PDF Directly to WhatsApp
+  const handleShareWhatsAppPDF = async () => {
+    if (!receiptRef.current) return;
+    setIsGeneratingPdf(true);
+
     const cleanPhone = (student?.phone || '').replace(/\D/g, '');
     const phoneWithCountry = cleanPhone.length === 10 ? `91${cleanPhone}` : cleanPhone;
 
-    const message = `🎉 *FEE PAYMENT RECEIPT - ${libraryTitle.toUpperCase()}*\n\n` +
-      `👤 *Student Name:* ${student?.name || 'Student'}\n` +
-      `🧾 *Receipt No:* ${receiptNo}\n` +
-      `📦 *Plan:* ${planTitle}\n` +
-      `📅 *Validity Period:* ${validityText}\n` +
-      `💵 *Amount Paid:* ₹${fee.amount}\n` +
-      (fee.discountAmount > 0 ? `🏷️ *Discount Given:* ₹${fee.discountAmount}\n` : '') +
-      `💳 *Payment Mode:* ${(fee.paymentMode || 'CASH').toUpperCase()}\n` +
-      `📍 *Seat Allocated:* Seat #${student?.seatId?.split('_seat_')?.pop() || '—'} (${student?.shiftTiming || 'Shift'})\n` +
-      `🗓️ *Date:* ${formatDate(fee.paidDate)}\n` +
-      `🏢 *Address:* ${libraryAddress}\n` +
-      `📞 *Helpdesk:* ${libraryPhone}\n\n` +
-      `✅ *Status:* PAID & CONFIRMED\n\n` +
-      `Thank you for studying at ${libraryTitle}! 🙏`;
+    const opt = {
+      margin: [8, 8, 8, 8],
+      filename: pdfFileName,
+      image: { type: 'jpeg', quality: 0.98 },
+      html2canvas: { scale: 2, useCORS: true, logging: false },
+      jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
+    };
 
-    const waUrl = `https://api.whatsapp.com/send?phone=${phoneWithCountry}&text=${encodeURIComponent(message)}`;
-    window.open(waUrl, '_blank');
+    try {
+      // Generate real PDF Blob
+      const pdfBlob = await html2pdf().set(opt).from(receiptRef.current).outputPdf('blob');
+      const pdfFile = new File([pdfBlob], pdfFileName, { type: 'application/pdf' });
+
+      // If device supports Web Share API with files (Android / iOS mobile devices):
+      if (navigator.canShare && navigator.canShare({ files: [pdfFile] })) {
+        await navigator.share({
+          title: `Fee Receipt - ${student?.name || 'Student'}`,
+          text: `Official Fee Payment Receipt from ${libraryTitle} (Receipt: ${receiptNo})`,
+          files: [pdfFile],
+        });
+        setPdfToast('PDF Bill Shared Successfully!');
+        setTimeout(() => setPdfToast(''), 4000);
+      } else {
+        // Desktop / Unsupported browser: Download PDF file & open WhatsApp Chat
+        await html2pdf().set(opt).from(receiptRef.current).save();
+
+        const message = `🎉 *FEE PAYMENT RECEIPT - ${libraryTitle.toUpperCase()}*\n\n` +
+          `Hello *${student?.name || 'Student'}*,\n` +
+          `Your official Fee Receipt PDF (*${receiptNo}*) for ₹${fee.amount} has been generated.\n\n` +
+          `📦 *Plan:* ${planTitle}\n` +
+          `📅 *Validity:* ${validityText}\n` +
+          `📍 *Seat:* Seat #${student?.seatId?.split('_seat_')?.pop() || '—'} (${student?.shiftTiming || 'Shift'})\n` +
+          `✅ *Status:* PAID & CONFIRMED\n\n` +
+          `*(Attached PDF: ${pdfFileName})*\n` +
+          `Thank you for studying at ${libraryTitle}! 🙏`;
+
+        const waUrl = `https://api.whatsapp.com/send?phone=${phoneWithCountry}&text=${encodeURIComponent(message)}`;
+        window.open(waUrl, '_blank');
+
+        setPdfToast('📥 PDF Downloaded! Please attach the PDF in WhatsApp chat.');
+        setTimeout(() => setPdfToast(''), 5000);
+      }
+    } catch (err) {
+      if (err.name !== 'AbortError') {
+        console.error('WhatsApp PDF Share error:', err);
+        // Fallback open WhatsApp
+        const waUrl = `https://api.whatsapp.com/send?phone=${phoneWithCountry}&text=${encodeURIComponent(`Receipt No: ${receiptNo} for ₹${fee.amount} from ${libraryTitle}`)}`;
+        window.open(waUrl, '_blank');
+      }
+    } finally {
+      setIsGeneratingPdf(false);
+    }
   };
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} title="Official Fee Bill & Receipt" size="lg">
-      <div className="space-y-5">
-        {/* Receipt Container Preview */}
-        <div id="printable-fee-receipt" className="p-6 bg-white rounded-2xl border-2 border-slate-200 shadow-sm space-y-4">
+      <div className="space-y-4">
+        {pdfToast && (
+          <div className="p-3 bg-emerald-50 text-emerald-800 border border-emerald-200 rounded-xl text-xs font-bold flex items-center gap-2 shadow-xs">
+            <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+            <span>{pdfToast}</span>
+          </div>
+        )}
+
+        {/* Receipt Container (Target for PDF Generation) */}
+        <div
+          ref={receiptRef}
+          id="printable-fee-receipt"
+          className="p-6 bg-white rounded-2xl border-2 border-slate-200 shadow-sm space-y-4 text-slate-900"
+        >
           {/* Header */}
           <div className="text-center border-b border-slate-200 pb-4">
             {libraryLogo ? (
@@ -256,11 +191,13 @@ export default function FeeReceipt({ isOpen, onClose, fee, student, section, sea
             )}
             <h2 className="text-2xl font-black text-slate-900 tracking-tight uppercase">{libraryTitle}</h2>
             <p className="text-xs font-bold text-indigo-600 uppercase tracking-widest mt-0.5">
-              Official Fee Payment Bill
+              Official Fee Payment Bill & Receipt
             </p>
             <p className="text-xs text-slate-600 mt-1 font-medium">{libraryAddress}</p>
             {libraryPhone && (
-              <p className="text-[11px] text-slate-400">Phone: {libraryPhone} {libraryInfo.email ? `• ${libraryInfo.email}` : ''}</p>
+              <p className="text-[11px] text-slate-400">
+                Phone: {libraryPhone} {libraryInfo.email ? `• ${libraryInfo.email}` : ''}
+              </p>
             )}
           </div>
 
@@ -282,7 +219,9 @@ export default function FeeReceipt({ isOpen, onClose, fee, student, section, sea
             <div className="text-right">
               <span className="text-slate-400 font-bold uppercase text-[10px]">Validity Period</span>
               <p className="font-bold text-emerald-800 mt-0.5">{validityText}</p>
-              <p className="text-[11px] text-slate-500">Seat #{student?.seatId?.split('_seat_')?.pop() || '—'} • {student?.shiftTiming || 'Shift'}</p>
+              <p className="text-[11px] text-slate-500">
+                Seat #{student?.seatId?.split('_seat_')?.pop() || '—'} • {student?.shiftTiming || 'Shift'}
+              </p>
             </div>
           </div>
 
@@ -365,7 +304,9 @@ export default function FeeReceipt({ isOpen, onClose, fee, student, section, sea
                 </div>
               ) : (
                 <div className="text-slate-400 text-center">
-                  <p className="text-[10px] uppercase font-bold border-t border-slate-300 pt-1">Authorized Signatory</p>
+                  <p className="text-[10px] uppercase font-bold border-t border-slate-300 pt-1">
+                    Authorized Signatory
+                  </p>
                   <p className="text-[11px] font-bold text-slate-700">{libraryOwner}</p>
                 </div>
               )}
@@ -375,27 +316,37 @@ export default function FeeReceipt({ isOpen, onClose, fee, student, section, sea
 
         {/* Action Buttons */}
         <div className="flex flex-wrap items-center justify-between gap-3 pt-2">
-          <Button variant="secondary" onClick={onClose}>
+          <Button variant="secondary" onClick={onClose} disabled={isGeneratingPdf}>
             Close
           </Button>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2.5">
             <button
-              onClick={handleSendWhatsAppReceipt}
-              className="px-3.5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition-all shadow-md flex items-center gap-1.5 cursor-pointer"
-              title="Share receipt bill on WhatsApp"
+              onClick={handleShareWhatsAppPDF}
+              disabled={isGeneratingPdf}
+              className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white rounded-xl text-xs font-bold transition-all shadow-md flex items-center gap-2 cursor-pointer"
+              title="Share actual PDF Bill on WhatsApp"
             >
-              <MessageSquare className="w-4 h-4" />
-              <span>WhatsApp Receipt</span>
+              {isGeneratingPdf ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <MessageSquare className="w-4 h-4" />
+              )}
+              <span>{isGeneratingPdf ? 'Generating PDF...' : 'WhatsApp PDF Bill'}</span>
             </button>
 
             <button
-              onClick={handlePrintOrSavePDF}
-              className="px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-black transition-all shadow-md flex items-center gap-1.5 cursor-pointer"
-              title="Print or Save as PDF"
+              onClick={handleDownloadPDF}
+              disabled={isGeneratingPdf}
+              className="px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white rounded-xl text-xs font-black transition-all shadow-md flex items-center gap-2 cursor-pointer"
+              title="Download or Print PDF Receipt"
             >
-              <Download className="w-4 h-4" />
-              <span>📄 Save PDF / Print</span>
+              {isGeneratingPdf ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <Download className="w-4 h-4" />
+              )}
+              <span>Download PDF</span>
             </button>
           </div>
         </div>
