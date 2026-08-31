@@ -12,7 +12,7 @@ import {
   TrendingUp,
   CheckCircle,
   AlertCircle,
-  RefreshCw,
+  Sparkles,
 } from 'lucide-react';
 import { COLLECTIONS } from '../utils/constants';
 import { formatCurrency, getMonthYear } from '../utils/helpers';
@@ -30,10 +30,74 @@ export default function Fees() {
   const [plans, setPlans] = useState([]);
   const [addonPricing, setAddonPricing] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [generating, setGenerating] = useState(false);
   const [selectedMonth, setSelectedMonth] = useState(getMonthYear());
   const [collectFee, setCollectFee] = useState(null);
   const [receiptFee, setReceiptFee] = useState(null);
+
+  // Automatic Background Dues Synchronizer
+  const autoSyncMonthlyDues = async (currentFees, activeStudents, allPlans, allSeats, allAddons) => {
+    const currentMonth = getMonthYear();
+    const missingStudents = activeStudents.filter((student) => {
+      return !currentFees.some((f) => f.studentId === student.id && f.month === currentMonth);
+    });
+
+    if (missingStudents.length === 0) return currentFees;
+
+    const newFeePromises = [];
+    const newFeeRecords = [];
+
+    for (const student of missingStudents) {
+      const plan = allPlans.find((p) => p.id === student.membershipPlanId);
+      const seat = allSeats.find((s) => s.id === student.seatId);
+      const baseFee = plan ? Number(plan.price) : 800;
+      const discount = Number(student.discountAmount) || 0;
+
+      const addonCharges = {};
+      let addonTotal = 0;
+      if (seat?.addons) {
+        allAddons.forEach((addon) => {
+          const key = addon.name?.toLowerCase();
+          if (seat.addons[key]) {
+            addonCharges[addon.name] = Number(addon.monthlyCharge) || 0;
+            addonTotal += Number(addon.monthlyCharge) || 0;
+          }
+        });
+      }
+
+      const dueDate = new Date();
+      dueDate.setDate(10);
+      if (dueDate < new Date()) dueDate.setMonth(dueDate.getMonth() + 1);
+
+      const feePayload = {
+        studentId: student.id,
+        amount: Math.max(0, baseFee + addonTotal - discount),
+        baseFee,
+        discountAmount: discount,
+        addonCharges,
+        dueDate: dueDate.toISOString(),
+        paidDate: null,
+        status: 'pending',
+        month: currentMonth,
+        paymentMode: '',
+        notes: '',
+        planId: plan?.id || '',
+        planName: plan?.name || 'Standard Monthly Plan',
+        planDuration: plan?.durationMonths || 1,
+      };
+
+      const docId = `fee_${student.id}_${currentMonth.replace('-', '_')}`;
+      newFeePromises.push(createDocument(COLLECTIONS.FEES, feePayload, docId));
+      newFeeRecords.push({ id: docId, ...feePayload });
+    }
+
+    try {
+      await Promise.all(newFeePromises);
+    } catch (e) {
+      console.warn('Auto-sync monthly dues background warning:', e);
+    }
+
+    return [...currentFees, ...newFeeRecords];
+  };
 
   const fetchData = async () => {
     setLoading(true);
@@ -46,14 +110,24 @@ export default function Fees() {
         fetchCollectionData(COLLECTIONS.MEMBERSHIP_PLANS),
         fetchCollectionData(COLLECTIONS.ADDON_PRICING),
       ]);
-      setFees(feeDocs);
+
+      const activeStudents = stuDocs.filter((s) => s.status === 'active');
+      const syncedFees = await autoSyncMonthlyDues(
+        feeDocs,
+        activeStudents,
+        planDocs,
+        seatDocs,
+        addonDocs
+      );
+
+      setFees(syncedFees);
       setStudents(stuDocs);
       setSections(secDocs);
       setSeats(seatDocs);
       setPlans(planDocs);
       setAddonPricing(addonDocs);
     } catch (err) {
-      console.error(err);
+      console.error('Error fetching fees data:', err);
     } finally {
       setLoading(false);
     }
@@ -62,63 +136,6 @@ export default function Fees() {
   useEffect(() => {
     fetchData();
   }, []);
-
-  const getCurrentMonth = () => getMonthYear();
-
-  const handleGenerateMonthlyFees = async () => {
-    setGenerating(true);
-    try {
-      const currentMonth = getCurrentMonth();
-      const activeStudents = students.filter((s) => s.status === 'active');
-
-      for (const student of activeStudents) {
-        const existingFee = fees.find(
-          (f) => f.studentId === student.id && f.month === currentMonth
-        );
-        if (existingFee) continue;
-
-        const plan = plans.find((p) => p.id === student.membershipPlanId);
-        const seat = seats.find((s) => s.id === student.seatId);
-        const baseFee = plan ? Number(plan.price) : 800;
-        const discount = Number(student.discountAmount) || 0;
-
-        const addonCharges = {};
-        let addonTotal = 0;
-        if (seat?.addons) {
-          addonPricing.forEach((addon) => {
-            const key = addon.name?.toLowerCase();
-            if (seat.addons[key]) {
-              addonCharges[addon.name] = addon.monthlyCharge || 0;
-              addonTotal += addon.monthlyCharge || 0;
-            }
-          });
-        }
-
-        const dueDate = new Date();
-        dueDate.setDate(10);
-        if (dueDate < new Date()) dueDate.setMonth(dueDate.getMonth() + 1);
-
-        await createDocument(COLLECTIONS.FEES, {
-          studentId: student.id,
-          amount: Math.max(0, baseFee + addonTotal - discount),
-          baseFee,
-          discountAmount: discount,
-          addonCharges,
-          dueDate: dueDate.toISOString(),
-          paidDate: null,
-          status: 'pending',
-          month: currentMonth,
-          paymentMode: '',
-          notes: '',
-        });
-      }
-      await fetchData();
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setGenerating(false);
-    }
-  };
 
   const handleCollectFee = async (paymentData) => {
     if (!collectFee) return;
@@ -153,10 +170,10 @@ export default function Fees() {
     await fetchData();
   };
 
-  const currentMonth = getCurrentMonth();
+  const currentMonth = getMonthYear();
   const monthFees = fees.filter((f) => f.month === (selectedMonth || currentMonth));
-  const totalRevenue = fees.filter((f) => f.status === 'paid').reduce((s, f) => s + (f.amount || 0), 0);
-  const monthCollected = monthFees.filter((f) => f.status === 'paid').reduce((s, f) => s + (f.amount || 0), 0);
+  const totalRevenue = fees.filter((f) => f.status === 'paid').reduce((s, f) => s + (Number(f.amount) || 0), 0);
+  const monthCollected = monthFees.filter((f) => f.status === 'paid').reduce((s, f) => s + (Number(f.amount) || 0), 0);
   const pendingCount = monthFees.filter((f) => f.status !== 'paid').length;
 
   const collectFeeStudent = collectFee ? students.find((s) => s.id === collectFee.studentId) : null;
@@ -183,18 +200,14 @@ export default function Fees() {
           <div>
             <h1 className="text-2xl font-bold text-gray-900">Fee & Subscription Management</h1>
             <p className="text-gray-500 text-xs sm:text-sm mt-0.5">
-              Collect fees, renew membership cycles, apply discounts & print official bills
+              Automatic monthly fee tracking, renewals, discounts & instant WhatsApp PDF receipts
             </p>
           </div>
 
-          <Button
-            variant="primary"
-            icon={generating ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
-            onClick={handleGenerateMonthlyFees}
-            disabled={generating}
-          >
-            {generating ? 'Generating...' : 'Generate Monthly Due Bills'}
-          </Button>
+          <div className="inline-flex items-center gap-2 px-3.5 py-2 rounded-2xl bg-emerald-50 text-emerald-800 border border-emerald-200 text-xs font-bold shadow-2xs">
+            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+            <span>Auto-Synced Monthly Dues</span>
+          </div>
         </div>
 
         {/* 3 Overview Stat Cards */}
