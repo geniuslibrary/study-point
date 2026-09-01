@@ -2,7 +2,8 @@ import React, { useState, useEffect, useRef } from 'react';
 import Layout from '../components/layout/Layout';
 import Card from '../components/common/Card';
 import Button from '../components/common/Button';
-import { COLLECTIONS, DEFAULT_ADDONS } from '../utils/constants';
+import { COLLECTIONS, DEFAULT_ADDONS, SHIFTS } from '../utils/constants';
+import { getStoredShifts } from '../utils/helpers';
 import {
   Save,
   Plus,
@@ -15,12 +16,18 @@ import {
   Edit2,
   Check,
   PenTool,
+  Clock,
+  Sun,
+  Sunrise,
+  Sunset,
+  Sparkles,
 } from 'lucide-react';
 import { doc, getDoc, setDoc, collection, getDocs, deleteDoc, addDoc, updateDoc } from 'firebase/firestore';
 import { db } from '../firebase/config';
 
 const SETTINGS_LOCAL_KEY = 'studypoint_settings';
 const ADDONS_LOCAL_KEY = 'studypoint_addons';
+const SHIFTS_LOCAL_KEY = 'studypoint_shifts';
 
 export default function Settings() {
   const fileInputRef = useRef(null);
@@ -43,6 +50,10 @@ export default function Settings() {
   const [isSaving, setIsSaving] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
 
+  // Shift timings state
+  const [shifts, setShifts] = useState(getStoredShifts());
+  const [isSavingShifts, setIsSavingShifts] = useState(false);
+
   const fetchSettings = async () => {
     // 1. Check LocalStorage first for instantaneous render
     const local = localStorage.getItem(SETTINGS_LOCAL_KEY);
@@ -63,7 +74,23 @@ export default function Settings() {
       console.warn('Settings fetch warning:', e.message);
     }
 
-    // 2. Fetch Add-ons
+    // 2. Fetch Shifts Configuration
+    try {
+      const localShifts = localStorage.getItem(SHIFTS_LOCAL_KEY);
+      if (localShifts) {
+        setShifts(JSON.parse(localShifts));
+      } else {
+        const shiftDoc = await getDoc(doc(db, COLLECTIONS.SETTINGS, 'shiftTimings'));
+        if (shiftDoc.exists() && shiftDoc.data().shifts) {
+          setShifts(shiftDoc.data().shifts);
+          localStorage.setItem(SHIFTS_LOCAL_KEY, JSON.stringify(shiftDoc.data().shifts));
+        }
+      }
+    } catch (e) {
+      console.warn('Shift settings fetch warning:', e.message);
+    }
+
+    // 3. Fetch Add-ons
     try {
       const localAddons = localStorage.getItem(ADDONS_LOCAL_KEY);
       if (localAddons) {
@@ -177,6 +204,44 @@ export default function Settings() {
     setIsSaving(false);
   };
 
+  // Handle Shift Timing Edit
+  const handleShiftChange = (shiftId, field, val) => {
+    setShifts((prev) =>
+      prev.map((s) => {
+        if (s.id !== shiftId) return s;
+        const updated = { ...s, [field]: val };
+        // Auto update full timing label if start or end changes
+        if (field === 'start' || field === 'end') {
+          const start = field === 'start' ? val : (s.start || '6:00 AM');
+          const end = field === 'end' ? val : (s.end || '2:00 PM');
+          updated.timing = `${start} - ${end}`;
+          updated.short = `${start.replace(':00', '')} - ${end.replace(':00', '')}`;
+        }
+        return updated;
+      })
+    );
+  };
+
+  // Save Shift Timings to Firestore & LocalStorage
+  const handleSaveShifts = async (e) => {
+    if (e) e.preventDefault();
+    setIsSavingShifts(true);
+    try {
+      localStorage.setItem(SHIFTS_LOCAL_KEY, JSON.stringify(shifts));
+      try {
+        await setDoc(doc(db, COLLECTIONS.SETTINGS, 'shiftTimings'), { shifts });
+      } catch (cloudErr) {
+        console.warn('Cloud shift save warning:', cloudErr.message);
+      }
+      showToast('🎉 Shift Timings updated successfully! All Seat Grids & Student Admissions will use new timings.');
+    } catch (err) {
+      console.error('Error saving shifts:', err);
+      showToast('Error saving shifts: ' + err.message);
+    } finally {
+      setIsSavingShifts(false);
+    }
+  };
+
   // Add new Add-on Facility
   const handleAddAddon = async (e) => {
     if (e) e.preventDefault();
@@ -272,7 +337,7 @@ export default function Settings() {
           <div>
             <h1 className="text-2xl font-bold text-gray-900">Study Point Settings</h1>
             <p className="text-gray-500 text-sm mt-0.5">
-              Manage library profile, official logo, signature for bills & seat facility pricing
+              Manage library profile, official logo, signature, shift timings & seat facility pricing
             </p>
           </div>
         </div>
@@ -488,127 +553,210 @@ export default function Settings() {
             </form>
           </Card>
 
-          {/* Add-on Facility Pricing with Full Edit, Update & Delete */}
-          <Card title="Seat Add-on Facility Pricing (Monthly Charges)">
-            <div className="space-y-4">
-              {/* Form to Add New Addon */}
-              <form onSubmit={handleAddAddon} className="flex flex-col sm:flex-row gap-2.5 items-end bg-slate-50 p-3.5 rounded-2xl border border-slate-200">
-                <div className="flex-grow w-full">
-                  <label className="block text-xs font-bold text-slate-700 mb-1">Facility Name</label>
-                  <input
-                    type="text"
-                    value={newAddon.name}
-                    onChange={(e) => setNewAddon((prev) => ({ ...prev, name: e.target.value }))}
-                    placeholder="e.g. Locker, Air Cooler, WiFi"
-                    className="w-full px-3.5 py-2 border border-slate-300 rounded-xl text-sm bg-white focus:ring-2 focus:ring-indigo-500"
-                    required
-                  />
-                </div>
-                <div className="w-full sm:w-1/3">
-                  <label className="block text-xs font-bold text-slate-700 mb-1">Monthly (₹)</label>
-                  <input
-                    type="number"
-                    min="0"
-                    value={newAddon.monthlyCharge}
-                    onChange={(e) => setNewAddon((prev) => ({ ...prev, monthlyCharge: e.target.value }))}
-                    placeholder="0"
-                    className="w-full px-3.5 py-2 border border-slate-300 rounded-xl text-sm bg-white focus:ring-2 focus:ring-indigo-500"
-                  />
-                </div>
-                <Button variant="primary" type="submit">
-                  <Plus size={18} />
-                </Button>
-              </form>
+          {/* Seat Shift Timings Configuration */}
+          <div className="space-y-6">
+            <Card title="Seat Shift & Timing Settings (शिफ्ट व समय प्रबंधन)">
+              <form onSubmit={handleSaveShifts} className="space-y-4">
+                <p className="text-xs text-slate-500">
+                  Set library shift timings (e.g. Morning 6 AM - 1 PM or 6 AM - 2 PM). These timings will appear in admission forms & seat layout.
+                </p>
 
-              {/* List of Addons with Inline Edit & Delete */}
-              <div>
-                <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2.5">
-                  Configured Facilities ({addons.length})
-                </h4>
-                {addons.length > 0 ? (
-                  <ul className="divide-y divide-slate-100 border border-slate-200 rounded-2xl overflow-hidden bg-white">
-                    {addons.map((addon) => {
-                      const isEditing = editingAddonId === addon.id;
+                <div className="space-y-3">
+                  {shifts.map((shift) => {
+                    const getIcon = () => {
+                      if (shift.id === 'full_day') return <Sun className="w-4 h-4 text-indigo-600 shrink-0" />;
+                      if (shift.id === 'first_half') return <Sunrise className="w-4 h-4 text-amber-600 shrink-0" />;
+                      if (shift.id === 'second_half') return <Sunset className="w-4 h-4 text-purple-600 shrink-0" />;
+                      return <Clock className="w-4 h-4 text-teal-600 shrink-0" />;
+                    };
 
-                      if (isEditing) {
-                        return (
-                          <li key={addon.id} className="p-3 bg-indigo-50/60 flex flex-col sm:flex-row items-center gap-2">
+                    return (
+                      <div
+                        key={shift.id}
+                        className="p-3.5 bg-slate-50 rounded-2xl border border-slate-200 space-y-2"
+                      >
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            {getIcon()}
+                            <span className="text-xs font-bold text-slate-800">{shift.label}</span>
+                          </div>
+                          <span className="text-[11px] font-black text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded-md border border-indigo-100">
+                            {shift.timing}
+                          </span>
+                        </div>
+
+                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 pt-1">
+                          <div>
+                            <label className="block text-[10px] font-bold text-slate-500 uppercase">Start Time</label>
                             <input
                               type="text"
-                              value={editAddonData.name}
-                              onChange={(e) => setEditAddonData((prev) => ({ ...prev, name: e.target.value }))}
-                              className="w-full sm:w-1/2 px-3 py-1.5 border border-indigo-300 rounded-lg text-sm bg-white font-semibold"
-                              placeholder="Facility Name"
+                              value={shift.start || ''}
+                              onChange={(e) => handleShiftChange(shift.id, 'start', e.target.value)}
+                              placeholder="e.g. 6:00 AM"
+                              className="w-full px-2.5 py-1.5 bg-white border border-slate-300 rounded-lg text-xs font-semibold text-slate-900"
                             />
-                            <div className="flex items-center gap-1 w-full sm:w-1/3">
-                              <span className="text-xs font-bold text-slate-500">₹</span>
+                          </div>
+
+                          <div>
+                            <label className="block text-[10px] font-bold text-slate-500 uppercase">End Time</label>
+                            <input
+                              type="text"
+                              value={shift.end || ''}
+                              onChange={(e) => handleShiftChange(shift.id, 'end', e.target.value)}
+                              placeholder="e.g. 1:00 PM or 2:00 PM"
+                              className="w-full px-2.5 py-1.5 bg-white border border-slate-300 rounded-lg text-xs font-semibold text-slate-900"
+                            />
+                          </div>
+
+                          <div className="col-span-2 sm:col-span-1">
+                            <label className="block text-[10px] font-bold text-slate-500 uppercase">Short Badge</label>
+                            <input
+                              type="text"
+                              value={shift.short || ''}
+                              onChange={(e) => handleShiftChange(shift.id, 'short', e.target.value)}
+                              placeholder="e.g. 6 AM - 1 PM"
+                              className="w-full px-2.5 py-1.5 bg-white border border-slate-300 rounded-lg text-xs font-semibold text-indigo-700"
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                <div className="pt-2">
+                  <Button variant="primary" type="submit" disabled={isSavingShifts}>
+                    <span className="flex items-center gap-2">
+                      <Save size={16} />
+                      {isSavingShifts ? 'Saving...' : 'Save Shift Timings (समय सेव करें)'}
+                    </span>
+                  </Button>
+                </div>
+              </form>
+            </Card>
+
+            {/* Add-on Facility Pricing with Full Edit, Update & Delete */}
+            <Card title="Seat Add-on Facility Pricing (Monthly Charges)">
+              <div className="space-y-4">
+                {/* Form to Add New Addon */}
+                <form onSubmit={handleAddAddon} className="flex flex-col sm:flex-row gap-2.5 items-end bg-slate-50 p-3.5 rounded-2xl border border-slate-200">
+                  <div className="flex-grow w-full">
+                    <label className="block text-xs font-bold text-slate-700 mb-1">Facility Name</label>
+                    <input
+                      type="text"
+                      value={newAddon.name}
+                      onChange={(e) => setNewAddon((prev) => ({ ...prev, name: e.target.value }))}
+                      placeholder="e.g. Locker, Air Cooler, WiFi"
+                      className="w-full px-3.5 py-2 border border-slate-300 rounded-xl text-sm bg-white focus:ring-2 focus:ring-indigo-500"
+                      required
+                    />
+                  </div>
+                  <div className="w-full sm:w-1/3">
+                    <label className="block text-xs font-bold text-slate-700 mb-1">Monthly (₹)</label>
+                    <input
+                      type="number"
+                      min="0"
+                      value={newAddon.monthlyCharge}
+                      onChange={(e) => setNewAddon((prev) => ({ ...prev, monthlyCharge: e.target.value }))}
+                      placeholder="0"
+                      className="w-full px-3.5 py-2 border border-slate-300 rounded-xl text-sm bg-white focus:ring-2 focus:ring-indigo-500"
+                    />
+                  </div>
+                  <Button variant="primary" type="submit">
+                    <Plus size={18} />
+                  </Button>
+                </form>
+
+                {/* List of Addons with Inline Edit & Delete */}
+                <div>
+                  <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2.5">
+                    Configured Facilities ({addons.length})
+                  </h4>
+                  {addons.length > 0 ? (
+                    <ul className="divide-y divide-slate-100 border border-slate-200 rounded-2xl overflow-hidden bg-white">
+                      {addons.map((addon) => {
+                        const isEditing = editingAddonId === addon.id;
+
+                        if (isEditing) {
+                          return (
+                            <li key={addon.id} className="p-3 bg-indigo-50/60 flex flex-col sm:flex-row items-center gap-2">
                               <input
-                                type="number"
-                                min="0"
-                                value={editAddonData.monthlyCharge}
-                                onChange={(e) => setEditAddonData((prev) => ({ ...prev, monthlyCharge: e.target.value }))}
-                                className="w-full px-3 py-1.5 border border-indigo-300 rounded-lg text-sm bg-white font-bold text-indigo-700"
-                                placeholder="0"
+                                type="text"
+                                value={editAddonData.name}
+                                onChange={(e) => setEditAddonData((prev) => ({ ...prev, name: e.target.value }))}
+                                className="w-full sm:w-1/2 px-3 py-1.5 border border-indigo-300 rounded-lg text-sm bg-white font-semibold"
+                                placeholder="Facility Name"
                               />
-                            </div>
-                            <div className="flex items-center gap-1 shrink-0 self-end sm:self-auto">
+                              <div className="flex items-center gap-1 w-full sm:w-1/3">
+                                <span className="text-xs font-bold text-slate-500">₹</span>
+                                <input
+                                  type="number"
+                                  min="0"
+                                  value={editAddonData.monthlyCharge}
+                                  onChange={(e) => setEditAddonData((prev) => ({ ...prev, monthlyCharge: e.target.value }))}
+                                  className="w-full px-3 py-1.5 border border-indigo-300 rounded-lg text-sm bg-white font-bold text-indigo-700"
+                                  placeholder="0"
+                                />
+                              </div>
+                              <div className="flex items-center gap-1 shrink-0 self-end sm:self-auto">
+                                <button
+                                  type="button"
+                                  onClick={() => handleSaveEditAddon(addon.id)}
+                                  className="p-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold transition-all flex items-center gap-1 cursor-pointer"
+                                  title="Save changes"
+                                >
+                                  <Check size={16} />
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => setEditingAddonId(null)}
+                                  className="p-1.5 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-lg text-xs font-bold transition-all cursor-pointer"
+                                  title="Cancel"
+                                >
+                                  <X size={16} />
+                                </button>
+                              </div>
+                            </li>
+                          );
+                        }
+
+                        return (
+                          <li key={addon.id} className="flex justify-between items-center p-3.5 hover:bg-slate-50 transition-colors">
+                            <span className="font-semibold text-slate-900 text-sm">{addon.name}</span>
+                            <div className="flex items-center gap-3">
+                              <span className="text-indigo-700 font-black text-sm bg-indigo-50 px-2.5 py-1 rounded-lg border border-indigo-100">
+                                ₹{addon.monthlyCharge || addon.price || 0}/mo
+                              </span>
                               <button
                                 type="button"
-                                onClick={() => handleSaveEditAddon(addon.id)}
-                                className="p-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold transition-all flex items-center gap-1 cursor-pointer"
-                                title="Save changes"
+                                onClick={() => handleStartEdit(addon)}
+                                className="text-indigo-600 hover:text-indigo-800 hover:bg-indigo-50 p-1.5 rounded-lg transition-colors cursor-pointer"
+                                title="Edit facility name / charge"
                               >
-                                <Check size={16} />
+                                <Edit2 size={16} />
                               </button>
                               <button
                                 type="button"
-                                onClick={() => setEditingAddonId(null)}
-                                className="p-1.5 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-lg text-xs font-bold transition-all cursor-pointer"
-                                title="Cancel"
+                                onClick={() => handleDeleteAddon(addon.id)}
+                                className="text-rose-500 hover:text-rose-700 hover:bg-rose-50 p-1.5 rounded-lg transition-colors cursor-pointer"
+                                title="Delete facility"
                               >
-                                <X size={16} />
+                                <Trash2 size={16} />
                               </button>
                             </div>
                           </li>
                         );
-                      }
-
-                      return (
-                        <li key={addon.id} className="flex justify-between items-center p-3.5 hover:bg-slate-50 transition-colors">
-                          <span className="font-semibold text-slate-900 text-sm">{addon.name}</span>
-                          <div className="flex items-center gap-3">
-                            <span className="text-indigo-700 font-black text-sm bg-indigo-50 px-2.5 py-1 rounded-lg border border-indigo-100">
-                              ₹{addon.monthlyCharge || addon.price || 0}/mo
-                            </span>
-                            <button
-                              type="button"
-                              onClick={() => handleStartEdit(addon)}
-                              className="text-indigo-600 hover:text-indigo-800 hover:bg-indigo-50 p-1.5 rounded-lg transition-colors cursor-pointer"
-                              title="Edit facility name / charge"
-                            >
-                              <Edit2 size={16} />
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => handleDeleteAddon(addon.id)}
-                              className="text-rose-500 hover:text-rose-700 hover:bg-rose-50 p-1.5 rounded-lg transition-colors cursor-pointer"
-                              title="Delete facility"
-                            >
-                              <Trash2 size={16} />
-                            </button>
-                          </div>
-                        </li>
-                      );
-                    })}
-                  </ul>
-                ) : (
-                  <p className="text-sm text-slate-500 italic p-6 text-center bg-slate-50 rounded-2xl border border-slate-200">
-                    No add-on facilities defined. Add one above!
-                  </p>
-                )}
+                      })}
+                    </ul>
+                  ) : (
+                    <p className="text-sm text-slate-500 italic p-6 text-center bg-slate-50 rounded-2xl border border-slate-200">
+                      No add-on facilities defined. Add one above!
+                    </p>
+                  )}
+                </div>
               </div>
-            </div>
-          </Card>
+            </Card>
+          </div>
         </div>
       </div>
     </Layout>

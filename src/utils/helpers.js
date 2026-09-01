@@ -101,8 +101,21 @@ export const generateId = () => {
   return Date.now().toString(36) + Math.random().toString(36).substr(2);
 };
 
+// Dynamic Shifts Loader from LocalStorage / Settings
+export const getStoredShifts = () => {
+  try {
+    const data = localStorage.getItem('studypoint_shifts');
+    if (data) {
+      const parsed = JSON.parse(data);
+      if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+    }
+  } catch (e) {}
+  return SHIFTS;
+};
+
 export const getShiftInfo = (shiftId) => {
-  const found = SHIFTS.find((s) => s.id === shiftId);
+  const shifts = getStoredShifts();
+  const found = shifts.find((s) => s.id === shiftId);
   return found || { id: shiftId, label: 'Custom Timing', timing: 'Custom', short: 'Custom', color: 'gray' };
 };
 

@@ -1,9 +1,8 @@
 import { useState, useEffect } from 'react';
 import Modal from '../common/Modal';
 import Button from '../common/Button';
-import { SHIFTS } from '../../utils/constants';
 import { Sun, Sunrise, Sunset, Clock, Armchair, AlertCircle, Calendar, UserX, CheckCircle, Tag, IndianRupee } from 'lucide-react';
-import { formatDate, formatCurrency } from '../../utils/helpers';
+import { formatDate, formatCurrency, getStoredShifts } from '../../utils/helpers';
 
 export default function StudentForm({
   isOpen,
@@ -16,6 +15,7 @@ export default function StudentForm({
   students = [],
 }) {
   const getTodayInput = () => new Date().toISOString().split('T')[0];
+  const shiftsList = getStoredShifts();
 
   const [formData, setFormData] = useState({
     name: '',
@@ -28,8 +28,8 @@ export default function StudentForm({
     shift: 'full_day',
     joinDate: getTodayInput(),
     status: 'active',
-    customStartTime: '06:00',
-    customEndTime: '14:00',
+    customStartTime: '06:00 AM',
+    customEndTime: '02:00 PM',
     notes: '',
   });
 
@@ -55,8 +55,8 @@ export default function StudentForm({
         shift: editData.shift || 'full_day',
         joinDate: jDate,
         status: editData.status || 'active',
-        customStartTime: editData.customStartTime || '06:00',
-        customEndTime: editData.customEndTime || '14:00',
+        customStartTime: editData.customStartTime || '06:00 AM',
+        customEndTime: editData.customEndTime || '02:00 PM',
         notes: editData.notes || '',
       });
     } else {
@@ -71,8 +71,8 @@ export default function StudentForm({
         shift: 'full_day',
         joinDate: getTodayInput(),
         status: 'active',
-        customStartTime: '06:00',
-        customEndTime: '14:00',
+        customStartTime: '06:00 AM',
+        customEndTime: '02:00 PM',
         notes: '',
       });
     }
@@ -215,10 +215,11 @@ export default function StudentForm({
   }, [formData.sectionId, formData.shift, seats, students, editData]);
 
   const getShiftTimingString = () => {
-    if (formData.shift === 'full_day') return '6:00 AM - 11:00 PM (Full Day)';
-    if (formData.shift === 'first_half') return '6:00 AM - 2:00 PM (1st Half / Morning)';
-    if (formData.shift === 'second_half') return '2:00 PM - 11:00 PM (2nd Half / Evening)';
-    return `${formData.customStartTime} - ${formData.customEndTime} (Custom)`;
+    if (formData.shift === 'custom') {
+      return `${formData.customStartTime} - ${formData.customEndTime} (Custom)`;
+    }
+    const currentShift = shiftsList.find((s) => s.id === formData.shift);
+    return currentShift?.timing || 'Full Day';
   };
 
   const handleSubmit = async (e) => {
@@ -355,14 +356,18 @@ export default function StudentForm({
           </div>
         </div>
 
-        {/* Shift Selection (Full Day / Half Day) */}
+        {/* Dynamic Shift Selection (Editable Timings from Settings) */}
         {formData.status === 'active' && (
-          <div className="bg-slate-50 p-3.5 rounded-2xl border border-slate-200">
-            <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">
-              Seat Shift / Timing (फुल डे या हाफ डे) *
-            </label>
+          <div className="bg-slate-50 p-3.5 rounded-2xl border border-slate-200 space-y-2.5">
+            <div className="flex items-center justify-between">
+              <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider">
+                Seat Shift / Timing (शिफ्ट चुनें) *
+              </label>
+              <span className="text-[11px] text-indigo-600 font-semibold">Configured in Settings</span>
+            </div>
+
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-              {SHIFTS.map((shift) => {
+              {shiftsList.map((shift) => {
                 const isSelected = formData.shift === shift.id;
                 return (
                   <label
@@ -386,12 +391,38 @@ export default function StudentForm({
                         {getShiftIcon(shift.id)}
                         <span>{shift.label}</span>
                       </div>
-                      <p className="text-xs text-slate-500 mt-0.5">{shift.timing}</p>
+                      <p className="text-xs text-indigo-700 font-bold mt-0.5">{shift.timing}</p>
                     </div>
                   </label>
                 );
               })}
             </div>
+
+            {/* Custom Timing Pickers (if custom shift is selected) */}
+            {formData.shift === 'custom' && (
+              <div className="p-3 bg-teal-50 border border-teal-200 rounded-xl grid grid-cols-2 gap-3 text-xs">
+                <div>
+                  <label className="block text-[10px] font-bold text-teal-900 uppercase mb-1">Custom Start Time</label>
+                  <input
+                    type="text"
+                    value={formData.customStartTime}
+                    onChange={(e) => setFormData({ ...formData, customStartTime: e.target.value })}
+                    placeholder="e.g. 06:00 AM"
+                    className="w-full px-2.5 py-1.5 bg-white border border-teal-300 rounded-lg font-semibold"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[10px] font-bold text-teal-900 uppercase mb-1">Custom End Time</label>
+                  <input
+                    type="text"
+                    value={formData.customEndTime}
+                    onChange={(e) => setFormData({ ...formData, customEndTime: e.target.value })}
+                    placeholder="e.g. 01:00 PM"
+                    className="w-full px-2.5 py-1.5 bg-white border border-teal-300 rounded-lg font-semibold"
+                  />
+                </div>
+              </div>
+            )}
           </div>
         )}
 

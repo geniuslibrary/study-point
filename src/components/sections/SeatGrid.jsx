@@ -1,4 +1,5 @@
 import { Armchair, Lock, Wifi, Lamp, Sun, Sunrise, Sunset, Clock, User } from 'lucide-react';
+import { getStoredShifts } from '../../utils/helpers';
 
 export default function SeatGrid({ seats = [], onSeatClick }) {
   if (seats.length === 0) {
@@ -8,6 +9,12 @@ export default function SeatGrid({ seats = [], onSeatClick }) {
       </div>
     );
   }
+
+  const shiftsList = getStoredShifts();
+  const firstHalfShift = shiftsList.find((s) => s.id === 'first_half');
+  const secondHalfShift = shiftsList.find((s) => s.id === 'second_half');
+  const firstHalfTag = firstHalfShift?.short || '6 AM - 2 PM';
+  const secondHalfTag = secondHalfShift?.short || '2 PM - 11 PM';
 
   // Deduplicate and Sort numerically by seatNumber: 1, 2, 3...
   const uniqueMap = new Map();
@@ -37,7 +44,7 @@ export default function SeatGrid({ seats = [], onSeatClick }) {
         </div>
         <div className="flex items-center gap-2">
           <span className="w-3.5 h-3.5 rounded-lg bg-amber-50 border border-amber-400"></span>
-          <span>Half-Day Free (Morning / Evening Open)</span>
+          <span>Half-Day Free ({firstHalfTag} or {secondHalfTag} Open)</span>
         </div>
         <div className="flex items-center gap-2">
           <span className="w-3.5 h-3.5 rounded-lg bg-indigo-50 border border-indigo-400"></span>
@@ -130,7 +137,7 @@ export default function SeatGrid({ seats = [], onSeatClick }) {
                       <Sunrise className="w-3 h-3 text-amber-600 shrink-0" />
                       <span className="truncate">{firstHalfStudent ? firstHalfStudent.name : '1st Half Free'}</span>
                     </div>
-                    <span className="text-[9px] font-black opacity-75">6AM-2PM</span>
+                    <span className="text-[9px] font-black opacity-75">{firstHalfTag}</span>
                   </div>
                 )}
 
@@ -147,7 +154,7 @@ export default function SeatGrid({ seats = [], onSeatClick }) {
                       <Sunset className="w-3 h-3 text-purple-600 shrink-0" />
                       <span className="truncate">{secondHalfStudent ? secondHalfStudent.name : '2nd Half Free'}</span>
                     </div>
-                    <span className="text-[9px] font-black opacity-75">2PM-11PM</span>
+                    <span className="text-[9px] font-black opacity-75">{secondHalfTag}</span>
                   </div>
                 )}
               </div>
