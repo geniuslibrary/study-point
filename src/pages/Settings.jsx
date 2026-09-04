@@ -21,7 +21,6 @@ import {
   Sunrise,
   Sunset,
   Sparkles,
-  Moon,
 } from 'lucide-react';
 import { doc, getDoc, setDoc, collection, getDocs, deleteDoc, addDoc, updateDoc } from 'firebase/firestore';
 import { db } from '../firebase/config';
@@ -53,19 +52,6 @@ export default function Settings() {
 
   // Shift timings state
   const [shifts, setShifts] = useState(getStoredShifts());
-  const [newShift, setNewShift] = useState({
-    label: '',
-    start: '11:00 PM',
-    end: '6:00 AM',
-    short: '11 PM - 6 AM',
-  });
-  const [editingShiftId, setEditingShiftId] = useState(null);
-  const [editShiftData, setEditShiftData] = useState({
-    label: '',
-    start: '',
-    end: '',
-    short: '',
-  });
   const [isSavingShifts, setIsSavingShifts] = useState(false);
 
   const fetchSettings = async () => {
@@ -218,97 +204,39 @@ export default function Settings() {
     setIsSaving(false);
   };
 
-  // Add New Custom Shift
-  const handleAddShift = (e) => {
-    if (e) e.preventDefault();
-    if (!newShift.label.trim()) return;
-
-    const shiftId = 'shift_' + Date.now().toString(36) + Math.random().toString(36).substr(2, 4);
-    const start = newShift.start.trim() || '6:00 AM';
-    const end = newShift.end.trim() || '2:00 PM';
-    const shortTag = newShift.short.trim() || `${start} - ${end}`;
-    const timingStr = `${start} - ${end}`;
-
-    const createdShift = {
-      id: shiftId,
-      label: newShift.label.trim(),
-      start,
-      end,
-      timing: timingStr,
-      short: shortTag,
-      color: 'indigo',
-    };
-
-    const updated = [...shifts, createdShift];
-    setShifts(updated);
-    localStorage.setItem(SHIFTS_LOCAL_KEY, JSON.stringify(updated));
-    setDoc(doc(db, COLLECTIONS.SETTINGS, 'shiftTimings'), { shifts: updated }).catch(() => {});
-
-    setNewShift({ label: '', start: '11:00 PM', end: '6:00 AM', short: '11 PM - 6 AM' });
-    showToast(`🎉 New Shift "${createdShift.label}" added successfully!`);
-  };
-
-  // Start Editing Shift
-  const handleStartEditShift = (shift) => {
-    setEditingShiftId(shift.id);
-    setEditShiftData({
-      label: shift.label || '',
-      start: shift.start || '',
-      end: shift.end || '',
-      short: shift.short || '',
-    });
-  };
-
-  // Save Edited Shift
-  const handleSaveEditShift = (shiftId) => {
-    if (!editShiftData.label.trim()) return;
-    const start = editShiftData.start.trim() || '6:00 AM';
-    const end = editShiftData.end.trim() || '2:00 PM';
-    const timingStr = `${start} - ${end}`;
-    const shortTag = editShiftData.short.trim() || `${start} - ${end}`;
-
-    const updated = shifts.map((s) =>
-      s.id === shiftId
-        ? {
-            ...s,
-            label: editShiftData.label.trim(),
-            start,
-            end,
-            timing: timingStr,
-            short: shortTag,
+  // Handle Shift Timing Edit
+  const handleShiftChange = (shiftId, field, val) => {
+    setShifts((prev) =>
+      prev.map((s) => {
+        if (s.id !== shiftId) return s;
+        const updated = { ...s, [field]: val };
+        if (field === 'start' || field === 'end') {
+          const start = field === 'start' ? val : (s.start || '6:00 AM');
+          const end = field === 'end' ? val : (s.end || '2:00 PM');
+          updated.timing = `${start} - ${end}`;
+          if (!updated.short || updated.short === s.short) {
+            updated.short = `${start.replace(':00', '')} - ${end.replace(':00', '')}`;
           }
-        : s
+        }
+        return updated;
+      })
     );
-
-    setShifts(updated);
-    localStorage.setItem(SHIFTS_LOCAL_KEY, JSON.stringify(updated));
-    setDoc(doc(db, COLLECTIONS.SETTINGS, 'shiftTimings'), { shifts: updated }).catch(() => {});
-    setEditingShiftId(null);
-    showToast('Shift details updated successfully!');
   };
 
-  // Delete Shift
-  const handleDeleteShift = (shiftId) => {
-    if (shifts.length <= 1) {
-      alert('At least 1 shift must remain configured.');
-      return;
-    }
-    const updated = shifts.filter((s) => s.id !== shiftId);
-    setShifts(updated);
-    localStorage.setItem(SHIFTS_LOCAL_KEY, JSON.stringify(updated));
-    setDoc(doc(db, COLLECTIONS.SETTINGS, 'shiftTimings'), { shifts: updated }).catch(() => {});
-    showToast('Shift slot removed');
-  };
-
-  // Save All Shift Timings
-  const handleSaveAllShifts = async () => {
+  // Save Shift Timings to Firestore & LocalStorage
+  const handleSaveShifts = async (e) => {
+    if (e) e.preventDefault();
     setIsSavingShifts(true);
     try {
       localStorage.setItem(SHIFTS_LOCAL_KEY, JSON.stringify(shifts));
-      await setDoc(doc(db, COLLECTIONS.SETTINGS, 'shiftTimings'), { shifts });
-      showToast('🎉 All Shift Timings saved and synced to cloud successfully!');
+      try {
+        await setDoc(doc(db, COLLECTIONS.SETTINGS, 'shiftTimings'), { shifts });
+      } catch (cloudErr) {
+        console.warn('Cloud shift save warning:', cloudErr.message);
+      }
+      showToast('🎉 Shift Timings updated successfully! All Seat Grids & Student Admissions will use new timings.');
     } catch (err) {
-      console.error(err);
+      console.error('Error saving shifts:', err);
       showToast('Error saving shifts: ' + err.message);
     } finally {
       setIsSavingShifts(false);
@@ -403,15 +331,6 @@ export default function Settings() {
     setTimeout(() => setToastMessage(''), 4000);
   };
 
-  const getShiftIcon = (shiftId = '') => {
-    const id = shiftId.toLowerCase();
-    if (id.includes('full')) return <Sun className="w-4 h-4 text-indigo-600 shrink-0" />;
-    if (id.includes('first') || id.includes('morn')) return <Sunrise className="w-4 h-4 text-amber-600 shrink-0" />;
-    if (id.includes('second') || id.includes('even')) return <Sunset className="w-4 h-4 text-purple-600 shrink-0" />;
-    if (id.includes('night')) return <Moon className="w-4 h-4 text-blue-600 shrink-0" />;
-    return <Clock className="w-4 h-4 text-teal-600 shrink-0" />;
-  };
-
   return (
     <Layout title="Settings">
       <div className="space-y-6">
@@ -419,7 +338,7 @@ export default function Settings() {
           <div>
             <h1 className="text-2xl font-bold text-gray-900">Study Point Settings</h1>
             <p className="text-gray-500 text-sm mt-0.5">
-              Manage library profile, official logo, signature, custom shift timings & seat facilities
+              Manage library profile, official logo, signature, shift timings & seat facility pricing
             </p>
           </div>
         </div>
@@ -635,213 +554,86 @@ export default function Settings() {
             </form>
           </Card>
 
-          {/* Full Custom Shift Management (Add, Edit, Update, Delete) */}
+          {/* Seat Shift Timings Configuration (Exact Clean Layout) */}
           <div className="space-y-6">
-            <Card title="Seat Shift & Timing Settings (कस्टम शिफ्ट प्रबंधन)">
-              <div className="space-y-4">
+            <Card title="Seat Shift & Timing Settings (शिफ्ट व समय प्रबंधन)">
+              <form onSubmit={handleSaveShifts} className="space-y-4">
                 <p className="text-xs text-slate-500">
-                  Add, edit, or delete library shift slots (e.g. Night Shift, 1st Half 6 AM - 1 PM, 2nd Half 1 PM - 11 PM, etc.). All changes apply dynamically to Admission forms and Seat Grids.
+                  Set library shift timings (e.g. Morning 6 AM - 1 PM or 6 AM - 2 PM). These timings will appear in admission forms & seat layout.
                 </p>
 
-                {/* Form to Add New Shift Slot */}
-                <form onSubmit={handleAddShift} className="bg-slate-50 p-3.5 rounded-2xl border border-slate-200 space-y-2.5">
-                  <span className="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
-                    <Plus className="w-3.5 h-3.5 text-indigo-600" />
-                    <span>Add New Shift Slot (नई शिफ्ट जोड़ें)</span>
-                  </span>
+                <div className="space-y-3">
+                  {shifts.map((shift) => {
+                    const getIcon = () => {
+                      if (shift.id === 'full_day') return <Sun className="w-4 h-4 text-indigo-600 shrink-0" />;
+                      if (shift.id === 'first_half') return <Sunrise className="w-4 h-4 text-amber-600 shrink-0" />;
+                      if (shift.id === 'second_half') return <Sunset className="w-4 h-4 text-purple-600 shrink-0" />;
+                      return <Clock className="w-4 h-4 text-teal-600 shrink-0" />;
+                    };
 
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                    <div>
-                      <label className="block text-[10px] font-bold text-slate-500 uppercase">Shift Name *</label>
-                      <input
-                        type="text"
-                        required
-                        value={newShift.label}
-                        onChange={(e) => setNewShift({ ...newShift, label: e.target.value })}
-                        placeholder="e.g. Night Shift (रात की शिफ्ट)"
-                        className="w-full px-2.5 py-1.5 bg-white border border-slate-300 rounded-lg text-xs font-semibold text-slate-900"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-[10px] font-bold text-slate-500 uppercase">Short Badge Tag</label>
-                      <input
-                        type="text"
-                        value={newShift.short}
-                        onChange={(e) => setNewShift({ ...newShift, short: e.target.value })}
-                        placeholder="e.g. 11 PM - 6 AM"
-                        className="w-full px-2.5 py-1.5 bg-white border border-slate-300 rounded-lg text-xs font-semibold text-indigo-700"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 items-end">
-                    <div>
-                      <label className="block text-[10px] font-bold text-slate-500 uppercase">Start Time *</label>
-                      <input
-                        type="text"
-                        required
-                        value={newShift.start}
-                        onChange={(e) => setNewShift({ ...newShift, start: e.target.value })}
-                        placeholder="e.g. 11:00 PM"
-                        className="w-full px-2.5 py-1.5 bg-white border border-slate-300 rounded-lg text-xs font-semibold text-slate-900"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-[10px] font-bold text-slate-500 uppercase">End Time *</label>
-                      <input
-                        type="text"
-                        required
-                        value={newShift.end}
-                        onChange={(e) => setNewShift({ ...newShift, end: e.target.value })}
-                        placeholder="e.g. 6:00 AM"
-                        className="w-full px-2.5 py-1.5 bg-white border border-slate-300 rounded-lg text-xs font-semibold text-slate-900"
-                      />
-                    </div>
-
-                    <div className="col-span-2 sm:col-span-1">
-                      <button
-                        type="submit"
-                        className="w-full py-1.5 px-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1 shadow-xs cursor-pointer"
+                    return (
+                      <div
+                        key={shift.id}
+                        className="p-3.5 bg-slate-50 rounded-2xl border border-slate-200 space-y-2"
                       >
-                        <Plus size={14} />
-                        <span>Add Shift</span>
-                      </button>
-                    </div>
-                  </div>
-                </form>
-
-                {/* List of Configured Shifts with Inline Edit & Delete */}
-                <div>
-                  <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2.5">
-                    Configured Library Shifts ({shifts.length})
-                  </h4>
-
-                  <div className="space-y-2.5">
-                    {shifts.map((shift) => {
-                      const isEditing = editingShiftId === shift.id;
-
-                      if (isEditing) {
-                        return (
-                          <div
-                            key={shift.id}
-                            className="p-3.5 bg-indigo-50/70 rounded-2xl border border-indigo-200 space-y-2.5"
-                          >
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                              <div>
-                                <label className="block text-[10px] font-bold text-slate-600 uppercase">Shift Name</label>
-                                <input
-                                  type="text"
-                                  value={editShiftData.label}
-                                  onChange={(e) => setEditShiftData({ ...editShiftData, label: e.target.value })}
-                                  className="w-full px-2.5 py-1.5 bg-white border border-indigo-300 rounded-lg text-xs font-bold text-slate-900"
-                                />
-                              </div>
-
-                              <div>
-                                <label className="block text-[10px] font-bold text-slate-600 uppercase">Short Badge</label>
-                                <input
-                                  type="text"
-                                  value={editShiftData.short}
-                                  onChange={(e) => setEditShiftData({ ...editShiftData, short: e.target.value })}
-                                  className="w-full px-2.5 py-1.5 bg-white border border-indigo-300 rounded-lg text-xs font-bold text-indigo-700"
-                                />
-                              </div>
-                            </div>
-
-                            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 items-end">
-                              <div>
-                                <label className="block text-[10px] font-bold text-slate-600 uppercase">Start Time</label>
-                                <input
-                                  type="text"
-                                  value={editShiftData.start}
-                                  onChange={(e) => setEditShiftData({ ...editShiftData, start: e.target.value })}
-                                  className="w-full px-2.5 py-1.5 bg-white border border-indigo-300 rounded-lg text-xs font-semibold"
-                                />
-                              </div>
-
-                              <div>
-                                <label className="block text-[10px] font-bold text-slate-600 uppercase">End Time</label>
-                                <input
-                                  type="text"
-                                  value={editShiftData.end}
-                                  onChange={(e) => setEditShiftData({ ...editShiftData, end: e.target.value })}
-                                  className="w-full px-2.5 py-1.5 bg-white border border-indigo-300 rounded-lg text-xs font-semibold"
-                                />
-                              </div>
-
-                              <div className="col-span-2 sm:col-span-1 flex items-center gap-1.5">
-                                <button
-                                  type="button"
-                                  onClick={() => handleSaveEditShift(shift.id)}
-                                  className="flex-1 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1 cursor-pointer"
-                                >
-                                  <Check size={14} />
-                                  <span>Save</span>
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() => setEditingShiftId(null)}
-                                  className="py-1.5 px-2.5 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-lg text-xs font-bold transition-all cursor-pointer"
-                                >
-                                  <X size={14} />
-                                </button>
-                              </div>
-                            </div>
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            {getIcon()}
+                            <span className="text-xs font-bold text-slate-800">{shift.label}</span>
                           </div>
-                        );
-                      }
+                          <span className="text-[11px] font-black text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded-md border border-indigo-100">
+                            {shift.timing || `${shift.start || ''} - ${shift.end || ''}`}
+                          </span>
+                        </div>
 
-                      return (
-                        <div
-                          key={shift.id}
-                          className="p-3.5 bg-white rounded-2xl border border-slate-200 hover:border-indigo-200 transition-all flex items-center justify-between gap-2 shadow-2xs"
-                        >
-                          <div className="flex items-center gap-2.5 min-w-0">
-                            {getShiftIcon(shift.id || shift.label)}
-                            <div className="min-w-0">
-                              <h5 className="font-bold text-slate-900 text-xs truncate">{shift.label}</h5>
-                              <p className="text-[11px] text-indigo-700 font-bold mt-0.5">
-                                {shift.timing || `${shift.start} - ${shift.end}`}
-                                {shift.short && <span className="text-slate-400 font-normal ml-1.5">({shift.short})</span>}
-                              </p>
-                            </div>
+                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 pt-1">
+                          <div>
+                            <label className="block text-[10px] font-bold text-slate-500 uppercase">Start Time</label>
+                            <input
+                              type="text"
+                              value={shift.start || ''}
+                              onChange={(e) => handleShiftChange(shift.id, 'start', e.target.value)}
+                              placeholder="e.g. 6:00 AM"
+                              className="w-full px-2.5 py-1.5 bg-white border border-slate-300 rounded-lg text-xs font-semibold text-slate-900"
+                            />
                           </div>
 
-                          <div className="flex items-center gap-1 shrink-0">
-                            <button
-                              type="button"
-                              onClick={() => handleStartEditShift(shift)}
-                              className="p-1.5 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors cursor-pointer"
-                              title="Edit Shift"
-                            >
-                              <Edit2 size={15} />
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => handleDeleteShift(shift.id)}
-                              className="p-1.5 text-rose-500 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
-                              title="Delete Shift"
-                            >
-                              <Trash2 size={15} />
-                            </button>
+                          <div>
+                            <label className="block text-[10px] font-bold text-slate-500 uppercase">End Time</label>
+                            <input
+                              type="text"
+                              value={shift.end || ''}
+                              onChange={(e) => handleShiftChange(shift.id, 'end', e.target.value)}
+                              placeholder="e.g. 1:00 PM or 2:00 PM"
+                              className="w-full px-2.5 py-1.5 bg-white border border-slate-300 rounded-lg text-xs font-semibold text-slate-900"
+                            />
+                          </div>
+
+                          <div className="col-span-2 sm:col-span-1">
+                            <label className="block text-[10px] font-bold text-slate-500 uppercase">Short Badge</label>
+                            <input
+                              type="text"
+                              value={shift.short || ''}
+                              onChange={(e) => handleShiftChange(shift.id, 'short', e.target.value)}
+                              placeholder="e.g. 6 AM - 1 PM"
+                              className="w-full px-2.5 py-1.5 bg-white border border-slate-300 rounded-lg text-xs font-semibold text-indigo-700"
+                            />
                           </div>
                         </div>
-                      );
-                    })}
-                  </div>
+                      </div>
+                    );
+                  })}
                 </div>
 
                 <div className="pt-2">
-                  <Button variant="primary" onClick={handleSaveAllShifts} disabled={isSavingShifts}>
+                  <Button variant="primary" type="submit" disabled={isSavingShifts}>
                     <span className="flex items-center gap-2">
                       <Save size={16} />
-                      {isSavingShifts ? 'Saving...' : 'Sync All Shifts to Cloud'}
+                      {isSavingShifts ? 'Saving...' : 'Save Shift Timings (समय सेव करें)'}
                     </span>
                   </Button>
                 </div>
-              </div>
+              </form>
             </Card>
 
             {/* Add-on Facility Pricing with Full Edit, Update & Delete */}
