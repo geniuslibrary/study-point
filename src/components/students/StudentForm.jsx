@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import Modal from '../common/Modal';
 import Button from '../common/Button';
-import { Sun, Sunrise, Sunset, Clock, Armchair, AlertCircle, Calendar, UserX, CheckCircle, Tag, IndianRupee } from 'lucide-react';
+import { Sun, Sunrise, Sunset, Clock, Armchair, AlertCircle, Calendar, UserX, CheckCircle, Tag, IndianRupee, Lock } from 'lucide-react';
 import { formatDate, formatCurrency, getStoredShifts, calculateSeatAddonCharges, getStoredAddons } from '../../utils/helpers';
 
 export default function StudentForm({
@@ -16,6 +16,9 @@ export default function StudentForm({
 }) {
   const getTodayInput = () => new Date().toISOString().split('T')[0];
   const shiftsList = getStoredShifts();
+
+  const configuredAddons = getStoredAddons();
+  const [selectedAddons, setSelectedAddons] = useState({});
 
   const [formData, setFormData] = useState({
     name: '',
@@ -44,6 +47,9 @@ export default function StudentForm({
             .split('T')[0]
         : getTodayInput();
 
+      const assignedSeat = seats.find((s) => s.id === editData.seatId);
+      setSelectedAddons(editData.addons || assignedSeat?.addons || {});
+
       setFormData({
         name: editData.name || '',
         phone: editData.phone || '',
@@ -60,6 +66,7 @@ export default function StudentForm({
         notes: editData.notes || '',
       });
     } else {
+      setSelectedAddons({});
       setFormData({
         name: '',
         phone: '',
@@ -78,17 +85,16 @@ export default function StudentForm({
     }
   }, [editData, isOpen, sections, plans]);
 
-  // Calculate Subscription Period & Total Price from Join Date, Plan & Seat Addons
+  // Calculate Subscription Period & Total Price from Join Date, Plan & Selected Addons
   const getBillingCycleInfo = () => {
     const selectedPlan = plans.find((p) => p.id === formData.membershipPlanId);
     const duration = selectedPlan?.durationMonths || 1;
     const planPrice = Number(selectedPlan?.price) || 0;
     const discount = formData.discountAmount === '' ? 0 : Number(formData.discountAmount) || 0;
 
-    const selectedSeat = seats.find((s) => s.id === formData.seatId);
     const { charges: addonCharges, total: addonTotal } = calculateSeatAddonCharges(
-      selectedSeat?.addons,
-      getStoredAddons(),
+      selectedAddons,
+      configuredAddons,
       duration
     );
     const finalPrice = Math.max(0, planPrice + addonTotal - discount);
@@ -241,6 +247,7 @@ export default function StudentForm({
     try {
       const payload = {
         ...formData,
+        addons: selectedAddons,
         discountAmount: formData.discountAmount === '' ? 0 : Number(formData.discountAmount) || 0,
         seatId: formData.status === 'left' ? null : formData.seatId,
         shiftTiming: getShiftTimingString(),
@@ -465,7 +472,16 @@ export default function StudentForm({
               </label>
               <select
                 value={formData.seatId}
-                onChange={(e) => setFormData({ ...formData, seatId: e.target.value })}
+                onChange={(e) => {
+                  const newSeatId = e.target.value;
+                  setFormData({ ...formData, seatId: newSeatId });
+                  if (newSeatId) {
+                    const targetSeat = seats.find((s) => s.id === newSeatId);
+                    if (targetSeat?.addons && Object.keys(targetSeat.addons).length > 0) {
+                      setSelectedAddons(targetSeat.addons);
+                    }
+                  }
+                }}
                 className="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl text-sm font-semibold bg-white"
                 disabled={!formData.sectionId}
               >
@@ -479,6 +495,60 @@ export default function StudentForm({
                     </option>
                   ))}
               </select>
+            </div>
+          </div>
+        )}
+
+        {/* Seat Hardware Facilities (Addon Options) */}
+        {formData.status === 'active' && configuredAddons.length > 0 && (
+          <div className="bg-slate-50 p-3.5 rounded-2xl border border-slate-200 space-y-2">
+            <div className="flex items-center justify-between">
+              <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
+                <Lock className="w-3.5 h-3.5 text-indigo-600" />
+                <span>Seat Hardware Facilities (ऐड-ऑन सुविधाएं):</span>
+              </label>
+              <span className="text-[10px] text-indigo-600 font-semibold">Configured in Settings</span>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2">
+              {configuredAddons.map((item) => {
+                const nameLower = item.name?.toLowerCase();
+                const isChecked = Boolean(
+                  selectedAddons[item.id] ||
+                  (nameLower && selectedAddons[nameLower]) ||
+                  (item.name && selectedAddons[item.name])
+                );
+                return (
+                  <label
+                    key={item.id || item.name}
+                    className={`flex items-center justify-between gap-2 p-2.5 rounded-xl border text-xs font-bold cursor-pointer transition-all ${
+                      isChecked
+                        ? 'border-indigo-600 bg-indigo-50 text-indigo-700 shadow-2xs'
+                        : 'border-slate-200 bg-white hover:bg-slate-50 text-slate-600'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2 min-w-0">
+                      <input
+                        type="checkbox"
+                        checked={isChecked}
+                        onChange={(e) => {
+                          const checked = e.target.checked;
+                          const updated = { ...selectedAddons };
+                          if (item.id) updated[item.id] = checked;
+                          if (nameLower) updated[nameLower] = checked;
+                          if (item.name) updated[item.name] = checked;
+                          setSelectedAddons(updated);
+                        }}
+                        className="rounded text-indigo-600 focus:ring-indigo-500 shrink-0"
+                      />
+                      <span className="truncate">{item.name}</span>
+                    </div>
+                    <span className="text-[10px] font-black opacity-80 shrink-0 bg-white/80 px-1.5 py-0.5 rounded border border-slate-200/60">
+                      ₹{item.monthlyCharge}/mo
+                    </span>
+                  </label>
+                );
+              })}
             </div>
           </div>
         )}

@@ -117,6 +117,7 @@ export default function Students() {
       email: formData.email || '',
       sectionId: formData.sectionId || '',
       seatId: formData.status === 'left' ? '' : (formData.seatId || ''),
+      addons: formData.addons || {},
       shift: formData.shift || 'full_day',
       shiftTiming: formData.shiftTiming || 'Full Day',
       customStartTime: formData.customStartTime || '',
@@ -131,12 +132,18 @@ export default function Students() {
 
     const docRecord = await createDocument(COLLECTIONS.STUDENTS, newStudentData);
 
-    const allocatedSeat = seats.find((s) => s.id === newStudentData.seatId);
     const { charges: addonCharges, total: addonTotal } = calculateSeatAddonCharges(
-      allocatedSeat?.addons,
+      formData.addons,
       addonPricing,
       duration
     );
+
+    // If seat is allocated, also sync the selected hardware facilities onto the physical seat document
+    if (newStudentData.seatId && formData.addons) {
+      await updateDocument(COLLECTIONS.SEATS, newStudentData.seatId, {
+        addons: formData.addons,
+      });
+    }
 
     // Auto-create initial fee record with discount & seat facilities (e.g. Locker) for this student
     if (newStudentData.status === 'active') {
@@ -193,6 +200,7 @@ export default function Students() {
       email: formData.email || '',
       sectionId: formData.status === 'left' ? '' : (formData.sectionId || ''),
       seatId: formData.status === 'left' ? '' : (formData.seatId || ''),
+      addons: formData.addons || {},
       shift: formData.shift || 'full_day',
       shiftTiming: formData.shiftTiming || 'Full Day',
       customStartTime: formData.customStartTime || '',
@@ -207,9 +215,14 @@ export default function Students() {
 
     await updateDocument(COLLECTIONS.STUDENTS, editData.id, updatedData);
 
-    const allocatedSeat = seats.find((s) => s.id === updatedData.seatId);
+    if (updatedData.seatId && formData.addons) {
+      await updateDocument(COLLECTIONS.SEATS, updatedData.seatId, {
+        addons: formData.addons,
+      });
+    }
+
     const { charges: addonCharges, total: addonTotal } = calculateSeatAddonCharges(
-      allocatedSeat?.addons,
+      formData.addons,
       addonPricing,
       duration
     );
