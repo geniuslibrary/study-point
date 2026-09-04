@@ -15,6 +15,8 @@ import {
 import { COLLECTIONS } from '../../utils/constants';
 import { formatDate, formatCurrency } from '../../utils/helpers';
 import { fetchCollectionData } from '../../firebase/storageService';
+import { doc, getDoc } from 'firebase/firestore';
+import { db } from '../../firebase/config';
 
 export default function NotificationPanel({ isOpen, onClose }) {
   const navigate = useNavigate();
@@ -22,11 +24,21 @@ export default function NotificationPanel({ isOpen, onClose }) {
   const [fees, setFees] = useState([]);
   const [sections, setSections] = useState([]);
   const [seats, setSeats] = useState([]);
+  const [libraryName, setLibraryName] = useState('Study Point Library');
   const [loading, setLoading] = useState(true);
   const [filterTab, setFilterTab] = useState('all'); // 'all' | 'expiring' | 'fees'
 
   useEffect(() => {
     if (!isOpen) return;
+
+    // Load cached library name immediately
+    const savedSettings = localStorage.getItem('studypoint_settings');
+    if (savedSettings) {
+      try {
+        const parsed = JSON.parse(savedSettings);
+        if (parsed.studyPointName) setLibraryName(parsed.studyPointName);
+      } catch (e) {}
+    }
 
     const loadData = async () => {
       setLoading(true);
@@ -41,6 +53,13 @@ export default function NotificationPanel({ isOpen, onClose }) {
         setFees(feeDocs);
         setSections(secDocs);
         setSeats(seatDocs);
+
+        try {
+          const settingsSnap = await getDoc(doc(db, COLLECTIONS.SETTINGS, 'ownerProfile'));
+          if (settingsSnap.exists() && settingsSnap.data().studyPointName) {
+            setLibraryName(settingsSnap.data().studyPointName);
+          }
+        } catch (err) {}
       } catch (e) {
         console.error('Error fetching notification data', e);
       } finally {
@@ -114,13 +133,13 @@ export default function NotificationPanel({ isOpen, onClose }) {
           ? `${Math.abs(student.diffDays)} दिन पहले`
           : `${student.diffDays} दिन में`;
 
-      message = `नमस्ते ${student.name} जी,\nStudy Point Library की तरफ से यह रिमाइंडर है कि आपकी Seat #${student.seatNumber} (${student.shiftTiming || 'Shift'}) का Subscription ${daysText} समाप्त (${formatDate(student.expiryDate)}) हो रहा है।\nकृपया अपनी सीट जारी रखने के लिए समय पर फीस जमा करें। धन्यवाद! 🙏`;
+      message = `नमस्ते ${student.name} जी,\n${libraryName} की तरफ से यह रिमाइंडर है कि आपकी Seat #${student.seatNumber} (${student.shiftTiming || 'Shift'}) का Subscription ${daysText} समाप्त (${formatDate(student.expiryDate)}) हो रहा है।\nकृपया अपनी सीट जारी रखने के लिए समय पर फीस जमा करें। धन्यवाद! 🙏`;
     } else {
-      message = `नमस्ते ${student.name} जी,\nStudy Point Library में आपके चालू माह (${currentMonth}) की फीस बकाया है। कृपया समय पर फीस जमा करवाएं। धन्यवाद! 🙏`;
+      message = `नमस्ते ${student.name} जी,\n${libraryName} में आपके चालू माह (${currentMonth}) की फीस बकाया है। कृपया समय पर फीस जमा करवाएं। धन्यवाद! 🙏`;
     }
 
     const waUrl = `https://api.whatsapp.com/send?phone=${phoneWithCountry}&text=${encodeURIComponent(message)}`;
-    window.open(waUrl, '_blank');
+    window.open(waUrl, '_blank', 'noopener,noreferrer');
   };
 
   if (!isOpen) return null;
