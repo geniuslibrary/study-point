@@ -119,21 +119,22 @@ export default function PublicReceipt() {
   const pdfFileName = `Fee_Receipt_${(student?.name || 'Student').replace(/\s+/g, '_')}_${receiptNo}.pdf`;
 
   const handleDownloadPDF = async () => {
-    if (!receiptRef.current) return;
+    const element = document.getElementById('public-receipt-card') || receiptRef.current;
+    if (!element) return;
     setIsGeneratingPdf(true);
 
     const opt = {
       margin: [8, 8, 8, 8],
       filename: pdfFileName,
       image: { type: 'jpeg', quality: 0.98 },
-      html2canvas: { scale: 2, useCORS: true, logging: false },
+      html2canvas: { scale: 2, useCORS: true, logging: false, scrollY: 0, scrollX: 0 },
       jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
     };
 
     try {
-      await html2pdf().set(opt).from(receiptRef.current).save();
+      await html2pdf().set(opt).from(element).save();
     } catch (err) {
-      console.error('PDF error, falling back to print:', err);
+      console.warn('PDF error, falling back to print:', err);
       window.print();
     } finally {
       setIsGeneratingPdf(false);

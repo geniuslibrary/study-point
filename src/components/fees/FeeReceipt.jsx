@@ -98,83 +98,61 @@ export default function FeeReceipt({ isOpen, onClose, fee, student, section, sea
 
   // 1. Direct Download High-Resolution PDF
   const handleDownloadPDF = async () => {
-    if (!receiptRef.current) return;
+    const element = document.getElementById('printable-fee-receipt') || receiptRef.current;
+    if (!element) return;
     setIsGeneratingPdf(true);
 
     const opt = {
       margin: [8, 8, 8, 8],
       filename: pdfFileName,
       image: { type: 'jpeg', quality: 0.98 },
-      html2canvas: { scale: 2, useCORS: true, logging: false },
+      html2canvas: { scale: 2, useCORS: true, logging: false, scrollY: 0, scrollX: 0 },
       jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
     };
 
     try {
-      await html2pdf().set(opt).from(receiptRef.current).save();
+      await html2pdf().set(opt).from(element).save();
       setPdfToast('🎉 PDF Receipt Downloaded Successfully!');
       setTimeout(() => setPdfToast(''), 4000);
     } catch (err) {
-      console.error('PDF generate error, falling back to print:', err);
+      console.warn('PDF generate error, falling back to print:', err);
       window.print();
     } finally {
       setIsGeneratingPdf(false);
     }
   };
 
-  // 2. Share PDF & Live Digital Bill on WhatsApp
-  const handleShareWhatsAppPDF = async () => {
-    if (!receiptRef.current) return;
-    setIsGeneratingPdf(true);
-
+  // 2. Share Live Digital Bill on WhatsApp (Instant non-blocking redirect)
+  const handleShareWhatsApp = () => {
     const cleanPhone = (student?.phone || '').replace(/\D/g, '');
     const phoneWithCountry = cleanPhone.length === 10 ? `91${cleanPhone}` : cleanPhone;
 
-    const opt = {
-      margin: [8, 8, 8, 8],
-      filename: pdfFileName,
-      image: { type: 'jpeg', quality: 0.98 },
-      html2canvas: { scale: 2, useCORS: true, logging: false },
-      jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
-    };
-
-    try {
-      // 1. Trigger local PDF download
-      await html2pdf().set(opt).from(receiptRef.current).save();
-
-      // 2. Prepare rich WhatsApp message with itemized lines
-      let addonSummary = '';
-      if (Object.keys(finalAddonCharges).length > 0) {
-        addonSummary = Object.entries(finalAddonCharges)
-          .map(([n, a]) => `🔒 *${n} Add-on:* ₹${a} (${duration} Mo)\n`)
-          .join('');
-      }
-
-      const message = `🎉 *FEE PAYMENT RECEIPT - ${libraryTitle.toUpperCase()}*\n\n` +
-        `Hello *${student?.name || 'Student'}*,\n` +
-        `Your official fee payment of *₹${totalReceived}* has been confirmed!\n\n` +
-        `🧾 *Receipt No:* ${receiptNo}\n` +
-        `📦 *Plan:* ${planTitle}\n` +
-        (addonSummary ? addonSummary : '') +
-        (discountAmt > 0 ? `🏷️ *Discount:* -₹${discountAmt}\n` : '') +
-        `📅 *Validity Period:* ${validityText}\n` +
-        `📍 *Seat Allocated:* Seat #${displaySeatNumber} (${student?.shiftTiming || 'Shift'})\n` +
-        `💳 *Payment Mode:* ${(fee.paymentMode || 'CASH').toUpperCase()}\n` +
-        `✅ *Status:* PAID & VERIFIED\n\n` +
-        `📄 *View & Download Official PDF Receipt:* \n👉 ${onlineReceiptUrl}\n\n` +
-        `Thank you for studying at ${libraryTitle}! 🙏`;
-
-      const waUrl = `https://api.whatsapp.com/send?phone=${phoneWithCountry}&text=${encodeURIComponent(message)}`;
-      window.open(waUrl, '_blank');
-
-      setPdfToast('🎉 PDF Downloaded & WhatsApp Redirected!');
-      setTimeout(() => setPdfToast(''), 5000);
-    } catch (err) {
-      console.error('WhatsApp PDF Share error:', err);
-      const waUrl = `https://api.whatsapp.com/send?phone=${phoneWithCountry}&text=${encodeURIComponent(`Receipt No: ${receiptNo} for ₹${fee.amount} from ${libraryTitle}\nView Bill: ${onlineReceiptUrl}`)}`;
-      window.open(waUrl, '_blank');
-    } finally {
-      setIsGeneratingPdf(false);
+    let addonSummary = '';
+    if (Object.keys(finalAddonCharges).length > 0) {
+      addonSummary = Object.entries(finalAddonCharges)
+        .map(([n, a]) => `🔒 *${n} Add-on:* ₹${a} (${duration} Mo)\n`)
+        .join('');
     }
+
+    const message = `🎉 *FEE PAYMENT RECEIPT - ${libraryTitle.toUpperCase()}*\n\n` +
+      `Hello *${student?.name || 'Student'}*,\n` +
+      `Your official fee payment of *₹${totalReceived}* has been confirmed!\n\n` +
+      `🧾 *Receipt No:* ${receiptNo}\n` +
+      `📦 *Plan:* ${planTitle}\n` +
+      (addonSummary ? addonSummary : '') +
+      (discountAmt > 0 ? `🏷️ *Discount:* -₹${discountAmt}\n` : '') +
+      `📅 *Validity Period:* ${validityText}\n` +
+      `📍 *Seat Allocated:* Seat #${displaySeatNumber} (${student?.shiftTiming || 'Shift'})\n` +
+      `💳 *Payment Mode:* ${(fee.paymentMode || 'CASH').toUpperCase()}\n` +
+      `✅ *Status:* PAID & VERIFIED\n\n` +
+      `📄 *View & Download Official PDF Receipt:* \n👉 ${onlineReceiptUrl}\n\n` +
+      `Thank you for studying at ${libraryTitle}! 🙏`;
+
+    const waUrl = `https://api.whatsapp.com/send?phone=${phoneWithCountry}&text=${encodeURIComponent(message)}`;
+    window.open(waUrl, '_blank', 'noopener,noreferrer');
+
+    setPdfToast('🎉 WhatsApp Redirected!');
+    setTimeout(() => setPdfToast(''), 4000);
   };
 
   return (
@@ -350,17 +328,12 @@ export default function FeeReceipt({ isOpen, onClose, fee, student, section, sea
 
           <div className="flex items-center gap-2.5">
             <button
-              onClick={handleShareWhatsAppPDF}
-              disabled={isGeneratingPdf}
-              className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white rounded-xl text-xs font-bold transition-all shadow-md flex items-center gap-2 cursor-pointer"
-              title="Share PDF & Live Bill on WhatsApp"
+              onClick={handleShareWhatsApp}
+              className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition-all shadow-md flex items-center gap-2 cursor-pointer"
+              title="Share Live Digital Bill on WhatsApp"
             >
-              {isGeneratingPdf ? (
-                <Loader2 className="w-4 h-4 animate-spin" />
-              ) : (
-                <MessageSquare className="w-4 h-4" />
-              )}
-              <span>{isGeneratingPdf ? 'Generating PDF...' : 'WhatsApp PDF Bill'}</span>
+              <MessageSquare className="w-4 h-4" />
+              <span>Share on WhatsApp</span>
             </button>
 
             <button
