@@ -222,8 +222,12 @@ export default function StaffRoles() {
 
   const handleOpenEdit = (staff) => {
     setEditStaff(staff);
-    const matchedRole = rolesList.find(
-      (r) => r.id === staff.role || r.name?.toLowerCase() === staff.role?.toLowerCase()
+    const allRoles = [ownerRole, ...rolesList];
+    const matchedRole = allRoles.find(
+      (r) =>
+        r.id === staff.role ||
+        r.name?.toLowerCase() === staff.role?.toLowerCase() ||
+        (r.isOwner && (staff.role === 'owner' || staff.role === 'role_owner'))
     ) || rolesList[0] || DEFAULT_SYSTEM_ROLES[0];
 
     const initialRole = staff.role || matchedRole.id;
@@ -246,7 +250,8 @@ export default function StaffRoles() {
   };
 
   const handleRolePresetChange = (presetId) => {
-    const preset = rolesList.find((r) => r.id === presetId);
+    const allRoles = [ownerRole, ...rolesList];
+    const preset = allRoles.find((r) => r.id === presetId);
     if (preset) {
       setFormData((prev) => ({
         ...prev,
@@ -779,8 +784,10 @@ export default function StaffRoles() {
             </div>
 
             <div className="flex flex-wrap gap-2">
-              {rolesList.map((r) => {
-                const isSelected = formData.role === r.id;
+              {[ownerRole, ...rolesList].map((r) => {
+                const isSelected =
+                  formData.role === r.id ||
+                  (r.isOwner && (formData.role === 'owner' || formData.role === 'role_owner'));
                 return (
                   <button
                     type="button"
