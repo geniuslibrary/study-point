@@ -116,21 +116,32 @@ export const getStoredShifts = () => {
 export const getShiftInfo = (shiftId) => {
   const shifts = getStoredShifts();
   const found = shifts.find((s) => s.id === shiftId);
-  return found || { id: shiftId, label: 'Custom Timing', timing: 'Custom', short: 'Custom', color: 'gray' };
+  return (
+    found || {
+      id: shiftId,
+      label: shiftId || 'Custom Timing',
+      timing: 'Custom',
+      short: 'Custom',
+      color: 'gray',
+    }
+  );
 };
 
 export const getShiftBadgeStyle = (shiftId) => {
   switch (shiftId) {
     case 'full_day':
-      return 'bg-indigo-50 text-indigo-700 border-indigo-200';
+      return 'bg-indigo-50 text-indigo-800 border-indigo-200';
     case 'first_half':
-      return 'bg-amber-50 text-amber-700 border-amber-200';
+      return 'bg-amber-50 text-amber-800 border-amber-200';
     case 'second_half':
-      return 'bg-purple-50 text-purple-700 border-purple-200';
+      return 'bg-purple-50 text-purple-800 border-purple-200';
+    case 'night_shift':
+    case 'night':
+      return 'bg-blue-50 text-blue-800 border-blue-200';
     case 'custom':
-      return 'bg-teal-50 text-teal-700 border-teal-200';
+      return 'bg-teal-50 text-teal-800 border-teal-200';
     default:
-      return 'bg-gray-50 text-gray-700 border-gray-200';
+      return 'bg-slate-100 text-slate-800 border-slate-200';
   }
 };
 

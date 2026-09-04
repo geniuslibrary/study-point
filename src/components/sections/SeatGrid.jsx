@@ -1,5 +1,5 @@
-import { Armchair, Lock, Wifi, Lamp, Sun, Sunrise, Sunset, Clock, User } from 'lucide-react';
-import { getStoredShifts } from '../../utils/helpers';
+import { Armchair, Lock, Wifi, Lamp, Sun, Sunrise, Sunset, Clock, Moon, User, CheckCircle2 } from 'lucide-react';
+import { getStoredShifts, getShiftInfo, getShiftBadgeStyle } from '../../utils/helpers';
 
 export default function SeatGrid({ seats = [], onSeatClick }) {
   if (seats.length === 0) {
@@ -11,10 +11,6 @@ export default function SeatGrid({ seats = [], onSeatClick }) {
   }
 
   const shiftsList = getStoredShifts();
-  const firstHalfShift = shiftsList.find((s) => s.id === 'first_half');
-  const secondHalfShift = shiftsList.find((s) => s.id === 'second_half');
-  const firstHalfTag = firstHalfShift?.short || '6 AM - 2 PM';
-  const secondHalfTag = secondHalfShift?.short || '2 PM - 11 PM';
 
   // Deduplicate and Sort numerically by seatNumber: 1, 2, 3...
   const uniqueMap = new Map();
@@ -34,25 +30,30 @@ export default function SeatGrid({ seats = [], onSeatClick }) {
     (a, b) => (Number(a.seatNumber) || 0) - (Number(b.seatNumber) || 0)
   );
 
+  const getShiftIcon = (shiftId = '') => {
+    const id = shiftId.toLowerCase();
+    if (id.includes('full')) return <Sun className="w-3.5 h-3.5 text-indigo-600 shrink-0" />;
+    if (id.includes('first') || id.includes('morn')) return <Sunrise className="w-3.5 h-3.5 text-amber-600 shrink-0" />;
+    if (id.includes('second') || id.includes('even')) return <Sunset className="w-3.5 h-3.5 text-purple-600 shrink-0" />;
+    if (id.includes('night')) return <Moon className="w-3.5 h-3.5 text-blue-600 shrink-0" />;
+    return <Clock className="w-3.5 h-3.5 text-teal-600 shrink-0" />;
+  };
+
   return (
     <div className="space-y-4">
       {/* Visual Legend */}
-      <div className="flex flex-wrap items-center gap-4 text-xs font-bold text-slate-600 pb-3 border-b border-slate-200">
-        <div className="flex items-center gap-2">
-          <span className="w-3.5 h-3.5 rounded-lg bg-emerald-100 border border-emerald-400"></span>
-          <span>Available (All Shifts Free)</span>
+      <div className="flex flex-wrap items-center gap-3 text-xs font-bold text-slate-600 pb-3 border-b border-slate-200">
+        <div className="flex items-center gap-1.5">
+          <span className="w-3 h-3 rounded-md bg-emerald-100 border border-emerald-400"></span>
+          <span>Available</span>
         </div>
-        <div className="flex items-center gap-2">
-          <span className="w-3.5 h-3.5 rounded-lg bg-amber-50 border border-amber-400"></span>
-          <span>Half-Day Free ({firstHalfTag} or {secondHalfTag} Open)</span>
+        <div className="flex items-center gap-1.5">
+          <span className="w-3 h-3 rounded-md bg-amber-50 border border-amber-400"></span>
+          <span>Shift Booked (Partial)</span>
         </div>
-        <div className="flex items-center gap-2">
-          <span className="w-3.5 h-3.5 rounded-lg bg-indigo-50 border border-indigo-400"></span>
-          <span>Full Day Occupied</span>
-        </div>
-        <div className="flex items-center gap-2">
-          <span className="w-3.5 h-3.5 rounded-lg bg-purple-50 border border-purple-400"></span>
-          <span>Both Halves Booked (Full)</span>
+        <div className="flex items-center gap-1.5">
+          <span className="w-3 h-3 rounded-md bg-indigo-50 border border-indigo-400"></span>
+          <span>Full Day Booked</span>
         </div>
       </div>
 
@@ -60,21 +61,18 @@ export default function SeatGrid({ seats = [], onSeatClick }) {
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3.5">
         {sortedSeats.map((seat) => {
           const assignedStudents = seat.assignedStudents || [];
-          const fullDayStudent = assignedStudents.find((s) => !s.shift || s.shift === 'full_day');
-          const firstHalfStudent = assignedStudents.find((s) => s.shift === 'first_half');
-          const secondHalfStudent = assignedStudents.find((s) => s.shift === 'second_half');
-          const customStudents = assignedStudents.filter((s) => s.shift === 'custom');
+          const hasFullDay = assignedStudents.some((s) => !s.shift || s.shift === 'full_day');
 
           let cardStyle =
             'border-emerald-300/80 bg-gradient-to-b from-white to-emerald-50/40 hover:border-emerald-500 hover:shadow-md shadow-2xs';
 
-          if (fullDayStudent) {
+          if (hasFullDay) {
             cardStyle =
               'border-indigo-300/80 bg-gradient-to-b from-white to-indigo-50/50 hover:border-indigo-500 hover:shadow-md shadow-2xs';
-          } else if (firstHalfStudent && secondHalfStudent) {
+          } else if (assignedStudents.length >= 2) {
             cardStyle =
               'border-purple-300/80 bg-gradient-to-b from-white to-purple-50/50 hover:border-purple-500 hover:shadow-md shadow-2xs';
-          } else if (firstHalfStudent || secondHalfStudent || customStudents.length > 0) {
+          } else if (assignedStudents.length === 1) {
             cardStyle =
               'border-amber-300/80 bg-gradient-to-b from-white to-amber-50/50 hover:border-amber-500 hover:shadow-md shadow-2xs';
           }
@@ -114,47 +112,32 @@ export default function SeatGrid({ seats = [], onSeatClick }) {
                 </div>
               </div>
 
-              {/* Middle Row: Shift Occupancy Breakdown */}
+              {/* Middle Row: Dynamic Shift Occupancy Breakdown */}
               <div className="my-2.5 space-y-1.5">
-                {/* 1. Full Day Booking */}
-                {fullDayStudent && (
-                  <div className="flex items-center gap-1.5 text-xs bg-indigo-100/90 text-indigo-900 px-2 py-1 rounded-lg font-bold">
-                    <Sun className="w-3.5 h-3.5 text-indigo-600 shrink-0" />
-                    <span className="truncate">{fullDayStudent.name}</span>
-                  </div>
-                )}
-
-                {/* 2. First Half / Morning */}
-                {!fullDayStudent && (
-                  <div
-                    className={`flex items-center justify-between text-[11px] px-2 py-1 rounded-lg ${
-                      firstHalfStudent
-                        ? 'bg-amber-100/90 text-amber-900 font-bold'
-                        : 'bg-emerald-50 text-emerald-800 border border-dashed border-emerald-300'
-                    }`}
-                  >
-                    <div className="flex items-center gap-1 truncate">
-                      <Sunrise className="w-3 h-3 text-amber-600 shrink-0" />
-                      <span className="truncate">{firstHalfStudent ? firstHalfStudent.name : '1st Half Free'}</span>
-                    </div>
-                    <span className="text-[9px] font-black opacity-75">{firstHalfTag}</span>
-                  </div>
-                )}
-
-                {/* 3. Second Half / Evening */}
-                {!fullDayStudent && (
-                  <div
-                    className={`flex items-center justify-between text-[11px] px-2 py-1 rounded-lg ${
-                      secondHalfStudent
-                        ? 'bg-purple-100/90 text-purple-900 font-bold'
-                        : 'bg-emerald-50 text-emerald-800 border border-dashed border-emerald-300'
-                    }`}
-                  >
-                    <div className="flex items-center gap-1 truncate">
-                      <Sunset className="w-3 h-3 text-purple-600 shrink-0" />
-                      <span className="truncate">{secondHalfStudent ? secondHalfStudent.name : '2nd Half Free'}</span>
-                    </div>
-                    <span className="text-[9px] font-black opacity-75">{secondHalfTag}</span>
+                {assignedStudents.length > 0 ? (
+                  assignedStudents.map((s, idx) => {
+                    const shiftInfo = getShiftInfo(s.shift);
+                    return (
+                      <div
+                        key={idx}
+                        className={`flex items-center justify-between text-[11px] px-2 py-1 rounded-lg font-bold border ${getShiftBadgeStyle(
+                          s.shift
+                        )}`}
+                      >
+                        <div className="flex items-center gap-1 min-w-0">
+                          {getShiftIcon(s.shift)}
+                          <span className="truncate">{s.name}</span>
+                        </div>
+                        <span className="text-[9px] font-black opacity-80 shrink-0 ml-1">
+                          {shiftInfo.short || shiftInfo.timing}
+                        </span>
+                      </div>
+                    );
+                  })
+                ) : (
+                  <div className="flex items-center gap-1.5 text-xs text-emerald-800 bg-emerald-50/80 border border-dashed border-emerald-300 px-2.5 py-1.5 rounded-lg font-bold">
+                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                    <span>Empty (All Shifts Free)</span>
                   </div>
                 )}
               </div>
@@ -164,9 +147,9 @@ export default function SeatGrid({ seats = [], onSeatClick }) {
                 <span>
                   {assignedStudents.length === 0
                     ? '🟢 Free to Book'
-                    : fullDayStudent || (firstHalfStudent && secondHalfStudent)
+                    : hasFullDay || assignedStudents.length >= 2
                     ? '🔴 Full'
-                    : '🟡 1 Half Open'}
+                    : '🟡 Open for other shifts'}
                 </span>
                 <span className="text-indigo-600 group-hover:underline">Manage ⚙️</span>
               </div>
