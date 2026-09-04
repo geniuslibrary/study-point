@@ -15,6 +15,8 @@ import {
   Armchair,
   Trash2,
   Edit,
+  Tag,
+  IndianRupee,
 } from 'lucide-react';
 import Button from '../common/Button';
 
@@ -68,6 +70,10 @@ export default function StudentProfile({
   };
 
   const shiftInfo = getShiftDisplay();
+
+  const planBasePrice = Number(plan?.price) || 0;
+  const discountAmt = Number(student.discountAmount) || 0;
+  const netMonthly = Math.max(0, planBasePrice - discountAmt);
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} title="Student Profile & Record" size="xl">
@@ -128,7 +134,7 @@ export default function StudentProfile({
           </div>
         </div>
 
-        {/* Detailed Grid: Section, Seat, Shift, Plan */}
+        {/* Detailed Grid: Section, Seat, Shift, Plan & Discount */}
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
           <div className="bg-slate-50 rounded-2xl p-3.5 border border-slate-200">
             <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Section</p>
@@ -153,9 +159,18 @@ export default function StudentProfile({
           </div>
 
           <div className="bg-slate-50 rounded-2xl p-3.5 border border-slate-200">
-            <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Membership Plan</p>
+            <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Membership & Pricing</p>
             <p className="font-bold text-slate-900 mt-1">{plan?.name || 'Standard Monthly'}</p>
-            {plan?.price && <p className="text-xs text-emerald-600 font-bold">₹{plan.price}</p>}
+            <div className="flex flex-wrap items-baseline gap-1 mt-0.5">
+              <span className="text-xs font-black text-emerald-700">
+                {formatCurrency(netMonthly)}/mo
+              </span>
+              {discountAmt > 0 && (
+                <span className="text-[10px] text-rose-600 font-bold">
+                  (-₹{discountAmt} छूट)
+                </span>
+              )}
+            </div>
           </div>
         </div>
 
@@ -187,7 +202,7 @@ export default function StudentProfile({
 
         {/* Fee Payment History */}
         <div>
-          <h4 className="text-sm font-bold text-slate-900 mb-3">Fee History</h4>
+          <h4 className="text-sm font-bold text-slate-900 mb-3">Fee Payment & Receipt History</h4>
           {fees.length === 0 ? (
             <div className="p-6 text-center text-slate-400 bg-slate-50 rounded-2xl border border-slate-200 text-xs">
               No fee records generated yet
@@ -196,20 +211,36 @@ export default function StudentProfile({
             <div className="border border-slate-200 rounded-2xl overflow-hidden shadow-2xs">
               <div className="max-h-56 overflow-y-auto">
                 <table className="w-full text-sm">
-                  <thead className="bg-slate-50 border-b border-slate-200">
+                  <thead className="bg-slate-50 border-b border-slate-200 text-xs font-bold text-slate-500 uppercase tracking-wider">
                     <tr>
-                      <th className="px-4 py-2.5 text-left text-xs font-bold text-slate-500 uppercase">Month</th>
-                      <th className="px-4 py-2.5 text-left text-xs font-bold text-slate-500 uppercase">Amount</th>
-                      <th className="px-4 py-2.5 text-left text-xs font-bold text-slate-500 uppercase">Paid Date</th>
-                      <th className="px-4 py-2.5 text-left text-xs font-bold text-slate-500 uppercase">Status</th>
+                      <th className="px-4 py-2.5 text-left">Validity Period / Month</th>
+                      <th className="px-4 py-2.5 text-left">Plan Rate</th>
+                      <th className="px-4 py-2.5 text-left">Discount</th>
+                      <th className="px-4 py-2.5 text-left">Paid Amount</th>
+                      <th className="px-4 py-2.5 text-left">Payment Date</th>
+                      <th className="px-4 py-2.5 text-left">Status</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-slate-100">
+                  <tbody className="divide-y divide-slate-100 text-xs">
                     {fees.map((fee) => (
                       <tr key={fee.id} className="hover:bg-slate-50">
-                        <td className="px-4 py-2.5 font-bold text-slate-800">{fee.month}</td>
-                        <td className="px-4 py-2.5 font-bold text-slate-900">{formatCurrency(fee.amount)}</td>
-                        <td className="px-4 py-2.5 text-xs text-slate-600">{formatDate(fee.paidDate)}</td>
+                        <td className="px-4 py-2.5 font-bold text-slate-900">
+                          {fee.periodStart && fee.periodEnd
+                            ? `${formatDate(fee.periodStart)} to ${formatDate(fee.periodEnd)}`
+                            : fee.month}
+                        </td>
+                        <td className="px-4 py-2.5 text-slate-600">
+                          {formatCurrency(fee.baseFee || fee.amount)}
+                        </td>
+                        <td className="px-4 py-2.5 font-bold text-emerald-700">
+                          {fee.discountAmount > 0 ? `- ₹${fee.discountAmount}` : '—'}
+                        </td>
+                        <td className="px-4 py-2.5 font-black text-slate-900">
+                          {formatCurrency(fee.amount)}
+                        </td>
+                        <td className="px-4 py-2.5 text-slate-500">
+                          {formatDate(fee.paidDate || fee.dueDate)}
+                        </td>
                         <td className="px-4 py-2.5">
                           <StatusBadge status={fee.status} size="sm" />
                         </td>

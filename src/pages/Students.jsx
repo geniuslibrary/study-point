@@ -248,6 +248,7 @@ export default function Students() {
           students={students}
           sections={sections}
           seats={seats}
+          plans={plans}
           onEdit={(s) => {
             setEditData(s);
             setShowForm(true);

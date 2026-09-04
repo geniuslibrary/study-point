@@ -15,15 +15,17 @@ import {
   RotateCcw,
   Calendar,
   CheckCircle,
+  Tag,
 } from 'lucide-react';
 import StatusBadge from '../common/StatusBadge';
-import { getShiftBadgeStyle, formatDate } from '../../utils/helpers';
+import { getShiftBadgeStyle, formatDate, formatCurrency } from '../../utils/helpers';
 import { SHIFTS } from '../../utils/constants';
 
 export default function StudentList({
   students = [],
   sections = [],
   seats = [],
+  plans = [],
   onEdit,
   onDelete,
   onCollectFee,
@@ -64,6 +66,7 @@ export default function StudentList({
     const seat = seats.find((s) => s.id === seatId);
     return seat ? `#${seat.seatNumber}` : '—';
   };
+  const getPlan = (planId) => plans.find((p) => p.id === planId);
 
   const getShiftBadge = (shiftId, shiftTiming) => {
     switch (shiftId) {
@@ -71,21 +74,21 @@ export default function StudentList({
         return (
           <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold border ${getShiftBadgeStyle(shiftId)}`}>
             <Sunrise className="w-3 h-3 text-amber-600" />
-            <span>1st Half (6 AM - 2 PM)</span>
+            <span>1st Half</span>
           </span>
         );
       case 'second_half':
         return (
           <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold border ${getShiftBadgeStyle(shiftId)}`}>
             <Sunset className="w-3 h-3 text-purple-600" />
-            <span>2nd Half (2 PM - 11 PM)</span>
+            <span>2nd Half</span>
           </span>
         );
       case 'custom':
         return (
           <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold border ${getShiftBadgeStyle(shiftId)}`}>
             <Clock className="w-3 h-3 text-teal-600" />
-            <span>{shiftTiming || 'Custom Timing'}</span>
+            <span>{shiftTiming || 'Custom'}</span>
           </span>
         );
       case 'full_day':
@@ -99,83 +102,65 @@ export default function StudentList({
     }
   };
 
-  if (students.length === 0) {
-    return (
-      <div className="bg-white rounded-3xl shadow-xs p-12 text-center border border-slate-200/80">
-        <Users className="w-12 h-12 text-slate-300 mx-auto mb-3" />
-        <h3 className="text-lg font-bold text-slate-800">No Students Registered Yet</h3>
-        <p className="text-slate-400 text-xs mt-1">Click "Add Student" to register a new student and book a seat shift.</p>
-      </div>
-    );
-  }
-
   return (
-    <div className="bg-white rounded-3xl shadow-xs border border-slate-200/80 overflow-hidden space-y-0">
-      {/* Active vs Left Tabs Header */}
-      <div className="p-4 border-b border-slate-200 bg-slate-50/80 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <div className="flex items-center gap-2 bg-white p-1 rounded-2xl border border-slate-200 shadow-2xs self-start">
-          <button
-            onClick={() => setActiveTab('active')}
-            className={`px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
-              activeTab === 'active'
-                ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/20'
-                : 'text-slate-600 hover:text-slate-900'
-            }`}
-          >
-            <CheckCircle className="w-3.5 h-3.5" />
-            <span>Active Students ({activeCount})</span>
-          </button>
-
-          <button
-            onClick={() => setActiveTab('left')}
-            className={`px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
-              activeTab === 'left'
-                ? 'bg-rose-600 text-white shadow-md shadow-rose-600/20'
-                : 'text-slate-600 hover:text-slate-900'
-            }`}
-          >
-            <UserX className="w-3.5 h-3.5" />
-            <span>Left / Discontinued ({leftCount})</span>
-          </button>
-
-          <button
-            onClick={() => setActiveTab('all')}
-            className={`px-3 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-              activeTab === 'all'
-                ? 'bg-slate-800 text-white'
-                : 'text-slate-500 hover:text-slate-900'
-            }`}
-          >
-            All ({students.length})
-          </button>
-        </div>
-
-        {activeTab === 'left' && (
-          <span className="text-xs text-rose-700 bg-rose-50 px-3 py-1.5 rounded-xl border border-rose-200 font-semibold">
-            ℹ️ Left students are archived here and removed from active seat grid & notifications.
-          </span>
-        )}
-      </div>
-
-      {/* Search & Filters Bar */}
-      <div className="p-4 border-b border-slate-100 bg-white">
-        <div className="flex flex-col md:flex-row gap-3 items-center justify-between">
-          <div className="relative w-full md:w-80">
-            <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
-            <input
-              type="text"
-              placeholder="Search by name, phone, email..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 text-xs font-medium border border-slate-200 rounded-xl bg-slate-50 focus:bg-white focus:ring-2 focus:ring-indigo-500 outline-none"
-            />
+    <div className="bg-white rounded-2xl shadow-xs border border-slate-200/80 overflow-hidden space-y-0">
+      {/* Top Filter Bar */}
+      <div className="p-4 sm:p-5 border-b border-slate-100 bg-slate-50/70 space-y-3.5">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          {/* Active / Left / All Tabs */}
+          <div className="flex items-center bg-white p-1 rounded-xl border border-slate-200 shadow-2xs">
+            <button
+              onClick={() => setActiveTab('active')}
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                activeTab === 'active'
+                  ? 'bg-emerald-600 text-white shadow-xs'
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              Active ({activeCount})
+            </button>
+            <button
+              onClick={() => setActiveTab('left')}
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                activeTab === 'left'
+                  ? 'bg-rose-600 text-white shadow-xs'
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              Left / Inactive ({leftCount})
+            </button>
+            <button
+              onClick={() => setActiveTab('all')}
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                activeTab === 'all'
+                  ? 'bg-indigo-600 text-white shadow-xs'
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              All ({students.length})
+            </button>
           </div>
 
-          <div className="flex flex-wrap items-center gap-2 w-full md:w-auto">
+          {/* Search Input */}
+          <div className="relative flex-1 max-w-xs">
+            <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+            <input
+              type="text"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search by name, phone..."
+              className="w-full pl-8 pr-3 py-1.5 bg-white border border-slate-300 rounded-xl text-xs font-semibold focus:ring-2 focus:ring-indigo-500 outline-none"
+            />
+          </div>
+        </div>
+
+        {/* Section & Shift Quick Filters */}
+        <div className="flex flex-wrap items-center gap-2 pt-1">
+          {sections.length > 0 && (
             <select
               value={filterSection}
               onChange={(e) => setFilterSection(e.target.value)}
-              className="px-3 py-2 text-xs font-bold border border-slate-200 rounded-xl bg-slate-50 text-slate-700"
+              className="px-3 py-1.5 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-700 outline-none cursor-pointer shadow-2xs"
             >
               <option value="">All Sections</option>
               {sections.map((s) => (
@@ -184,20 +169,37 @@ export default function StudentList({
                 </option>
               ))}
             </select>
+          )}
 
-            <select
-              value={filterShift}
-              onChange={(e) => setFilterShift(e.target.value)}
-              className="px-3 py-2 text-xs font-bold border border-slate-200 rounded-xl bg-slate-50 text-slate-700"
+          <select
+            value={filterShift}
+            onChange={(e) => setFilterShift(e.target.value)}
+            className="px-3 py-1.5 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-700 outline-none cursor-pointer shadow-2xs"
+          >
+            <option value="">All Shifts</option>
+            {SHIFTS.map((sh) => (
+              <option key={sh.id} value={sh.id}>
+                {sh.label}
+              </option>
+            ))}
+          </select>
+
+          {(search || filterSection || filterShift) && (
+            <button
+              onClick={() => {
+                setSearch('');
+                setFilterSection('');
+                setFilterShift('');
+              }}
+              className="px-2.5 py-1 text-xs text-slate-400 hover:text-rose-600 font-bold transition-colors cursor-pointer"
             >
-              <option value="">All Shifts</option>
-              {SHIFTS.map((s) => (
-                <option key={s.id} value={s.id}>
-                  {s.label}
-                </option>
-              ))}
-            </select>
-          </div>
+              Clear filters
+            </button>
+          )}
+
+          <span className="text-[11px] font-bold text-slate-400 ml-auto">
+            Showing {filtered.length} students
+          </span>
         </div>
       </div>
 
@@ -209,8 +211,9 @@ export default function StudentList({
               <th className="px-5 py-3.5">Student</th>
               <th className="px-5 py-3.5">Contact</th>
               <th className="px-5 py-3.5">Joining Date</th>
+              <th className="px-5 py-3.5">Plan & Fee</th>
               <th className="px-5 py-3.5">Seat & Section</th>
-              <th className="px-5 py-3.5">Shift Timing</th>
+              <th className="px-5 py-3.5">Shift</th>
               <th className="px-5 py-3.5">Status</th>
               <th className="px-5 py-3.5 text-right">Actions</th>
             </tr>
@@ -218,6 +221,11 @@ export default function StudentList({
           <tbody className="divide-y divide-slate-100 text-sm">
             {filtered.map((student) => {
               const isLeft = student.status === 'left' || student.status === 'inactive';
+              const plan = getPlan(student.membershipPlanId);
+              const planPrice = Number(plan?.price) || 0;
+              const discount = Number(student.discountAmount) || 0;
+              const netFee = Math.max(0, planPrice - discount);
+
               return (
                 <tr key={student.id} className="hover:bg-slate-50/80 transition-colors">
                   <td className="px-5 py-3.5">
@@ -240,6 +248,20 @@ export default function StudentList({
                     <div className="flex items-center gap-1.5">
                       <Calendar className="w-3.5 h-3.5 text-indigo-500" />
                       <span>{formatDate(student.joinDate)}</span>
+                    </div>
+                  </td>
+
+                  <td className="px-5 py-3.5">
+                    <div>
+                      <p className="font-bold text-xs text-slate-900">{plan?.name || 'Standard Monthly'}</p>
+                      <div className="flex items-center gap-1.5 text-xs mt-0.5">
+                        <span className="font-extrabold text-indigo-700">{formatCurrency(netFee)}</span>
+                        {discount > 0 && (
+                          <span className="inline-flex items-center text-[10px] font-bold text-emerald-700 bg-emerald-50 px-1.5 py-0.2 rounded border border-emerald-200">
+                            -₹{discount} छूट
+                          </span>
+                        )}
+                      </div>
                     </div>
                   </td>
 
@@ -267,7 +289,7 @@ export default function StudentList({
                           : 'bg-emerald-100 text-emerald-800 border border-emerald-200'
                       }`}
                     >
-                      {isLeft ? '🔴 Left (छोड़ दिया)' : '🟢 Active'}
+                      {isLeft ? '🔴 Left' : '🟢 Active'}
                     </span>
                   </td>
 
@@ -301,25 +323,11 @@ export default function StudentList({
                         </button>
                       )}
 
-                      {canEdit && onToggleStatus && (
-                        <button
-                          onClick={() => onToggleStatus(student)}
-                          className={`p-1.5 rounded-lg transition-colors cursor-pointer ${
-                            isLeft
-                              ? 'text-emerald-600 hover:bg-emerald-50'
-                              : 'text-amber-600 hover:bg-amber-50'
-                          }`}
-                          title={isLeft ? 'Reactivate Student' : 'Mark as Left (Free Seat)'}
-                        >
-                          {isLeft ? <RotateCcw className="w-4 h-4" /> : <UserX className="w-4 h-4" />}
-                        </button>
-                      )}
-
                       {canDelete && (
                         <button
                           onClick={() => onDelete(student)}
                           className="p-1.5 hover:bg-rose-50 rounded-lg text-rose-600 transition-colors cursor-pointer"
-                          title="Delete Student Permanently"
+                          title="Delete Student"
                         >
                           <Trash2 className="w-4 h-4" />
                         </button>
@@ -333,93 +341,73 @@ export default function StudentList({
         </table>
       </div>
 
-      {/* Mobile Cards */}
+      {/* Mobile Fluid Cards View */}
       <div className="md:hidden divide-y divide-slate-100">
         {filtered.map((student) => {
           const isLeft = student.status === 'left' || student.status === 'inactive';
+          const plan = getPlan(student.membershipPlanId);
+          const planPrice = Number(plan?.price) || 0;
+          const discount = Number(student.discountAmount) || 0;
+          const netFee = Math.max(0, planPrice - discount);
+
           return (
             <div key={student.id} className="p-4 space-y-2.5">
-              <div className="flex items-center justify-between">
+              <div className="flex items-start justify-between gap-2">
                 <div className="flex items-center gap-2.5">
-                  <div className={`w-9 h-9 rounded-2xl flex items-center justify-center font-bold text-xs shrink-0 ${
+                  <div className={`w-10 h-10 rounded-2xl flex items-center justify-center font-bold text-xs ${
                     isLeft ? 'bg-rose-100 text-rose-700' : 'bg-indigo-100 text-indigo-700'
                   }`}>
                     {student.name?.charAt(0)?.toUpperCase()}
                   </div>
                   <div>
-                    <p className="font-bold text-slate-900 text-sm leading-tight">{student.name}</p>
-                    <p className="text-xs text-slate-500">{student.phone}</p>
+                    <h4 className="font-extrabold text-slate-900 text-sm leading-tight">{student.name}</h4>
+                    <p className="text-xs text-slate-500 mt-0.5">📞 {student.phone}</p>
+                  </div>
+                </div>
+                <StatusBadge status={student.status || 'active'} size="sm" />
+              </div>
+
+              <div className="bg-slate-50 p-2.5 rounded-xl text-xs space-y-1">
+                <div className="flex justify-between items-center">
+                  <span className="text-slate-500">Plan & Net Fee:</span>
+                  <div className="flex items-center gap-1 font-bold text-slate-900">
+                    <span>{plan?.name || 'Monthly'}</span>
+                    <span className="text-indigo-700 font-extrabold">({formatCurrency(netFee)})</span>
+                    {discount > 0 && <span className="text-emerald-700 text-[10px]">(-₹{discount})</span>}
                   </div>
                 </div>
 
-                <span
-                  className={`text-[10px] font-extrabold px-2 py-0.5 rounded ${
-                    isLeft ? 'bg-rose-100 text-rose-800' : 'bg-emerald-100 text-emerald-800'
-                  }`}
-                >
-                  {isLeft ? 'Left' : 'Active'}
-                </span>
-              </div>
-
-              <div className="flex flex-wrap items-center justify-between gap-2 text-xs bg-slate-50 p-2.5 rounded-xl">
-                <div className="flex items-center gap-1.5 text-slate-700 font-bold">
-                  <Calendar className="w-3.5 h-3.5 text-indigo-600" />
-                  <span>Joined: {formatDate(student.joinDate)}</span>
-                </div>
-                {!isLeft && student.seatId && (
-                  <div className="flex items-center gap-1 font-bold text-indigo-700">
-                    <Armchair className="w-3.5 h-3.5" />
-                    <span>Seat {getSeatNumber(student.seatId)}</span>
+                {!isLeft && (
+                  <div className="flex justify-between items-center">
+                    <span className="text-slate-500">Seat & Section:</span>
+                    <span className="font-bold text-slate-800">
+                      {getSeatNumber(student.seatId)} ({getSectionName(student.sectionId)})
+                    </span>
                   </div>
                 )}
               </div>
 
-              <div className="flex items-center justify-end gap-1.5 pt-1 border-t border-slate-100">
+              <div className="flex items-center justify-end gap-1.5 pt-1">
                 <button
                   onClick={() => onViewProfile(student)}
-                  className="px-2.5 py-1 text-xs font-bold text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-lg flex items-center gap-1"
+                  className="px-2.5 py-1 bg-slate-100 text-slate-700 rounded-lg text-xs font-bold"
                 >
-                  <Eye className="w-3.5 h-3.5" /> View
+                  Profile
                 </button>
-
                 {!isLeft && canCollectFee && (
                   <button
                     onClick={() => onCollectFee(student)}
-                    className="px-2.5 py-1 text-xs font-bold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 rounded-lg flex items-center gap-1"
+                    className="px-2.5 py-1 bg-emerald-600 text-white rounded-lg text-xs font-bold flex items-center gap-1"
                   >
-                    <IndianRupee className="w-3.5 h-3.5" /> Fee
+                    <IndianRupee size={12} /> Fee
                   </button>
                 )}
-
                 {canEdit && (
                   <button
                     onClick={() => onEdit(student)}
-                    className="px-2.5 py-1 text-xs font-bold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 rounded-lg flex items-center gap-1"
+                    className="px-2.5 py-1 bg-indigo-50 text-indigo-700 rounded-lg text-xs font-bold"
                   >
-                    <Edit className="w-3.5 h-3.5" /> Edit
-                  </button>
-                )}
-
-                {canEdit && onToggleStatus && (
-                  <button
-                    onClick={() => onToggleStatus(student)}
-                    className={`px-2.5 py-1 text-xs font-bold rounded-lg flex items-center gap-1 ${
-                      isLeft
-                        ? 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100'
-                        : 'bg-amber-50 text-amber-800 hover:bg-amber-100'
-                    }`}
-                  >
-                    {isLeft ? <RotateCcw className="w-3.5 h-3.5" /> : <UserX className="w-3.5 h-3.5" />}
-                    <span>{isLeft ? 'Reactivate' : 'Left'}</span>
-                  </button>
-                )}
-
-                {canDelete && (
-                  <button
-                    onClick={() => onDelete(student)}
-                    className="p-1 text-rose-700 hover:bg-rose-50 rounded-lg"
-                  >
-                    <Trash2 className="w-3.5 h-3.5" />
+                    Edit
                   </button>
                 )}
               </div>
@@ -429,8 +417,8 @@ export default function StudentList({
       </div>
 
       {filtered.length === 0 && (
-        <div className="p-10 text-center text-slate-400 text-xs font-semibold">
-          No students found under this tab ({activeTab}).
+        <div className="text-center py-12 text-slate-400 text-xs font-semibold">
+          No students found matching current filters.
         </div>
       )}
     </div>
