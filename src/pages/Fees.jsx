@@ -263,6 +263,7 @@ export default function Fees() {
           fees={fees}
           students={students}
           sections={sections}
+          seats={seats}
           onCollect={setCollectFee}
           onViewReceipt={setReceiptFee}
           selectedMonth={selectedMonth}
