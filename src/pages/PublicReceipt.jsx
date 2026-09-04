@@ -14,6 +14,7 @@ export default function PublicReceipt() {
   const [loading, setLoading] = useState(true);
   const [fee, setFee] = useState(null);
   const [student, setStudent] = useState(null);
+  const [seat, setSeat] = useState(null);
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
   const [libraryInfo, setLibraryInfo] = useState({
     studyPointName: 'Royal Study Point & Library',
@@ -39,12 +40,23 @@ export default function PublicReceipt() {
           if (feeData.studentId) {
             const stuSnap = await getDoc(doc(db, COLLECTIONS.STUDENTS, feeData.studentId));
             if (stuSnap.exists()) {
-              setStudent({ id: stuSnap.id, ...stuSnap.data() });
+              const stuData = { id: stuSnap.id, ...stuSnap.data() };
+              setStudent(stuData);
+
+              // 3. Fetch Seat Doc
+              if (stuData.seatId) {
+                try {
+                  const seatSnap = await getDoc(doc(db, COLLECTIONS.SEATS, stuData.seatId));
+                  if (seatSnap.exists()) {
+                    setSeat({ id: seatSnap.id, ...seatSnap.data() });
+                  }
+                } catch (e) {}
+              }
             }
           }
         }
 
-        // 3. Fetch Settings
+        // 4. Fetch Settings
         const settingsSnap = await getDoc(doc(db, COLLECTIONS.SETTINGS, 'ownerProfile'));
         if (settingsSnap.exists()) {
           setLibraryInfo((prev) => ({ ...prev, ...settingsSnap.data() }));
@@ -97,6 +109,12 @@ export default function PublicReceipt() {
   const validityText = fee.periodStart && fee.periodEnd
     ? `${formatDate(fee.periodStart)} to ${formatDate(fee.periodEnd)}`
     : fee.month;
+
+  const displaySeatNumber =
+    seat?.seatNumber ||
+    (student?.seatNumber ? student.seatNumber : null) ||
+    (student?.seatId && student.seatId.includes('_seat_') ? student.seatId.split('_seat_').pop() : null) ||
+    (student?.seatId ? student.seatId : '—');
 
   const pdfFileName = `Fee_Receipt_${(student?.name || 'Student').replace(/\s+/g, '_')}_${receiptNo}.pdf`;
 
@@ -198,7 +216,7 @@ export default function PublicReceipt() {
               <span className="text-slate-400 font-bold uppercase text-[10px]">Validity Period</span>
               <p className="font-bold text-emerald-800 mt-0.5">{validityText}</p>
               <p className="text-[11px] text-slate-500">
-                Seat #{student?.seatId?.split('_seat_')?.pop() || '—'} • {student?.shiftTiming || 'Shift'}
+                Seat #{displaySeatNumber} • {student?.shiftTiming || 'Shift'}
               </p>
             </div>
           </div>

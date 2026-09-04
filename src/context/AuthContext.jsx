@@ -50,6 +50,13 @@ export const AuthProvider = ({ children }) => {
         );
 
         if (staffMember) {
+          if (staffMember.status === 'inactive') {
+            console.warn('Staff account has been deactivated by owner. Logging out.');
+            localStorage.removeItem(LOCAL_STORAGE_KEY);
+            setUser(null);
+            return;
+          }
+
           const roleLabel =
             staffMember.roleLabel ||
             (staffMember.role === 'receptionist'
@@ -68,6 +75,10 @@ export const AuthProvider = ({ children }) => {
           };
           setUser(updated);
           localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(updated));
+        } else if (staffList.length > 0 && cloudStaff && cloudStaff.length > 0) {
+          // Staff member was deleted
+          localStorage.removeItem(LOCAL_STORAGE_KEY);
+          setUser(null);
         }
       } catch (e) {
         console.warn('Session sync error:', e);
@@ -80,6 +91,19 @@ export const AuthProvider = ({ children }) => {
         syncStaffSession(parsed);
       } catch (e) {}
     }
+
+    // Periodic staff session check every 30 seconds
+    const staffSyncInterval = setInterval(() => {
+      const liveSession = localStorage.getItem(LOCAL_STORAGE_KEY);
+      if (liveSession) {
+        try {
+          const parsed = JSON.parse(liveSession);
+          if (parsed && parsed.role !== 'owner') {
+            syncStaffSession(parsed);
+          }
+        } catch (e) {}
+      }
+    }, 30000);
 
     // 3. Listen to Firebase Auth state
     const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
@@ -121,7 +145,10 @@ export const AuthProvider = ({ children }) => {
       setLoading(false);
     });
 
-    return unsubscribe;
+    return () => {
+      clearInterval(staffSyncInterval);
+      unsubscribe();
+    };
   }, []);
 
   const refreshUserSession = (updatedSession) => {

@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import Layout from '../components/layout/Layout';
 import Button from '../components/common/Button';
 import ConfirmDialog from '../components/common/ConfirmDialog';
@@ -17,6 +18,7 @@ import {
 } from '../firebase/storageService';
 
 export default function Students() {
+  const navigate = useNavigate();
   const { hasPermission } = useAuth();
   const [students, setStudents] = useState([]);
   const [sections, setSections] = useState([]);
@@ -336,7 +338,9 @@ export default function Students() {
             setShowForm(true);
           }}
           onDelete={setDeleteTarget}
-          onCollectFee={() => (window.location.href = '/fees')}
+          onCollectFee={(student) => {
+            navigate(`/fees?studentId=${student.id}`, { state: { collectStudentId: student.id } });
+          }}
           onViewProfile={setProfileStudent}
           onToggleStatus={handleToggleStatus}
           canEdit={canEdit}

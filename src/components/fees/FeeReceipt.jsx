@@ -87,6 +87,12 @@ export default function FeeReceipt({ isOpen, onClose, fee, student, section, sea
     ? `${formatDate(fee.periodStart)} to ${formatDate(fee.periodEnd)}`
     : fee.month;
 
+  const displaySeatNumber =
+    seat?.seatNumber ||
+    (student?.seatNumber ? student.seatNumber : null) ||
+    (student?.seatId && student.seatId.includes('_seat_') ? student.seatId.split('_seat_').pop() : null) ||
+    (student?.seatId ? student.seatId : '—');
+
   const pdfFileName = `Fee_Receipt_${(student?.name || 'Student').replace(/\s+/g, '_')}_${receiptNo}.pdf`;
   const onlineReceiptUrl = `${window.location.origin}/receipt/${fee.id}`;
 
@@ -151,7 +157,7 @@ export default function FeeReceipt({ isOpen, onClose, fee, student, section, sea
         (addonSummary ? addonSummary : '') +
         (discountAmt > 0 ? `🏷️ *Discount:* -₹${discountAmt}\n` : '') +
         `📅 *Validity Period:* ${validityText}\n` +
-        `📍 *Seat Allocated:* Seat #${student?.seatId?.split('_seat_')?.pop() || '—'} (${student?.shiftTiming || 'Shift'})\n` +
+        `📍 *Seat Allocated:* Seat #${displaySeatNumber} (${student?.shiftTiming || 'Shift'})\n` +
         `💳 *Payment Mode:* ${(fee.paymentMode || 'CASH').toUpperCase()}\n` +
         `✅ *Status:* PAID & VERIFIED\n\n` +
         `📄 *View & Download Official PDF Receipt:* \n👉 ${onlineReceiptUrl}\n\n` +
@@ -233,7 +239,7 @@ export default function FeeReceipt({ isOpen, onClose, fee, student, section, sea
               <span className="text-slate-400 font-bold uppercase text-[10px]">Validity Period</span>
               <p className="font-bold text-emerald-800 mt-0.5">{validityText}</p>
               <p className="text-[11px] text-slate-500">
-                Seat #{student?.seatId?.split('_seat_')?.pop() || '—'} • {student?.shiftTiming || 'Shift'}
+                Seat #{displaySeatNumber} • {student?.shiftTiming || 'Shift'}
               </p>
             </div>
           </div>

@@ -39,24 +39,31 @@ export default function Expenses() {
       const [year, month] = selectedMonth.split('-');
 
       const filteredExpenses = expensesData.filter((exp) => {
-        if (exp.month) return exp.month === selectedMonth;
-        const d = exp.date?.seconds
-          ? new Date(exp.date.seconds * 1000)
-          : new Date(exp.date || now);
-        return d.getFullYear() === parseInt(year) && d.getMonth() === parseInt(month) - 1;
+        let expMonth = exp.month;
+        if (!expMonth && exp.date) {
+          const d = exp.date?.seconds
+            ? new Date(exp.date.seconds * 1000)
+            : new Date(exp.date);
+          if (!isNaN(d.getTime())) {
+            expMonth = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+          }
+        }
+        return expMonth === selectedMonth;
       });
       setExpenses(filteredExpenses);
 
       const filteredFees = feesData.filter((fee) => {
-        if (fee.month) return fee.month === selectedMonth && fee.status === 'paid';
-        const d = fee.date?.seconds
-          ? new Date(fee.date.seconds * 1000)
-          : new Date(fee.date || now);
-        return (
-          d.getFullYear() === parseInt(year) &&
-          d.getMonth() === parseInt(month) - 1 &&
-          fee.status === 'paid'
-        );
+        if (fee.status !== 'paid') return false;
+        let fMonth = fee.month;
+        if (!fMonth && fee.paidDate) {
+          const d = fee.paidDate?.seconds
+            ? new Date(fee.paidDate.seconds * 1000)
+            : new Date(fee.paidDate);
+          if (!isNaN(d.getTime())) {
+            fMonth = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+          }
+        }
+        return fMonth === selectedMonth;
       });
       const totalRev = filteredFees.reduce((sum, fee) => sum + (Number(fee.amount) || 0), 0);
       setRevenue(totalRev);
@@ -95,9 +102,17 @@ export default function Expenses() {
   };
 
   const handleFormSubmit = async (data) => {
+    let recordMonth = selectedMonth;
+    if (data.date) {
+      const dStr = typeof data.date === 'string' ? data.date : new Date(data.date).toISOString().split('T')[0];
+      if (dStr.includes('-')) {
+        recordMonth = dStr.substring(0, 7);
+      }
+    }
+
     const expenseRecord = {
       ...data,
-      month: selectedMonth,
+      month: recordMonth,
     };
 
     if (editData && editData.id) {

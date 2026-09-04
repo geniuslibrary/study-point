@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useLocation, useSearchParams } from 'react-router-dom';
 import Layout from '../components/layout/Layout';
 import FeeTracker from '../components/fees/FeeTracker';
 import CollectFeeModal from '../components/fees/CollectFeeModal';
@@ -23,6 +24,10 @@ import {
 } from '../firebase/storageService';
 
 export default function Fees() {
+  const location = useLocation();
+  const [searchParams] = useSearchParams();
+  const targetStudentId = location.state?.collectStudentId || searchParams.get('studentId');
+
   const [fees, setFees] = useState([]);
   const [students, setStudents] = useState([]);
   const [sections, setSections] = useState([]);
@@ -35,12 +40,13 @@ export default function Fees() {
   const [receiptFee, setReceiptFee] = useState(null);
 
   // Automatic Background Dues Synchronizer
-  // Automatic Background Dues Synchronizer
   const autoSyncMonthlyDues = async (currentFees, activeStudents, allPlans, allSeats, allAddons) => {
     const currentMonth = getMonthYear();
     const activeAddonsList = allAddons && allAddons.length > 0 ? allAddons : getStoredAddons();
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
 
-    // 1. Sync existing fees to make sure seat addons (like Locker) and durations are accurately reflected
+    // 1. Sync existing pending fees to make sure seat addons (like Locker) and durations are accurately reflected
     const updatedCurrentFees = await Promise.all(
       currentFees.map(async (fee) => {
         const student = activeStudents.find((s) => s.id === fee.studentId);
@@ -68,7 +74,7 @@ export default function Fees() {
           currentAddonKeys.length !== newAddonKeys.length ||
           newAddonKeys.some((k) => fee.addonCharges?.[k] !== addonCharges[k]);
 
-        if (needsAddonSync) {
+        if (needsAddonSync && fee.status !== 'paid') {
           const newAmount = Math.max(0, baseFee + addonTotal - discount);
           const updatedPayload = {
             baseFee,
@@ -84,9 +90,39 @@ export default function Fees() {
       })
     );
 
-    // 2. Create missing monthly fees for active students
+    // 2. Create missing dues ONLY for active students whose membership has truly expired
     const missingStudents = activeStudents.filter((student) => {
-      return !updatedCurrentFees.some((f) => f.studentId === student.id && f.month === currentMonth);
+      const studentFees = updatedCurrentFees.filter((f) => f.studentId === student.id);
+
+      // Check if student already has a pending fee bill
+      const hasPendingFee = studentFees.some((f) => f.status === 'pending');
+      if (hasPendingFee) return false;
+
+      // Check if student has an active paid fee covering current date or future
+      const hasActivePaidMembership = studentFees.some((f) => {
+        if (f.status !== 'paid') return false;
+        if (f.periodEnd) {
+          const pEnd = f.periodEnd.toDate ? f.periodEnd.toDate() : new Date(f.periodEnd);
+          return pEnd >= today;
+        }
+        return false;
+      });
+      if (hasActivePaidMembership) return false;
+
+      // Check student.membershipEnd directly
+      if (student.membershipEnd) {
+        const mEnd = student.membershipEnd.toDate ? student.membershipEnd.toDate() : new Date(student.membershipEnd);
+        mEnd.setHours(0, 0, 0, 0);
+        if (mEnd >= today) {
+          return false; // Student is still actively valid under their multi-month plan
+        }
+      }
+
+      // Check if student already has a fee for currentMonth
+      const hasCurrentMonthFee = studentFees.some((f) => f.month === currentMonth);
+      if (hasCurrentMonthFee) return false;
+
+      return true;
     });
 
     if (missingStudents.length === 0) return updatedCurrentFees;
@@ -107,9 +143,12 @@ export default function Fees() {
         duration
       );
 
-      // Calculate start and end date from joining date
+      // Calculate start date (continuation from previous membershipEnd or joinDate)
       let startDate = new Date();
-      if (student.joinDate) {
+      if (student.membershipEnd) {
+        const mEnd = student.membershipEnd.toDate ? student.membershipEnd.toDate() : new Date(student.membershipEnd);
+        if (!isNaN(mEnd.getTime())) startDate = mEnd;
+      } else if (student.joinDate) {
         const jDate = student.joinDate.toDate ? student.joinDate.toDate() : new Date(student.joinDate);
         if (!isNaN(jDate.getTime())) startDate = jDate;
       } else if (student.membershipStart) {
@@ -193,6 +232,41 @@ export default function Fees() {
   useEffect(() => {
     fetchData();
   }, []);
+
+  // Pre-select and open Collect Fee modal when routed from Students Directory
+  useEffect(() => {
+    if (targetStudentId && students.length > 0 && fees.length > 0) {
+      const targetStudent = students.find((s) => s.id === targetStudentId);
+      if (targetStudent) {
+        const studentPendingFee = fees.find((f) => f.studentId === targetStudentId && f.status === 'pending');
+        if (studentPendingFee) {
+          setCollectFee(studentPendingFee);
+        } else {
+          const targetPlan = plans.find((p) => p.id === targetStudent.membershipPlanId) || plans[0] || { price: 800, durationMonths: 1 };
+          const dur = Number(targetPlan?.durationMonths) || 1;
+          const base = Number(targetPlan?.price) || 800;
+          const disc = Number(targetStudent.discountAmount) || 0;
+          const targetSeat = seats.find((s) => s.id === targetStudent.seatId);
+          const { charges, total } = calculateSeatAddonCharges(targetSeat?.addons, addonPricing, dur);
+
+          const tempFee = {
+            id: `fee_${targetStudent.id}_${getMonthYear().replace('-', '_')}`,
+            studentId: targetStudent.id,
+            amount: Math.max(0, base + total - disc),
+            baseFee: base,
+            discountAmount: disc,
+            addonCharges: charges,
+            month: getMonthYear(),
+            planId: targetPlan?.id || '',
+            planName: targetPlan?.name || 'Standard Monthly Plan',
+            planDuration: dur,
+            periodStart: targetStudent.membershipEnd || targetStudent.joinDate || new Date().toISOString(),
+          };
+          setCollectFee(tempFee);
+        }
+      }
+    }
+  }, [targetStudentId, students, fees]);
 
   const handleCollectFee = async (paymentData) => {
     if (!collectFee) return;

@@ -43,7 +43,7 @@ const fetchWithTimeout = (promise, ms = 4000) => {
 export const fetchCollectionData = async (collectionName) => {
   // 1. Try to read from Firestore
   try {
-    const snap = await fetchWithTimeout(getDocs(collection(db, collectionName)), 1500);
+    const snap = await fetchWithTimeout(getDocs(collection(db, collectionName)), 4000);
     if (snap && snap.docs) {
       const cloudItems = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
 
@@ -152,7 +152,7 @@ export const clearAllDatabaseData = async () => {
   // 2. Clear Firestore in background
   try {
     for (const collName of collectionsToClear) {
-      const snap = await fetchWithTimeout(getDocs(collection(db, collName)), 1500).catch(() => null);
+      const snap = await fetchWithTimeout(getDocs(collection(db, collName)), 4000).catch(() => null);
       if (snap && snap.docs) {
         for (const d of snap.docs) {
           deleteDoc(doc(db, collName, d.id)).catch(() => {});
