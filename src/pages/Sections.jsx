@@ -281,7 +281,7 @@ export default function Sections() {
         addons: seatAddons,
       });
 
-      // Update occupying active students' pending fee records to include newly selected facility charges
+      // Update occupying active students' fee records to include newly selected facility charges
       const seatStudents = students.filter(
         (s) => s.seatId === selectedSeat.id && s.status === 'active'
       );
@@ -298,12 +298,17 @@ export default function Sections() {
           duration
         );
 
-        const studentPendingFees = fees.filter(
-          (f) => f.studentId === student.id && f.status === 'pending'
+        const studentFees = fees.filter((f) => f.studentId === student.id);
+        const sortedStudentFees = [...studentFees].sort(
+          (a, b) => new Date(b.periodStart || b.dueDate || 0) - new Date(a.periodStart || a.dueDate || 0)
         );
 
-        for (const fee of studentPendingFees) {
-          await updateDocument(COLLECTIONS.FEES, fee.id, {
+        // Update latest fee or pending fee
+        if (sortedStudentFees.length > 0) {
+          const targetFee = sortedStudentFees[0];
+          await updateDocument(COLLECTIONS.FEES, targetFee.id, {
+            baseFee,
+            discountAmount: discount,
             addonCharges,
             amount: Math.max(0, baseFee + addonTotal - discount),
           });

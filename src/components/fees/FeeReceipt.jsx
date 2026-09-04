@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import Modal from '../common/Modal';
 import Button from '../common/Button';
-import { formatCurrency, formatDate } from '../../utils/helpers';
+import { formatCurrency, formatDate, calculateSeatAddonCharges, getStoredAddons } from '../../utils/helpers';
 import { BookOpen, Download, MessageSquare, CheckCircle2, PenTool, Loader2, ExternalLink } from 'lucide-react';
 import { doc, getDoc } from 'firebase/firestore';
 import { db } from '../../firebase/config';
@@ -61,8 +61,26 @@ export default function FeeReceipt({ isOpen, onClose, fee, student, section, sea
   const librarySignature = libraryInfo.signatureUrl || '';
   const receiptNo = `SP-${fee.month?.replace('-', '') || '2026'}-${(fee.id || '001').slice(-4).toUpperCase()}`;
 
+  const duration = Number(fee.planDuration) || (fee.periodStart && fee.periodEnd ? Math.max(1, Math.round((new Date(fee.periodEnd) - new Date(fee.periodStart)) / (30 * 24 * 60 * 60 * 1000))) : 1);
+
+  // Compute final addon charges (from fee.addonCharges or from seat's active addons)
+  let finalAddonCharges = fee.addonCharges && Object.keys(fee.addonCharges).length > 0 ? { ...fee.addonCharges } : {};
+  if (Object.keys(finalAddonCharges).length === 0 && seat?.addons) {
+    const { charges } = calculateSeatAddonCharges(seat.addons, getStoredAddons(), duration);
+    if (Object.keys(charges).length > 0) {
+      finalAddonCharges = charges;
+    }
+  }
+
+  const addonTotal = Object.values(finalAddonCharges).reduce((sum, v) => sum + (Number(v) || 0), 0);
+  const baseRate = Number(fee.baseFee) || (Number(fee.amount) || 0);
+  const discountAmt = Number(fee.discountAmount) || 0;
+  const totalReceived = fee.amount !== undefined && fee.amount !== null
+    ? (Object.keys(fee.addonCharges || {}).length > 0 ? Number(fee.amount) : Math.max(0, baseRate + addonTotal - discountAmt))
+    : Math.max(0, baseRate + addonTotal - discountAmt);
+
   const planTitle = fee.planName
-    ? `${fee.planName}${fee.planDuration ? ` (${fee.planDuration} Months)` : ''}`
+    ? `${fee.planName}${duration ? ` (${duration} Month${duration > 1 ? 's' : ''})` : ''}`
     : `Monthly Membership (${fee.month})`;
 
   const validityText = fee.periodStart && fee.periodEnd
@@ -117,12 +135,21 @@ export default function FeeReceipt({ isOpen, onClose, fee, student, section, sea
       // 1. Trigger local PDF download
       await html2pdf().set(opt).from(receiptRef.current).save();
 
-      // 2. Prepare rich WhatsApp message with live PDF bill link
+      // 2. Prepare rich WhatsApp message with itemized lines
+      let addonSummary = '';
+      if (Object.keys(finalAddonCharges).length > 0) {
+        addonSummary = Object.entries(finalAddonCharges)
+          .map(([n, a]) => `🔒 *${n} Add-on:* ₹${a} (${duration} Mo)\n`)
+          .join('');
+      }
+
       const message = `🎉 *FEE PAYMENT RECEIPT - ${libraryTitle.toUpperCase()}*\n\n` +
         `Hello *${student?.name || 'Student'}*,\n` +
-        `Your official fee payment of *₹${fee.amount}* has been confirmed!\n\n` +
+        `Your official fee payment of *₹${totalReceived}* has been confirmed!\n\n` +
         `🧾 *Receipt No:* ${receiptNo}\n` +
         `📦 *Plan:* ${planTitle}\n` +
+        (addonSummary ? addonSummary : '') +
+        (discountAmt > 0 ? `🏷️ *Discount:* -₹${discountAmt}\n` : '') +
         `📅 *Validity Period:* ${validityText}\n` +
         `📍 *Seat Allocated:* Seat #${student?.seatId?.split('_seat_')?.pop() || '—'} (${student?.shiftTiming || 'Shift'})\n` +
         `💳 *Payment Mode:* ${(fee.paymentMode || 'CASH').toUpperCase()}\n` +
@@ -230,28 +257,37 @@ export default function FeeReceipt({ isOpen, onClose, fee, student, section, sea
                     {libraryTitle} - {planTitle}
                   </td>
                   <td className="px-4 py-3 text-right font-bold text-slate-900">
-                    {formatCurrency(fee.baseFee || fee.amount)}
+                    {formatCurrency(baseRate)}
                   </td>
                 </tr>
-                {fee.addonCharges &&
-                  Object.entries(fee.addonCharges).map(([name, amt]) => (
-                    <tr key={name}>
-                      <td className="px-4 py-2.5 text-slate-600 font-medium">{name} Facility Add-on</td>
-                      <td className="px-4 py-2.5 text-right font-bold text-slate-900">
-                        {formatCurrency(amt)}
+                {Object.entries(finalAddonCharges).map(([name, amt]) => {
+                  const monthlyRate = duration > 0 ? Math.round(amt / duration) : amt;
+                  return (
+                    <tr key={name} className="bg-indigo-50/40">
+                      <td className="px-4 py-2.5 text-indigo-950 font-semibold">
+                        <span className="flex items-center gap-1.5">
+                          <span>🔒 {name} Facility Add-on</span>
+                          <span className="text-[10px] text-indigo-600 font-bold">
+                            (₹{monthlyRate}/mo × {duration} Month{duration > 1 ? 's' : ''})
+                          </span>
+                        </span>
+                      </td>
+                      <td className="px-4 py-2.5 text-right font-bold text-indigo-900">
+                        +{formatCurrency(amt)}
                       </td>
                     </tr>
-                  ))}
-                {fee.discountAmount > 0 && (
+                  );
+                })}
+                {discountAmt > 0 && (
                   <tr className="text-emerald-700 font-semibold bg-emerald-50/50">
                     <td className="px-4 py-2.5">Special Concession / Discount</td>
-                    <td className="px-4 py-2.5 text-right">- {formatCurrency(fee.discountAmount)}</td>
+                    <td className="px-4 py-2.5 text-right">- {formatCurrency(discountAmt)}</td>
                   </tr>
                 )}
                 <tr className="bg-indigo-50/80 font-extrabold text-sm">
                   <td className="px-4 py-3 text-indigo-950">TOTAL AMOUNT RECEIVED</td>
                   <td className="px-4 py-3 text-right text-indigo-700 text-base">
-                    {formatCurrency(fee.amount)}
+                    {formatCurrency(totalReceived)}
                   </td>
                 </tr>
               </tbody>

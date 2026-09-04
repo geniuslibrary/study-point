@@ -35,13 +35,61 @@ export default function Fees() {
   const [receiptFee, setReceiptFee] = useState(null);
 
   // Automatic Background Dues Synchronizer
+  // Automatic Background Dues Synchronizer
   const autoSyncMonthlyDues = async (currentFees, activeStudents, allPlans, allSeats, allAddons) => {
     const currentMonth = getMonthYear();
+    const activeAddonsList = allAddons && allAddons.length > 0 ? allAddons : getStoredAddons();
+
+    // 1. Sync existing fees to make sure seat addons (like Locker) and durations are accurately reflected
+    const updatedCurrentFees = await Promise.all(
+      currentFees.map(async (fee) => {
+        const student = activeStudents.find((s) => s.id === fee.studentId);
+        if (!student) return fee;
+
+        const seat = allSeats.find((s) => s.id === student.seatId);
+        const plan = allPlans.find((p) => p.id === student.membershipPlanId) || {
+          price: fee.baseFee || 800,
+          durationMonths: fee.planDuration || 1,
+        };
+        const duration = Number(fee.planDuration) || Number(plan.durationMonths) || 1;
+        const baseFee = Number(fee.baseFee) || Number(plan.price) || 800;
+        const discount = fee.discountAmount !== undefined ? Number(fee.discountAmount) : (Number(student.discountAmount) || 0);
+
+        const { charges: addonCharges, total: addonTotal } = calculateSeatAddonCharges(
+          seat?.addons,
+          activeAddonsList,
+          duration
+        );
+
+        // Check if addonCharges need updating
+        const currentAddonKeys = Object.keys(fee.addonCharges || {});
+        const newAddonKeys = Object.keys(addonCharges);
+        const needsAddonSync =
+          currentAddonKeys.length !== newAddonKeys.length ||
+          newAddonKeys.some((k) => fee.addonCharges?.[k] !== addonCharges[k]);
+
+        if (needsAddonSync) {
+          const newAmount = Math.max(0, baseFee + addonTotal - discount);
+          const updatedPayload = {
+            baseFee,
+            discountAmount: discount,
+            addonCharges,
+            amount: newAmount,
+          };
+          updateDocument(COLLECTIONS.FEES, fee.id, updatedPayload).catch(console.warn);
+          return { ...fee, ...updatedPayload };
+        }
+
+        return fee;
+      })
+    );
+
+    // 2. Create missing monthly fees for active students
     const missingStudents = activeStudents.filter((student) => {
-      return !currentFees.some((f) => f.studentId === student.id && f.month === currentMonth);
+      return !updatedCurrentFees.some((f) => f.studentId === student.id && f.month === currentMonth);
     });
 
-    if (missingStudents.length === 0) return currentFees;
+    if (missingStudents.length === 0) return updatedCurrentFees;
 
     const newFeePromises = [];
     const newFeeRecords = [];
@@ -55,7 +103,7 @@ export default function Fees() {
 
       const { charges: addonCharges, total: addonTotal } = calculateSeatAddonCharges(
         seat?.addons,
-        allAddons && allAddons.length > 0 ? allAddons : getStoredAddons(),
+        activeAddonsList,
         duration
       );
 
@@ -105,7 +153,7 @@ export default function Fees() {
       console.warn('Auto-sync monthly dues background warning:', e);
     }
 
-    return [...currentFees, ...newFeeRecords];
+    return [...updatedCurrentFees, ...newFeeRecords];
   };
 
   const fetchData = async () => {
@@ -192,6 +240,7 @@ export default function Fees() {
 
   const receiptStudent = receiptFee ? students.find((s) => s.id === receiptFee.studentId) : null;
   const receiptSection = receiptStudent ? sections.find((s) => s.id === receiptStudent.sectionId) : null;
+  const receiptSeat = receiptStudent ? seats.find((s) => s.id === receiptStudent.seatId) : null;
 
   if (loading) {
     return (
@@ -283,6 +332,7 @@ export default function Fees() {
         fee={receiptFee}
         student={receiptStudent}
         section={receiptSection}
+        seat={receiptSeat}
       />
     </Layout>
   );
