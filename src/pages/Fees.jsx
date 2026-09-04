@@ -51,6 +51,7 @@ export default function Fees() {
       const seat = allSeats.find((s) => s.id === student.seatId);
       const baseFee = plan ? Number(plan.price) : 800;
       const discount = Number(student.discountAmount) || 0;
+      const duration = Number(plan?.durationMonths) || 1;
 
       const addonCharges = {};
       let addonTotal = 0;
@@ -63,6 +64,18 @@ export default function Fees() {
           }
         });
       }
+
+      // Calculate start and end date from joining date
+      let startDate = new Date();
+      if (student.joinDate) {
+        const jDate = student.joinDate.toDate ? student.joinDate.toDate() : new Date(student.joinDate);
+        if (!isNaN(jDate.getTime())) startDate = jDate;
+      } else if (student.membershipStart) {
+        const mStart = student.membershipStart.toDate ? student.membershipStart.toDate() : new Date(student.membershipStart);
+        if (!isNaN(mStart.getTime())) startDate = mStart;
+      }
+
+      const endDate = new Date(startDate.getFullYear(), startDate.getMonth() + duration, startDate.getDate());
 
       const dueDate = new Date();
       dueDate.setDate(10);
@@ -82,7 +95,9 @@ export default function Fees() {
         notes: '',
         planId: plan?.id || '',
         planName: plan?.name || 'Standard Monthly Plan',
-        planDuration: plan?.durationMonths || 1,
+        planDuration: duration,
+        periodStart: startDate.toISOString(),
+        periodEnd: endDate.toISOString(),
       };
 
       const docId = `fee_${student.id}_${currentMonth.replace('-', '_')}`;
@@ -162,6 +177,7 @@ export default function Fees() {
         membershipPlanId: paymentData.planId,
         membershipStart: paymentData.periodStart,
         membershipEnd: paymentData.periodEnd,
+        hasPaidBefore: true,
         status: 'active',
       });
     }

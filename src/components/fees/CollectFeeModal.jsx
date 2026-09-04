@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
 import Modal from '../common/Modal';
 import Button from '../common/Button';
-import { formatCurrency, formatDate } from '../../utils/helpers';
-import { Armchair, Clock, Tag, Calendar, Sparkles, CheckCircle2 } from 'lucide-react';
+import { formatCurrency, formatDate, formatDateInput } from '../../utils/helpers';
+import { Armchair, Clock, Tag, Calendar, Sparkles, CheckCircle2, ArrowRight } from 'lucide-react';
 
 export default function CollectFeeModal({
   isOpen,
@@ -20,9 +20,28 @@ export default function CollectFeeModal({
   const [notes, setNotes] = useState('');
   const [loading, setLoading] = useState(false);
 
+  // Validity Period State (Start Date & End Date)
+  const [validityStart, setValidityStart] = useState('');
+  const [validityEnd, setValidityEnd] = useState('');
+
+  // Helper to calculate end date from start date and duration months
+  const computeEndDate = (startDateStr, durationMonths) => {
+    if (!startDateStr) return '';
+    try {
+      const [y, m, d] = startDateStr.split('-').map(Number);
+      const start = new Date(y, m - 1, d);
+      const end = new Date(y, m - 1 + (Number(durationMonths) || 1), d);
+      return formatDateInput(end);
+    } catch (e) {
+      const now = new Date();
+      return formatDateInput(new Date(now.getFullYear(), now.getMonth() + (Number(durationMonths) || 1), now.getDate()));
+    }
+  };
+
   useEffect(() => {
     if (student) {
-      setSelectedPlanId(student.membershipPlanId || (plans[0]?.id || ''));
+      const currentPlanId = student.membershipPlanId || (plans[0]?.id || '');
+      setSelectedPlanId(currentPlanId);
       setDiscountAmount(
         student.discountAmount !== undefined && student.discountAmount !== null && student.discountAmount !== 0
           ? String(student.discountAmount)
@@ -30,6 +49,33 @@ export default function CollectFeeModal({
       );
       setPaymentMode('cash');
       setNotes('');
+
+      const activeP = plans.find((p) => p.id === currentPlanId) || plan || { durationMonths: 1 };
+      const dur = Number(activeP.durationMonths) || 1;
+
+      // Determine initial start date:
+      // Priority 1: student's joinDate
+      // Priority 2: student's membershipStart
+      // Priority 3: today
+      let initStart = formatDateInput(new Date());
+
+      if (student.joinDate) {
+        initStart = formatDateInput(student.joinDate);
+      } else if (student.membershipStart) {
+        initStart = formatDateInput(student.membershipStart);
+      }
+
+      // If student already has completed fees in the past and has an active cycle ending in future (renewal):
+      // Only advance if student already had paid cycles
+      if (student.hasPaidBefore && student.membershipEnd) {
+        const prevEnd = student.membershipEnd.toDate ? student.membershipEnd.toDate() : new Date(student.membershipEnd);
+        if (!isNaN(prevEnd.getTime()) && prevEnd > new Date()) {
+          initStart = formatDateInput(prevEnd);
+        }
+      }
+
+      setValidityStart(initStart);
+      setValidityEnd(computeEndDate(initStart, dur));
     }
   }, [student, plans, isOpen]);
 
@@ -42,6 +88,24 @@ export default function CollectFeeModal({
   const planPrice = Number(activePlan.price) || 0;
   const duration = Number(activePlan.durationMonths) || 1;
 
+  // When plan changes, re-calculate validityEnd based on current validityStart
+  const handlePlanChange = (newPlanId) => {
+    setSelectedPlanId(newPlanId);
+    const newPlan = plans.find((p) => p.id === newPlanId);
+    const newDur = Number(newPlan?.durationMonths) || 1;
+    if (validityStart) {
+      setValidityEnd(computeEndDate(validityStart, newDur));
+    }
+  };
+
+  // When user edits validityStart, auto recalculate validityEnd
+  const handleStartDateChange = (newStartDate) => {
+    setValidityStart(newStartDate);
+    if (newStartDate) {
+      setValidityEnd(computeEndDate(newStartDate, duration));
+    }
+  };
+
   // Calculate Addon Charges
   const addonCharges = {};
   let addonTotal = 0;
@@ -49,7 +113,7 @@ export default function CollectFeeModal({
     addonPricing.forEach((addon) => {
       const key = addon.name?.toLowerCase();
       if (seat.addons[key]) {
-        const monthly = addon.monthlyCharge || 0;
+        const monthly = Number(addon.monthlyCharge) || 0;
         const totalAddon = monthly * duration;
         addonCharges[addon.name] = totalAddon;
         addonTotal += totalAddon;
@@ -60,28 +124,13 @@ export default function CollectFeeModal({
   const discount = discountAmount === '' ? 0 : Number(discountAmount) || 0;
   const totalPayable = Math.max(0, planPrice + addonTotal - discount);
 
-  // Compute Renewal Period
-  const getRenewalDates = () => {
-    let start = new Date();
-    if (student?.membershipEnd) {
-      const prevEnd = student.membershipEnd.toDate
-        ? student.membershipEnd.toDate()
-        : new Date(student.membershipEnd);
-      if (prevEnd > new Date()) {
-        start = prevEnd;
-      }
-    }
-
-    const end = new Date(start.getFullYear(), start.getMonth() + duration, start.getDate());
-    return { start, end };
-  };
-
-  const renewalDates = getRenewalDates();
-
   const handleSubmit = async (e) => {
     if (e) e.preventDefault();
     setLoading(true);
     try {
+      const startDateObj = validityStart ? new Date(validityStart) : new Date();
+      const endDateObj = validityEnd ? new Date(validityEnd) : new Date(startDateObj.getFullYear(), startDateObj.getMonth() + duration, startDateObj.getDate());
+
       await onSubmit({
         amount: totalPayable,
         baseFee: planPrice,
@@ -92,8 +141,8 @@ export default function CollectFeeModal({
         planId: activePlan.id,
         planName: activePlan.name,
         planDuration: duration,
-        periodStart: renewalDates.start.toISOString(),
-        periodEnd: renewalDates.end.toISOString(),
+        periodStart: startDateObj.toISOString(),
+        periodEnd: endDateObj.toISOString(),
       });
       onClose();
     } catch (err) {
@@ -123,9 +172,9 @@ export default function CollectFeeModal({
             </div>
 
             <div className="text-left sm:text-right">
-              <span className="text-[10px] text-slate-400 font-bold uppercase block">Current Validity</span>
+              <span className="text-[10px] text-slate-400 font-bold uppercase block">Admission / Joining Date</span>
               <span className="text-xs font-bold text-indigo-900">
-                {student.membershipEnd ? formatDate(student.membershipEnd) : 'No active cycle'}
+                {student.joinDate ? formatDate(student.joinDate) : 'Today'}
               </span>
             </div>
           </div>
@@ -139,7 +188,7 @@ export default function CollectFeeModal({
             </label>
             <select
               value={selectedPlanId}
-              onChange={(e) => setSelectedPlanId(e.target.value)}
+              onChange={(e) => handlePlanChange(e.target.value)}
               className="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl text-sm font-semibold bg-white focus:ring-2 focus:ring-indigo-500"
             >
               {plans.map((p) => (
@@ -166,21 +215,45 @@ export default function CollectFeeModal({
           </div>
         </div>
 
-        {/* Renewal Period Card */}
-        <div className="p-3 bg-emerald-50/80 rounded-xl border border-emerald-200 text-xs text-emerald-950 flex items-center justify-between">
-          <div>
-            <span className="font-bold block flex items-center gap-1">
-              <Calendar className="w-3.5 h-3.5 text-emerald-600" />
-              <span>New Membership Validity Period:</span>
+        {/* Membership Validity Period Configuration (Joining Date -> Valid Till) */}
+        <div className="p-4 bg-emerald-50/80 rounded-2xl border border-emerald-200 text-xs text-emerald-950 space-y-2.5">
+          <div className="flex items-center justify-between">
+            <span className="font-bold flex items-center gap-1.5 text-emerald-900">
+              <Calendar className="w-4 h-4 text-emerald-600" />
+              <span>Membership Bill Validity Period ({duration} Month{duration > 1 ? 's' : ''}):</span>
             </span>
-            <span className="text-[11px] text-emerald-800">
-              <strong>{formatDate(renewalDates.start)}</strong> से लेकर{' '}
-              <strong>{formatDate(renewalDates.end)}</strong> तक ({duration} Month{duration > 1 ? 's' : ''})
+            <span className="font-black bg-emerald-100 text-emerald-900 px-2.5 py-0.5 rounded-md text-[11px]">
+              {validityStart && validityEnd ? `${formatDate(validityStart)} से ${formatDate(validityEnd)}` : ''}
             </span>
           </div>
-          <span className="font-black bg-emerald-100 text-emerald-900 px-2.5 py-1 rounded-lg text-xs shrink-0">
-            Next Due: {formatDate(renewalDates.end)}
-          </span>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+            <div>
+              <label className="block text-[11px] font-bold text-emerald-900 mb-1">
+                Validity Start Date (शुरू दिनांक - Joining Date) *
+              </label>
+              <input
+                type="date"
+                required
+                value={validityStart}
+                onChange={(e) => handleStartDateChange(e.target.value)}
+                className="w-full px-3 py-2 bg-white border border-emerald-300 rounded-xl font-bold text-emerald-950 focus:ring-2 focus:ring-emerald-500 text-xs"
+              />
+            </div>
+
+            <div>
+              <label className="block text-[11px] font-bold text-emerald-900 mb-1">
+                Validity End / Due Date (समाप्ति / अगली फीस दिनांक) *
+              </label>
+              <input
+                type="date"
+                required
+                value={validityEnd}
+                onChange={(e) => setValidityEnd(e.target.value)}
+                className="w-full px-3 py-2 bg-white border border-emerald-300 rounded-xl font-bold text-emerald-950 focus:ring-2 focus:ring-emerald-500 text-xs"
+              />
+            </div>
+          </div>
         </div>
 
         {/* Itemized Breakdown Table */}
