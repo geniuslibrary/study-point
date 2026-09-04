@@ -8,6 +8,7 @@ export const COLLECTIONS = {
   EXPENSES: 'expenses',
   SETTINGS: 'settings',
   STAFF_USERS: 'staffUsers',
+  ROLE_PRESETS: 'rolePresets',
 };
 
 export const SHIFTS = [

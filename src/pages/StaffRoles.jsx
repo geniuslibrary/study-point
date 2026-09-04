@@ -33,6 +33,7 @@ import {
   CreditCard,
   Receipt,
   Settings,
+  Plus,
 } from 'lucide-react';
 import { COLLECTIONS, PERMISSION_MODULES, ROLE_PRESETS } from '../utils/constants';
 import {
@@ -90,43 +91,96 @@ const MODULE_META = {
   },
 };
 
+const SYSTEM_ROLES = [
+  {
+    id: 'receptionist',
+    label: '🛎️ Receptionist',
+    name: 'Receptionist',
+    description: 'Front desk: seat grid, student admission, fee collection & receipts.',
+    isSystem: true,
+    permissions: ROLE_PRESETS.receptionist.permissions,
+  },
+  {
+    id: 'manager',
+    label: '👔 Branch Manager',
+    name: 'Branch Manager',
+    description: 'Branch management: seats, admissions, fees, operational reports & expenses.',
+    isSystem: true,
+    permissions: ROLE_PRESETS.manager.permissions,
+  },
+];
+
 export default function StaffRoles() {
   const [staffList, setStaffList] = useState([]);
+  const [customRoles, setCustomRoles] = useState([]);
   const [loading, setLoading] = useState(true);
+
+  // Staff modal states
   const [showModal, setShowModal] = useState(false);
   const [editStaff, setEditStaff] = useState(null);
   const [deleteTarget, setDeleteTarget] = useState(null);
+
+  // Role Preset modal states
+  const [showRoleModal, setShowRoleModal] = useState(false);
+  const [editRole, setEditRole] = useState(null);
+  const [deleteRoleTarget, setDeleteRoleTarget] = useState(null);
+  const [roleFormData, setRoleFormData] = useState({
+    name: '',
+    emoji: '💼',
+    description: '',
+    permissions: JSON.parse(JSON.stringify(ROLE_PRESETS.receptionist.permissions)),
+  });
+
   const [toastMessage, setToastMessage] = useState('');
   const [visiblePasswords, setVisiblePasswords] = useState({});
   const [copiedId, setCopiedId] = useState(null);
 
-  // Form states
+  // Staff Form states
   const [formData, setFormData] = useState({
     name: '',
     email: '',
     password: '',
     phone: '',
     role: 'receptionist',
+    roleLabel: '🛎️ Receptionist',
     status: 'active',
-    permissions: ROLE_PRESETS.receptionist.permissions,
+    permissions: JSON.parse(JSON.stringify(ROLE_PRESETS.receptionist.permissions)),
   });
 
-  const fetchStaff = async () => {
+  const fetchData = async () => {
     setLoading(true);
     try {
-      const data = await fetchCollectionData(COLLECTIONS.STAFF_USERS);
-      setStaffList(data);
+      const [staffData, rolesData] = await Promise.all([
+        fetchCollectionData(COLLECTIONS.STAFF_USERS),
+        fetchCollectionData(COLLECTIONS.ROLE_PRESETS),
+      ]);
+      setStaffList(staffData);
+      setCustomRoles(rolesData);
     } catch (e) {
-      console.error('Error fetching staff list:', e);
+      console.error('Error fetching staff data:', e);
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchStaff();
+    fetchData();
   }, []);
 
+  // All combined available roles
+  const allAvailableRoles = [...SYSTEM_ROLES, ...customRoles];
+
+  const getRoleLabel = (roleId, customLabel) => {
+    if (customLabel) return customLabel;
+    const found = allAvailableRoles.find((r) => r.id === roleId);
+    if (found) return found.label || `${found.emoji || '💼'} ${found.name}`;
+    if (roleId === 'receptionist') return '🛎️ Receptionist';
+    if (roleId === 'manager') return '👔 Branch Manager';
+    if (roleId === 'custom') return '⚙️ Custom Matrix';
+    return roleId || 'Staff';
+  };
+
+  // Staff Modal Handlers
   const handleOpenAdd = () => {
     setEditStaff(null);
     setFormData({
@@ -135,6 +189,7 @@ export default function StaffRoles() {
       password: '',
       phone: '',
       role: 'receptionist',
+      roleLabel: '🛎️ Receptionist',
       status: 'active',
       permissions: JSON.parse(JSON.stringify(ROLE_PRESETS.receptionist.permissions)),
     });
@@ -143,8 +198,11 @@ export default function StaffRoles() {
 
   const handleOpenEdit = (staff) => {
     setEditStaff(staff);
-    const initialRole = staff.role || 'custom';
-    const fallbackPerms = ROLE_PRESETS[initialRole]?.permissions || ROLE_PRESETS.receptionist.permissions;
+    const initialRole = staff.role || 'receptionist';
+    const initialRoleLabel = staff.roleLabel || getRoleLabel(initialRole, staff.roleLabel);
+
+    const preset = allAvailableRoles.find((r) => r.id === initialRole);
+    const fallbackPerms = preset?.permissions || ROLE_PRESETS[initialRole]?.permissions || ROLE_PRESETS.receptionist.permissions;
 
     setFormData({
       name: staff.name || '',
@@ -152,24 +210,32 @@ export default function StaffRoles() {
       password: staff.password || '',
       phone: staff.phone || '',
       role: initialRole,
+      roleLabel: initialRoleLabel,
       status: staff.status || 'active',
-      permissions: staff.permissions ? JSON.parse(JSON.stringify(staff.permissions)) : JSON.parse(JSON.stringify(fallbackPerms)),
+      permissions: staff.permissions
+        ? JSON.parse(JSON.stringify(staff.permissions))
+        : JSON.parse(JSON.stringify(fallbackPerms)),
     });
     setShowModal(true);
   };
 
   const handleRolePresetChange = (presetKey) => {
-    const preset = ROLE_PRESETS[presetKey];
-    if (preset && presetKey !== 'custom') {
-      setFormData((prev) => ({
-        ...prev,
-        role: presetKey,
-        permissions: JSON.parse(JSON.stringify(preset.permissions)),
-      }));
-    } else {
+    if (presetKey === 'custom') {
       setFormData((prev) => ({
         ...prev,
         role: 'custom',
+        roleLabel: '⚙️ Custom Matrix',
+      }));
+      return;
+    }
+
+    const preset = allAvailableRoles.find((r) => r.id === presetKey);
+    if (preset) {
+      setFormData((prev) => ({
+        ...prev,
+        role: preset.id,
+        roleLabel: preset.label || `${preset.emoji || '💼'} ${preset.name}`,
+        permissions: JSON.parse(JSON.stringify(preset.permissions)),
       }));
     }
   };
@@ -182,7 +248,6 @@ export default function StaffRoles() {
 
       return {
         ...prev,
-        role: 'custom',
         permissions: {
           ...prev.permissions,
           [moduleKey]: updatedModule,
@@ -202,7 +267,6 @@ export default function StaffRoles() {
 
       return {
         ...prev,
-        role: 'custom',
         permissions: {
           ...prev.permissions,
           [moduleKey]: newModulePerms,
@@ -214,7 +278,7 @@ export default function StaffRoles() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!formData.name.trim() || !formData.email.trim() || !formData.password.trim()) {
-      showToast('Please fill Staff Name, Email and Password');
+      showToast('Please fill Staff Name, Email/ID and Password');
       return;
     }
 
@@ -227,7 +291,7 @@ export default function StaffRoles() {
         showToast(`New staff member "${formData.name}" created successfully!`);
       }
       setShowModal(false);
-      await fetchStaff();
+      await fetchData();
     } catch (err) {
       console.error(err);
       showToast('Error saving staff member: ' + err.message);
@@ -239,8 +303,111 @@ export default function StaffRoles() {
     try {
       await removeDocument(COLLECTIONS.STAFF_USERS, deleteTarget.id);
       setDeleteTarget(null);
-      await fetchStaff();
+      await fetchData();
       showToast('Staff account deleted');
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  // Role Presets Management Handlers
+  const handleOpenAddRole = () => {
+    setEditRole(null);
+    setRoleFormData({
+      name: '',
+      emoji: '💼',
+      description: '',
+      permissions: JSON.parse(JSON.stringify(ROLE_PRESETS.receptionist.permissions)),
+    });
+    setShowRoleModal(true);
+  };
+
+  const handleOpenEditRole = (role) => {
+    setEditRole(role);
+    setRoleFormData({
+      name: role.name || '',
+      emoji: role.emoji || '💼',
+      description: role.description || '',
+      permissions: role.permissions
+        ? JSON.parse(JSON.stringify(role.permissions))
+        : JSON.parse(JSON.stringify(ROLE_PRESETS.receptionist.permissions)),
+    });
+    setShowRoleModal(true);
+  };
+
+  const handleRoleFormPermissionToggle = (moduleKey, actionKey) => {
+    setRoleFormData((prev) => {
+      const currentModulePerms = prev.permissions[moduleKey] || {};
+      const updatedModule = { ...currentModulePerms };
+      updatedModule[actionKey] = !updatedModule[actionKey];
+
+      return {
+        ...prev,
+        permissions: {
+          ...prev.permissions,
+          [moduleKey]: updatedModule,
+        },
+      };
+    });
+  };
+
+  const handleRoleFormModuleToggleAll = (moduleKey, actions) => {
+    setRoleFormData((prev) => {
+      const currentModulePerms = prev.permissions[moduleKey] || {};
+      const allEnabled = actions.every((act) => !!currentModulePerms[act]);
+      const newModulePerms = {};
+      actions.forEach((act) => {
+        newModulePerms[act] = !allEnabled;
+      });
+
+      return {
+        ...prev,
+        permissions: {
+          ...prev.permissions,
+          [moduleKey]: newModulePerms,
+        },
+      };
+    });
+  };
+
+  const handleSaveRolePreset = async (e) => {
+    e.preventDefault();
+    if (!roleFormData.name.trim()) {
+      showToast('Please enter a Role Name');
+      return;
+    }
+
+    const payload = {
+      name: roleFormData.name.trim(),
+      emoji: roleFormData.emoji || '💼',
+      label: `${roleFormData.emoji || '💼'} ${roleFormData.name.trim()}`,
+      description: roleFormData.description.trim() || 'Custom staff role template',
+      permissions: roleFormData.permissions,
+    };
+
+    try {
+      if (editRole) {
+        await updateDocument(COLLECTIONS.ROLE_PRESETS, editRole.id, payload);
+        showToast(`Role Preset "${payload.label}" updated!`);
+      } else {
+        await createDocument(COLLECTIONS.ROLE_PRESETS, payload);
+        showToast(`New Role Preset "${payload.label}" created!`);
+      }
+      setShowRoleModal(false);
+      await fetchData();
+    } catch (err) {
+      console.error(err);
+      showToast('Error saving role preset: ' + err.message);
+    }
+  };
+
+  const handleDeleteRoleConfirm = async () => {
+    if (!deleteRoleTarget) return;
+    try {
+      await removeDocument(COLLECTIONS.ROLE_PRESETS, deleteRoleTarget.id);
+      setDeleteRoleTarget(null);
+      await fetchData();
+      showToast('Role Preset deleted successfully');
     } catch (e) {
       console.error(e);
     }
@@ -251,7 +418,8 @@ export default function StaffRoles() {
   };
 
   const handleCopyCredentials = (staff) => {
-    const text = `Study Point Staff Login Details:\n• Name: ${staff.name}\n• User ID / Email: ${staff.email}\n• Password: ${staff.password}\n• Role: ${staff.role?.toUpperCase()}`;
+    const roleTitle = getRoleLabel(staff.role, staff.roleLabel);
+    const text = `Study Point Staff Login Details:\n• Name: ${staff.name}\n• User ID / Email: ${staff.email}\n• Password: ${staff.password}\n• Role: ${roleTitle}`;
     navigator.clipboard.writeText(text);
     setCopiedId(staff.id);
     showToast(`Copied ${staff.name}'s Login ID & Password!`);
@@ -263,7 +431,6 @@ export default function StaffRoles() {
     setTimeout(() => setToastMessage(''), 4000);
   };
 
-  // Helper to get active permission badges
   const getActivePermissionLabels = (permissions = {}) => {
     const active = [];
     PERMISSION_MODULES.forEach((mod) => {
@@ -298,11 +465,18 @@ export default function StaffRoles() {
           <div>
             <h1 className="text-2xl font-bold text-gray-900">Staff & Role Permissions</h1>
             <p className="text-gray-500 text-sm mt-0.5">
-              Manage staff accounts, login credentials & granular module permissions
+              Manage staff login accounts, custom role templates & granular module permissions
             </p>
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
+            <Button
+              variant="secondary"
+              icon={<Sparkles className="w-4 h-4 text-purple-600" />}
+              onClick={handleOpenAddRole}
+            >
+              + Create Role Preset
+            </Button>
             <Button icon={<UserPlus className="w-4 h-4" />} onClick={handleOpenAdd}>
               Add New Staff Member
             </Button>
@@ -316,36 +490,91 @@ export default function StaffRoles() {
           </div>
         )}
 
-        {/* Roles Presets Banner */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div className="bg-white p-4 rounded-2xl border border-indigo-100 shadow-2xs">
-            <div className="flex items-center gap-2 font-bold text-gray-900 text-sm mb-1">
-              <span className="text-base">👑</span>
-              <span>Owner Role (Master Admin)</span>
-            </div>
-            <p className="text-xs text-gray-500 leading-relaxed">
-              Full access to everything: collections, financial audit, staff control, deletions & library settings.
-            </p>
+        {/* Roles Presets Banner with Dynamic Custom Roles */}
+        <div className="space-y-2.5">
+          <div className="flex items-center justify-between">
+            <h3 className="font-bold text-gray-900 text-sm flex items-center gap-2">
+              <ShieldCheck className="w-4 h-4 text-indigo-600" />
+              <span>Available Role Presets & Templates ({allAvailableRoles.length + 1})</span>
+            </h3>
+            <button
+              onClick={handleOpenAddRole}
+              className="text-xs font-bold text-indigo-600 hover:text-indigo-800 flex items-center gap-1 cursor-pointer"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              <span>Add Custom Role</span>
+            </button>
           </div>
 
-          <div className="bg-white p-4 rounded-2xl border border-amber-100 shadow-2xs">
-            <div className="flex items-center gap-2 font-bold text-gray-900 text-sm mb-1">
-              <span className="text-base">🛎️</span>
-              <span>Receptionist Role</span>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3.5">
+            {/* Owner Master Card */}
+            <div className="bg-white p-4 rounded-2xl border border-indigo-100 shadow-2xs space-y-1">
+              <div className="flex items-center gap-2 font-bold text-gray-900 text-sm">
+                <span className="text-base">👑</span>
+                <span>Owner (Super Admin)</span>
+              </div>
+              <p className="text-xs text-gray-500 leading-relaxed">
+                Full access to all revenue, expenses, audit reports & library settings.
+              </p>
             </div>
-            <p className="text-xs text-gray-500 leading-relaxed">
-              Can view dashboard, seat grid, register students, collect fees & print receipts. Financials/expenses are hidden.
-            </p>
-          </div>
 
-          <div className="bg-white p-4 rounded-2xl border border-purple-100 shadow-2xs">
-            <div className="flex items-center gap-2 font-bold text-gray-900 text-sm mb-1">
-              <span className="text-base">👔</span>
-              <span>Branch Manager Role</span>
+            {/* Receptionist Card */}
+            <div className="bg-white p-4 rounded-2xl border border-amber-100 shadow-2xs space-y-1">
+              <div className="flex items-center gap-2 font-bold text-gray-900 text-sm">
+                <span className="text-base">🛎️</span>
+                <span>Receptionist</span>
+              </div>
+              <p className="text-xs text-gray-500 leading-relaxed">
+                Seats, student admission, fee collections & WhatsApp receipts.
+              </p>
             </div>
-            <p className="text-xs text-gray-500 leading-relaxed">
-              Can manage students, seats, fees, view operational reports & record utility expenses.
-            </p>
+
+            {/* Manager Card */}
+            <div className="bg-white p-4 rounded-2xl border border-purple-100 shadow-2xs space-y-1">
+              <div className="flex items-center gap-2 font-bold text-gray-900 text-sm">
+                <span className="text-base">👔</span>
+                <span>Branch Manager</span>
+              </div>
+              <p className="text-xs text-gray-500 leading-relaxed">
+                Manages seats, admissions, fees, reports & utility expenses.
+              </p>
+            </div>
+
+            {/* Custom Dynamic Roles */}
+            {customRoles.map((cr) => (
+              <div
+                key={cr.id}
+                className="bg-white p-4 rounded-2xl border border-teal-100 shadow-2xs space-y-1 flex flex-col justify-between"
+              >
+                <div>
+                  <div className="flex items-center justify-between gap-1">
+                    <div className="flex items-center gap-2 font-bold text-gray-900 text-sm">
+                      <span className="text-base">{cr.emoji || '💼'}</span>
+                      <span className="truncate">{cr.name}</span>
+                    </div>
+                    <div className="flex items-center gap-1 shrink-0">
+                      <button
+                        onClick={() => handleOpenEditRole(cr)}
+                        className="p-1 text-indigo-600 hover:bg-indigo-50 rounded-lg cursor-pointer"
+                        title="Edit Role Template"
+                      >
+                        <Edit size={14} />
+                      </button>
+                      <button
+                        onClick={() => setDeleteRoleTarget(cr)}
+                        className="p-1 text-rose-600 hover:bg-rose-50 rounded-lg cursor-pointer"
+                        title="Delete Role Template"
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    </div>
+                  </div>
+                  <p className="text-xs text-gray-500 leading-relaxed mt-1">
+                    {cr.description || 'Custom configured role'}
+                  </p>
+                </div>
+              </div>
+            ))}
           </div>
         </div>
 
@@ -363,6 +592,7 @@ export default function StaffRoles() {
               {staffList.map((staff) => {
                 const activePerms = getActivePermissionLabels(staff.permissions);
                 const isPasswordShown = !!visiblePasswords[staff.id];
+                const displayRole = getRoleLabel(staff.role, staff.roleLabel);
 
                 return (
                   <div
@@ -393,11 +623,7 @@ export default function StaffRoles() {
 
                           <div className="flex flex-wrap items-center gap-2 mt-1">
                             <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-lg text-xs font-bold bg-indigo-50 text-indigo-700 border border-indigo-200">
-                              {staff.role === 'receptionist'
-                                ? '🛎️ Receptionist'
-                                : staff.role === 'manager'
-                                ? '👔 Branch Manager'
-                                : '⚙️ Custom Role'}
+                              {displayRole}
                             </span>
                             {staff.phone && (
                               <span className="text-xs text-slate-500 font-medium">
@@ -527,27 +753,46 @@ export default function StaffRoles() {
               <label className="block text-xs font-bold text-indigo-950 uppercase tracking-wider">
                 Quick Role Preset (भूमिका चुनें)
               </label>
-              <span className="text-[11px] text-indigo-600 font-medium">Select preset or customize below</span>
+              <button
+                type="button"
+                onClick={handleOpenAddRole}
+                className="text-[11px] text-indigo-600 hover:text-indigo-800 font-bold flex items-center gap-1 cursor-pointer"
+              >
+                <Plus size={12} />
+                <span>Create New Role</span>
+              </button>
             </div>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-              {[
-                { key: 'receptionist', label: '🛎️ Receptionist' },
-                { key: 'manager', label: '👔 Branch Manager' },
-                { key: 'custom', label: '⚙️ Custom Matrix' },
-              ].map((r) => (
-                <button
-                  type="button"
-                  key={r.key}
-                  onClick={() => handleRolePresetChange(r.key)}
-                  className={`py-2 px-2.5 rounded-xl border text-xs font-bold transition-all cursor-pointer text-center ${
-                    formData.role === r.key
-                      ? 'bg-indigo-600 text-white border-indigo-600 shadow-xs'
-                      : 'bg-white text-slate-700 border-indigo-200 hover:bg-indigo-50'
-                  }`}
-                >
-                  {r.label}
-                </button>
-              ))}
+
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+              {allAvailableRoles.map((r) => {
+                const isSelected = formData.role === r.id;
+                return (
+                  <button
+                    type="button"
+                    key={r.id}
+                    onClick={() => handleRolePresetChange(r.id)}
+                    className={`py-2 px-2.5 rounded-xl border text-xs font-bold transition-all cursor-pointer text-center truncate ${
+                      isSelected
+                        ? 'bg-indigo-600 text-white border-indigo-600 shadow-xs'
+                        : 'bg-white text-slate-700 border-indigo-200 hover:bg-indigo-50'
+                    }`}
+                  >
+                    {r.label || `${r.emoji || '💼'} ${r.name}`}
+                  </button>
+                );
+              })}
+
+              <button
+                type="button"
+                onClick={() => handleRolePresetChange('custom')}
+                className={`py-2 px-2.5 rounded-xl border text-xs font-bold transition-all cursor-pointer text-center truncate ${
+                  formData.role === 'custom'
+                    ? 'bg-indigo-600 text-white border-indigo-600 shadow-xs'
+                    : 'bg-white text-slate-700 border-indigo-200 hover:bg-indigo-50'
+                }`}
+              >
+                ⚙️ Custom Matrix
+              </button>
             </div>
           </div>
 
@@ -722,6 +967,154 @@ export default function StaffRoles() {
         </form>
       </Modal>
 
+      {/* Add / Edit Role Preset Modal */}
+      <Modal
+        isOpen={showRoleModal}
+        onClose={() => setShowRoleModal(false)}
+        title={editRole ? `Edit Role Preset: ${editRole.name}` : 'Create New Role Preset (नया रोल बनाएं)'}
+        size="lg"
+      >
+        <form onSubmit={handleSaveRolePreset} className="space-y-4">
+          <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
+            <div className="sm:col-span-1">
+              <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
+                Emoji / Icon
+              </label>
+              <select
+                value={roleFormData.emoji}
+                onChange={(e) => setRoleFormData({ ...roleFormData, emoji: e.target.value })}
+                className="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl text-base bg-white focus:ring-2 focus:ring-indigo-500 text-center font-bold"
+              >
+                {['💼', '📊', '🌙', '🛎️', '👔', '📚', '🔑', '🛡️', '⚡', '🧹', '👨‍🏫', '🎯'].map(
+                  (em) => (
+                    <option key={em} value={em}>
+                      {em}
+                    </option>
+                  )
+                )}
+              </select>
+            </div>
+
+            <div className="sm:col-span-3">
+              <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
+                Role Name (पद का नाम) *
+              </label>
+              <input
+                type="text"
+                required
+                value={roleFormData.name}
+                onChange={(e) => setRoleFormData({ ...roleFormData, name: e.target.value })}
+                placeholder="e.g. Accountant, Night Incharge, Assistant"
+                className="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 font-bold"
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
+              Role Description (भूमिका विवरण)
+            </label>
+            <input
+              type="text"
+              value={roleFormData.description}
+              onChange={(e) => setRoleFormData({ ...roleFormData, description: e.target.value })}
+              placeholder="e.g. Manages fees, admissions & daily seat allocations"
+              className="w-full px-3.5 py-2 border border-slate-300 rounded-xl text-xs focus:ring-2 focus:ring-indigo-500"
+            />
+          </div>
+
+          {/* Role Default Permissions Matrix */}
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider">
+                Default Role Permissions (डिफ़ॉल्ट अनुमतियाँ)
+              </label>
+              <span className="text-[11px] text-indigo-600 font-semibold">
+                Set allowed module access for this role
+              </span>
+            </div>
+
+            <div className="divide-y divide-slate-100 border border-slate-200 rounded-2xl overflow-hidden bg-white max-h-64 overflow-y-auto">
+              {PERMISSION_MODULES.map((module) => {
+                const modPerms = roleFormData.permissions[module.id] || {};
+                const meta = MODULE_META[module.id] || {
+                  icon: Layers,
+                  color: 'text-slate-600 bg-slate-50 border-slate-200',
+                  desc: 'Module operations',
+                };
+                const IconComponent = meta.icon;
+
+                return (
+                  <div
+                    key={module.id}
+                    className="p-3 sm:p-3.5 hover:bg-slate-50/80 transition-colors flex flex-col sm:flex-row sm:items-center justify-between gap-2.5"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div
+                        className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 border ${meta.color}`}
+                      >
+                        <IconComponent className="w-3.5 h-3.5" />
+                      </div>
+                      <div>
+                        <p className="font-extrabold text-xs text-slate-900 leading-tight">
+                          {module.label || module.id}
+                        </p>
+                        <p className="text-[10px] text-slate-400">{meta.desc}</p>
+                      </div>
+                    </div>
+
+                    <div className="flex flex-wrap items-center gap-1.5 ml-11 sm:ml-0">
+                      {module.actions.map((act) => {
+                        const isChecked = !!modPerms[act];
+
+                        return (
+                          <label
+                            key={act}
+                            className={`flex items-center gap-1 text-[11px] font-bold cursor-pointer px-2.5 py-1 rounded-lg border transition-all select-none ${
+                              isChecked
+                                ? 'bg-indigo-50 border-indigo-300 text-indigo-700 font-extrabold'
+                                : 'bg-white border-slate-200 text-slate-400 hover:border-slate-300'
+                            }`}
+                          >
+                            <input
+                              type="checkbox"
+                              checked={isChecked}
+                              onChange={() => handleRoleFormPermissionToggle(module.id, act)}
+                              className="rounded text-indigo-600 focus:ring-indigo-500 h-3.5 w-3.5 cursor-pointer"
+                            />
+                            <span className="capitalize">{act}</span>
+                          </label>
+                        );
+                      })}
+
+                      {module.actions.length > 1 && (
+                        <button
+                          type="button"
+                          onClick={() => handleRoleFormModuleToggleAll(module.id, module.actions)}
+                          className="text-[10px] font-bold px-1.5 py-1 text-slate-400 hover:text-indigo-600 rounded cursor-pointer"
+                          title="Toggle all actions for this module"
+                        >
+                          All
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          <div className="flex justify-end gap-3 pt-3 border-t border-slate-100">
+            <Button variant="secondary" onClick={() => setShowRoleModal(false)} type="button">
+              Cancel
+            </Button>
+            <Button variant="primary" type="submit">
+              {editRole ? 'Save Role Preset' : 'Create Role Preset'}
+            </Button>
+          </div>
+        </form>
+      </Modal>
+
       {/* Delete Staff Confirm Dialog */}
       <ConfirmDialog
         isOpen={!!deleteTarget}
@@ -732,7 +1125,19 @@ export default function StaffRoles() {
         confirmText="Delete Account"
         variant="danger"
       />
+
+      {/* Delete Role Preset Confirm Dialog */}
+      <ConfirmDialog
+        isOpen={!!deleteRoleTarget}
+        onClose={() => setDeleteRoleTarget(null)}
+        onConfirm={handleDeleteRoleConfirm}
+        title="Delete Role Preset"
+        message={`Are you sure you want to delete the role preset "${deleteRoleTarget?.name}"?`}
+        confirmText="Delete Role"
+        variant="danger"
+      />
     </Layout>
   );
 }
+
 

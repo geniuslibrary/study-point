@@ -90,8 +90,8 @@ const Header = ({ title, onMenuClick }) => {
               <p className="text-xs font-bold text-gray-900 leading-tight">
                 {user?.displayName || 'Study Point Owner'}
               </p>
-              <span className="text-[10px] font-semibold bg-indigo-50 text-indigo-700 px-1.5 py-0.5 rounded capitalize">
-                {user?.role || 'Owner'}
+              <span className="text-[10px] font-bold bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded-md border border-indigo-100 mt-0.5 inline-block">
+                {user?.roleLabel || (user?.role === 'receptionist' ? '🛎️ Receptionist' : user?.role === 'manager' ? '👔 Branch Manager' : user?.role === 'owner' ? '👑 Owner' : user?.role || 'Staff')}
               </span>
             </div>
           </div>

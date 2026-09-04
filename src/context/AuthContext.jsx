@@ -132,11 +132,19 @@ export const AuthProvider = ({ children }) => {
 
           // Build staff session
           const fallbackPerms = ROLE_PRESETS[staffMember.role]?.permissions || ROLE_PRESETS.receptionist.permissions;
+          const defaultLabel =
+            staffMember.role === 'receptionist'
+              ? '🛎️ Receptionist'
+              : staffMember.role === 'manager'
+              ? '👔 Branch Manager'
+              : staffMember.role || 'Staff Member';
+
           const staffSession = {
             uid: staffMember.id,
             email: staffMember.email,
             displayName: staffMember.name || 'Staff Member',
             role: staffMember.role || 'receptionist',
+            roleLabel: staffMember.roleLabel || defaultLabel,
             permissions: staffMember.permissions || fallbackPerms,
             phone: staffMember.phone || '',
           };

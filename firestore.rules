@@ -17,6 +17,11 @@ service cloud.firestore {
       allow read: if true; // Needed for staff authentication check
       allow write: if isAuthenticated();
     }
+    
+    match /rolePresets/{document=**} {
+      allow read: if true;
+      allow write: if isAuthenticated();
+    }
 
     // Core Business Collections
     match /sections/{document=**} {
