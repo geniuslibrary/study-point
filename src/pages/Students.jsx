@@ -104,6 +104,8 @@ export default function Students() {
     const joinD = formData.joinDate ? new Date(formData.joinDate) : new Date();
     const duration = plan?.durationMonths || 1;
     const membershipEnd = new Date(joinD.getFullYear(), joinD.getMonth() + duration, joinD.getDate());
+    const discount = formData.discountAmount === '' ? 0 : Number(formData.discountAmount) || 0;
+    const baseFee = Number(plan?.price) || 800;
 
     const newStudentData = {
       name: formData.name,
@@ -116,6 +118,7 @@ export default function Students() {
       customStartTime: formData.customStartTime || '',
       customEndTime: formData.customEndTime || '',
       membershipPlanId: formData.membershipPlanId || '',
+      discountAmount: discount,
       joinDate: joinD.toISOString(),
       membershipStart: joinD.toISOString(),
       membershipEnd: membershipEnd.toISOString(),
@@ -123,6 +126,34 @@ export default function Students() {
     };
 
     const docRecord = await createDocument(COLLECTIONS.STUDENTS, newStudentData);
+
+    // Auto-create initial fee record with discount for this student
+    if (newStudentData.status === 'active') {
+      const monthStr = `${joinD.getFullYear()}-${String(joinD.getMonth() + 1).padStart(2, '0')}`;
+      const feeDocId = `fee_${docRecord.id}_${monthStr.replace('-', '_')}`;
+      await createDocument(
+        COLLECTIONS.FEES,
+        {
+          studentId: docRecord.id,
+          amount: Math.max(0, baseFee - discount),
+          baseFee,
+          discountAmount: discount,
+          addonCharges: {},
+          dueDate: membershipEnd.toISOString(),
+          paidDate: null,
+          status: 'pending',
+          month: monthStr,
+          paymentMode: '',
+          notes: '',
+          planId: plan?.id || '',
+          planName: plan?.name || 'Standard Monthly Plan',
+          planDuration: duration,
+          periodStart: joinD.toISOString(),
+          periodEnd: membershipEnd.toISOString(),
+        },
+        feeDocId
+      );
+    }
 
     if (newStudentData.seatId) {
       await updateSeatStatusAfterChange(newStudentData.seatId, { id: docRecord.id, ...newStudentData });
@@ -142,6 +173,8 @@ export default function Students() {
     const plan = plans.find((p) => p.id === formData.membershipPlanId);
     const duration = plan?.durationMonths || 1;
     const membershipEnd = new Date(joinD.getFullYear(), joinD.getMonth() + duration, joinD.getDate());
+    const discount = formData.discountAmount === '' ? 0 : Number(formData.discountAmount) || 0;
+    const baseFee = Number(plan?.price) || 800;
 
     const updatedData = {
       name: formData.name,
@@ -154,6 +187,7 @@ export default function Students() {
       customStartTime: formData.customStartTime || '',
       customEndTime: formData.customEndTime || '',
       membershipPlanId: formData.membershipPlanId || '',
+      discountAmount: discount,
       joinDate: joinD.toISOString(),
       membershipStart: joinD.toISOString(),
       membershipEnd: membershipEnd.toISOString(),
@@ -161,6 +195,21 @@ export default function Students() {
     };
 
     await updateDocument(COLLECTIONS.STUDENTS, editData.id, updatedData);
+
+    // Also update any pending fee records for this student to reflect new discount / plan
+    const pendingStudentFee = fees.find((f) => f.studentId === editData.id && f.status === 'pending');
+    if (pendingStudentFee) {
+      await updateDocument(COLLECTIONS.FEES, pendingStudentFee.id, {
+        baseFee,
+        discountAmount: discount,
+        amount: Math.max(0, baseFee - discount),
+        planId: plan?.id || pendingStudentFee.planId,
+        planName: plan?.name || pendingStudentFee.planName,
+        planDuration: duration,
+        periodStart: joinD.toISOString(),
+        periodEnd: membershipEnd.toISOString(),
+      });
+    }
 
     if (updatedData.seatId && updatedData.status === 'active') {
       await updateSeatStatusAfterChange(updatedData.seatId, { id: editData.id, ...updatedData });
@@ -200,13 +249,17 @@ export default function Students() {
     await fetchData();
   };
 
-  const getStudentDetails = (student) => {
+  const getStudentProfileDetails = (student) => {
+    if (!student) return {};
     const section = sections.find((s) => s.id === student.sectionId);
     const seat = seats.find((s) => s.id === student.seatId);
-    const plan = plans.find((p) => p.id === student.membershipPlanId);
     const studentFees = fees.filter((f) => f.studentId === student.id);
-    return { section, seat, plan, fees: studentFees };
+    const plan = plans.find((p) => p.id === student.membershipPlanId);
+
+    return { section, seat, fees: studentFees, plan };
   };
+
+  const profileDetails = getStudentProfileDetails(profileStudent);
 
   if (loading) {
     return (
@@ -218,19 +271,16 @@ export default function Students() {
     );
   }
 
-  const profileDetails = profileStudent ? getStudentDetails(profileStudent) : {};
-
   return (
-    <Layout title="Students">
+    <Layout title="Students Directory">
       <div className="space-y-6">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">Students Management</h1>
-            <p className="text-gray-500 text-xs sm:text-sm mt-0.5">
-              {students.filter((s) => s.status === 'active').length} active admissions • Joining Date billing cycles & Seat shifts
+            <h1 className="text-2xl font-bold text-gray-900">Student Directory</h1>
+            <p className="text-gray-500 text-sm mt-0.5">
+              Manage student admissions, shift timings, assigned seats & member profiles
             </p>
           </div>
-
           {canCreate && (
             <Button
               icon={<Plus className="w-4 h-4" />}

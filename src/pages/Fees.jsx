@@ -276,6 +276,7 @@ export default function Fees() {
         onClose={() => setCollectFee(null)}
         onSubmit={handleCollectFee}
         student={collectFeeStudent}
+        fee={collectFee}
         plan={collectFeePlan}
         plans={plans}
         seat={collectFeeSeat}

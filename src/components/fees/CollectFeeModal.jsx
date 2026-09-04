@@ -9,6 +9,7 @@ export default function CollectFeeModal({
   onClose,
   onSubmit,
   student,
+  fee,
   plan,
   plans = [],
   seat,
@@ -39,35 +40,37 @@ export default function CollectFeeModal({
   };
 
   useEffect(() => {
-    if (student) {
-      const currentPlanId = student.membershipPlanId || (plans[0]?.id || '');
+    if (student || fee) {
+      const currentPlanId = student?.membershipPlanId || fee?.planId || (plans[0]?.id || '');
       setSelectedPlanId(currentPlanId);
-      setDiscountAmount(
-        student.discountAmount !== undefined && student.discountAmount !== null && student.discountAmount !== 0
-          ? String(student.discountAmount)
-          : ''
-      );
+
+      const disc =
+        fee && fee.discountAmount !== undefined && fee.discountAmount !== null && fee.discountAmount !== 0
+          ? fee.discountAmount
+          : student && student.discountAmount !== undefined && student.discountAmount !== null && student.discountAmount !== 0
+          ? student.discountAmount
+          : '';
+
+      setDiscountAmount(disc !== '' ? String(disc) : '');
       setPaymentMode('cash');
-      setNotes('');
+      setNotes(fee?.notes || '');
 
       const activeP = plans.find((p) => p.id === currentPlanId) || plan || { durationMonths: 1 };
       const dur = Number(activeP.durationMonths) || 1;
 
       // Determine initial start date:
-      // Priority 1: student's joinDate
-      // Priority 2: student's membershipStart
-      // Priority 3: today
       let initStart = formatDateInput(new Date());
 
-      if (student.joinDate) {
+      if (fee?.periodStart) {
+        initStart = formatDateInput(fee.periodStart);
+      } else if (student?.joinDate) {
         initStart = formatDateInput(student.joinDate);
-      } else if (student.membershipStart) {
+      } else if (student?.membershipStart) {
         initStart = formatDateInput(student.membershipStart);
       }
 
       // If student already has completed fees in the past and has an active cycle ending in future (renewal):
-      // Only advance if student already had paid cycles
-      if (student.hasPaidBefore && student.membershipEnd) {
+      if (student?.hasPaidBefore && student?.membershipEnd) {
         const prevEnd = student.membershipEnd.toDate ? student.membershipEnd.toDate() : new Date(student.membershipEnd);
         if (!isNaN(prevEnd.getTime()) && prevEnd > new Date()) {
           initStart = formatDateInput(prevEnd);
@@ -77,7 +80,7 @@ export default function CollectFeeModal({
       setValidityStart(initStart);
       setValidityEnd(computeEndDate(initStart, dur));
     }
-  }, [student, plans, isOpen]);
+  }, [student, fee, plans, isOpen]);
 
   const activePlan = plans.find((p) => p.id === selectedPlanId) || plan || {
     name: 'Standard Monthly Plan',
