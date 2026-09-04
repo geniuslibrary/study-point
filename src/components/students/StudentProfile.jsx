@@ -181,17 +181,17 @@ export default function StudentProfile({
               Seat Facilities & Add-ons
             </h4>
             <div className="flex flex-wrap gap-2">
-              {seat.addons.locker && (
+              {(seat.addons.locker || seat.addons.Locker) && (
                 <span className="flex items-center gap-1.5 px-3 py-1 bg-amber-50 text-amber-800 border border-amber-200 rounded-xl text-xs font-bold">
-                  <Lock className="w-3.5 h-3.5 text-amber-600" /> Locker Assigned
+                  <Lock className="w-3.5 h-3.5 text-amber-600" /> Locker Facility Assigned
                 </span>
               )}
-              {seat.addons.wifi && (
+              {(seat.addons.wifi || seat.addons.WiFi || seat.addons.Wifi) && (
                 <span className="flex items-center gap-1.5 px-3 py-1 bg-blue-50 text-blue-800 border border-blue-200 rounded-xl text-xs font-bold">
                   <Wifi className="w-3.5 h-3.5 text-blue-600" /> High-Speed WiFi
                 </span>
               )}
-              {seat.addons.light && (
+              {(seat.addons.light || seat.addons.lamp || seat.addons['Desk Light']) && (
                 <span className="flex items-center gap-1.5 px-3 py-1 bg-yellow-50 text-yellow-800 border border-yellow-200 rounded-xl text-xs font-bold">
                   <Lamp className="w-3.5 h-3.5 text-yellow-600" /> Dedicated Desk Light
                 </span>

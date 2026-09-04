@@ -94,17 +94,17 @@ export default function SeatGrid({ seats = [], onSeatClick }) {
 
                 {/* Facility Icons */}
                 <div className="flex items-center gap-1">
-                  {seat.addons?.locker && (
+                  {(seat.addons?.locker || seat.addons?.Locker) && (
                     <span title="Locker Facility" className="p-1 rounded-md bg-white border border-slate-200 text-indigo-600 shadow-2xs">
                       <Lock className="w-3 h-3" />
                     </span>
                   )}
-                  {seat.addons?.wifi && (
+                  {(seat.addons?.wifi || seat.addons?.WiFi || seat.addons?.Wifi) && (
                     <span title="High-speed WiFi" className="p-1 rounded-md bg-white border border-slate-200 text-teal-600 shadow-2xs">
                       <Wifi className="w-3 h-3" />
                     </span>
                   )}
-                  {seat.addons?.light && (
+                  {(seat.addons?.light || seat.addons?.lamp || seat.addons?.['Desk Light']) && (
                     <span title="Personal Desk Lamp" className="p-1 rounded-md bg-white border border-slate-200 text-amber-500 shadow-2xs">
                       <Lamp className="w-3 h-3" />
                     </span>

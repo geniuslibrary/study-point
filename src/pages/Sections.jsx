@@ -7,6 +7,7 @@ import SectionList from '../components/sections/SectionList';
 import SectionForm from '../components/sections/SectionForm';
 import { Plus, Loader2, UserX, UserPlus, Trash2, PlusCircle, Sparkles } from 'lucide-react';
 import { COLLECTIONS, SEAT_STATUS } from '../utils/constants';
+import { getStoredAddons, calculateSeatAddonCharges } from '../utils/helpers';
 import {
   fetchCollectionData,
   createDocument,
@@ -18,6 +19,9 @@ export default function Sections() {
   const [sections, setSections] = useState([]);
   const [seats, setSeats] = useState([]);
   const [students, setStudents] = useState([]);
+  const [plans, setPlans] = useState([]);
+  const [addonPricing, setAddonPricing] = useState([]);
+  const [fees, setFees] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [editData, setEditData] = useState(null);
@@ -27,7 +31,7 @@ export default function Sections() {
   // Seat management modal states
   const [selectedSeat, setSelectedSeat] = useState(null);
   const [seatModalOpen, setSeatModalOpen] = useState(false);
-  const [seatAddons, setSeatAddons] = useState({ locker: false, wifi: false, light: false });
+  const [seatAddons, setSeatAddons] = useState({});
 
   // Quick assign states in seat modal
   const [quickAssignShift, setQuickAssignShift] = useState('first_half');
@@ -36,14 +40,21 @@ export default function Sections() {
   const fetchData = async () => {
     setLoading(true);
     try {
-      const [secDocs, seatDocs, stuDocs] = await Promise.all([
+      const [secDocs, seatDocs, stuDocs, planDocs, addonDocs, feeDocs] = await Promise.all([
         fetchCollectionData(COLLECTIONS.SECTIONS),
         fetchCollectionData(COLLECTIONS.SEATS),
         fetchCollectionData(COLLECTIONS.STUDENTS),
+        fetchCollectionData(COLLECTIONS.MEMBERSHIP_PLANS),
+        fetchCollectionData(COLLECTIONS.ADDON_PRICING),
+        fetchCollectionData(COLLECTIONS.FEES),
       ]);
 
       setSections(secDocs);
       setStudents(stuDocs);
+      setPlans(planDocs);
+      setFees(feeDocs);
+      const activeAddons = addonDocs.length > 0 ? addonDocs : getStoredAddons();
+      setAddonPricing(activeAddons);
 
       // Deduplicate seats by sectionId and seatNumber to ensure strictly 1 physical record per seat number
       const uniqueSeatsMap = new Map();
@@ -256,23 +267,57 @@ export default function Sections() {
   // 6. Handle Seat Click & Open Details / Quick-Assignment Modal
   const handleSeatClick = (seat) => {
     setSelectedSeat(seat);
-    setSeatAddons(seat.addons || { locker: false, wifi: false, light: false });
+    setSeatAddons(seat.addons || {});
     setQuickAssignStudentId('');
     setSeatModalOpen(true);
   };
 
-  // 7. Save Seat Add-ons (Locker, WiFi, Light)
+  // 7. Save Seat Add-ons (Locker, WiFi, Light, etc.) & Auto-update Active Students' Dues
   const handleSaveSeatAddons = async () => {
     if (!selectedSeat) return;
 
-    await updateDocument(COLLECTIONS.SEATS, selectedSeat.id, {
-      addons: seatAddons,
-    });
+    try {
+      await updateDocument(COLLECTIONS.SEATS, selectedSeat.id, {
+        addons: seatAddons,
+      });
 
-    setSeats((prev) =>
-      prev.map((s) => (s.id === selectedSeat.id ? { ...s, addons: seatAddons } : s))
-    );
-    setSeatModalOpen(false);
+      // Update occupying active students' pending fee records to include newly selected facility charges
+      const seatStudents = students.filter(
+        (s) => s.seatId === selectedSeat.id && s.status === 'active'
+      );
+
+      for (const student of seatStudents) {
+        const plan = plans.find((p) => p.id === student.membershipPlanId);
+        const duration = Number(plan?.durationMonths) || 1;
+        const baseFee = Number(plan?.price) || 800;
+        const discount = Number(student.discountAmount) || 0;
+
+        const { charges: addonCharges, total: addonTotal } = calculateSeatAddonCharges(
+          seatAddons,
+          addonPricing,
+          duration
+        );
+
+        const studentPendingFees = fees.filter(
+          (f) => f.studentId === student.id && f.status === 'pending'
+        );
+
+        for (const fee of studentPendingFees) {
+          await updateDocument(COLLECTIONS.FEES, fee.id, {
+            addonCharges,
+            amount: Math.max(0, baseFee + addonTotal - discount),
+          });
+        }
+      }
+
+      setSeats((prev) =>
+        prev.map((s) => (s.id === selectedSeat.id ? { ...s, addons: seatAddons } : s))
+      );
+      setSeatModalOpen(false);
+      await fetchData();
+    } catch (e) {
+      console.error('Error saving seat addons:', e);
+    }
   };
 
   const handleUnassignStudent = async (studentId) => {
@@ -529,37 +574,61 @@ export default function Sections() {
               </div>
             )}
 
-            {/* Seat Facilities & Add-ons (Locker, WiFi, Lamp) */}
+            {/* Seat Facilities & Add-ons (Dynamic from Settings) */}
             <div className="space-y-2">
-              <h5 className="text-xs font-bold text-slate-700 uppercase tracking-wider">
-                Seat Hardware Facilities:
-              </h5>
-              <div className="grid grid-cols-3 gap-2">
-                {[
-                  { key: 'locker', label: 'Locker' },
-                  { key: 'wifi', label: 'WiFi' },
-                  { key: 'light', label: 'Desk Light' },
-                ].map((item) => (
-                  <label
-                    key={item.key}
-                    className={`flex items-center justify-center gap-2 p-2.5 rounded-xl border text-xs font-bold cursor-pointer transition-all ${
-                      seatAddons[item.key]
-                        ? 'border-indigo-600 bg-indigo-50 text-indigo-700'
-                        : 'border-slate-200 bg-white hover:bg-slate-50 text-slate-600'
-                    }`}
-                  >
-                    <input
-                      type="checkbox"
-                      checked={!!seatAddons[item.key]}
-                      onChange={(e) =>
-                        setSeatAddons({ ...seatAddons, [item.key]: e.target.checked })
-                      }
-                      className="rounded text-indigo-600 focus:ring-indigo-500"
-                    />
-                    <span>{item.label}</span>
-                  </label>
-                ))}
+              <div className="flex items-center justify-between">
+                <h5 className="text-xs font-bold text-slate-700 uppercase tracking-wider">
+                  Seat Hardware Facilities:
+                </h5>
+                <span className="text-[10px] text-indigo-600 font-semibold">Configured in Settings</span>
               </div>
+
+              {addonPricing.length === 0 ? (
+                <div className="p-3 bg-slate-50 border border-dashed border-slate-200 rounded-xl text-center text-xs text-slate-400">
+                  No add-on facilities configured in Settings. (Go to Settings &gt; Seat Add-on Pricing)
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2">
+                  {addonPricing.map((item) => {
+                    const nameLower = item.name?.toLowerCase();
+                    const isChecked = Boolean(
+                      seatAddons[item.id] ||
+                      (nameLower && seatAddons[nameLower]) ||
+                      (item.name && seatAddons[item.name])
+                    );
+                    return (
+                      <label
+                        key={item.id || item.name}
+                        className={`flex items-center justify-between gap-2 p-2.5 rounded-xl border text-xs font-bold cursor-pointer transition-all ${
+                          isChecked
+                            ? 'border-indigo-600 bg-indigo-50 text-indigo-700 shadow-2xs'
+                            : 'border-slate-200 bg-white hover:bg-slate-50 text-slate-600'
+                        }`}
+                      >
+                        <div className="flex items-center gap-2 min-w-0">
+                          <input
+                            type="checkbox"
+                            checked={isChecked}
+                            onChange={(e) => {
+                              const checked = e.target.checked;
+                              const updated = { ...seatAddons };
+                              if (item.id) updated[item.id] = checked;
+                              if (nameLower) updated[nameLower] = checked;
+                              if (item.name) updated[item.name] = checked;
+                              setSeatAddons(updated);
+                            }}
+                            className="rounded text-indigo-600 focus:ring-indigo-500 shrink-0"
+                          />
+                          <span className="truncate">{item.name}</span>
+                        </div>
+                        <span className="text-[10px] font-black opacity-80 shrink-0 bg-white/80 px-1.5 py-0.5 rounded border border-slate-200/60">
+                          ₹{item.monthlyCharge}/mo
+                        </span>
+                      </label>
+                    );
+                  })}
+                </div>
+              )}
             </div>
 
             {/* Modal Actions */}

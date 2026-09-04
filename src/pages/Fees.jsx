@@ -15,7 +15,7 @@ import {
   Sparkles,
 } from 'lucide-react';
 import { COLLECTIONS } from '../utils/constants';
-import { formatCurrency, getMonthYear } from '../utils/helpers';
+import { formatCurrency, getMonthYear, calculateSeatAddonCharges, getStoredAddons } from '../utils/helpers';
 import {
   fetchCollectionData,
   createDocument,
@@ -53,17 +53,11 @@ export default function Fees() {
       const discount = Number(student.discountAmount) || 0;
       const duration = Number(plan?.durationMonths) || 1;
 
-      const addonCharges = {};
-      let addonTotal = 0;
-      if (seat?.addons) {
-        allAddons.forEach((addon) => {
-          const key = addon.name?.toLowerCase();
-          if (seat.addons[key]) {
-            addonCharges[addon.name] = Number(addon.monthlyCharge) || 0;
-            addonTotal += Number(addon.monthlyCharge) || 0;
-          }
-        });
-      }
+      const { charges: addonCharges, total: addonTotal } = calculateSeatAddonCharges(
+        seat?.addons,
+        allAddons && allAddons.length > 0 ? allAddons : getStoredAddons(),
+        duration
+      );
 
       // Calculate start and end date from joining date
       let startDate = new Date();

@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import Modal from '../common/Modal';
 import Button from '../common/Button';
-import { formatCurrency, formatDate, formatDateInput } from '../../utils/helpers';
+import { formatCurrency, formatDate, formatDateInput, calculateSeatAddonCharges, getStoredAddons } from '../../utils/helpers';
 import { Armchair, Clock, Tag, Calendar, Sparkles, CheckCircle2, ArrowRight } from 'lucide-react';
 
 export default function CollectFeeModal({
@@ -109,20 +109,12 @@ export default function CollectFeeModal({
     }
   };
 
-  // Calculate Addon Charges
-  const addonCharges = {};
-  let addonTotal = 0;
-  if (seat?.addons) {
-    addonPricing.forEach((addon) => {
-      const key = addon.name?.toLowerCase();
-      if (seat.addons[key]) {
-        const monthly = Number(addon.monthlyCharge) || 0;
-        const totalAddon = monthly * duration;
-        addonCharges[addon.name] = totalAddon;
-        addonTotal += totalAddon;
-      }
-    });
-  }
+  // Calculate Addon Charges dynamically
+  const { charges: addonCharges, total: addonTotal } = calculateSeatAddonCharges(
+    seat?.addons,
+    addonPricing && addonPricing.length > 0 ? addonPricing : getStoredAddons(),
+    duration
+  );
 
   const discount = discountAmount === '' ? 0 : Number(discountAmount) || 0;
   const totalPayable = Math.max(0, planPrice + addonTotal - discount);

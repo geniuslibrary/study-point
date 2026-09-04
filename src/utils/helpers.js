@@ -69,14 +69,47 @@ export const daysUntil = (date) => {
   return Math.ceil(diff / (1000 * 60 * 60 * 24));
 };
 
-export const calculateTotalFee = (baseFee, addons = {}, addonPricing = []) => {
-  let total = Number(baseFee) || 0;
-  addonPricing.forEach((addon) => {
-    if (addons[addon.name?.toLowerCase()]) {
-      total += Number(addon.monthlyCharge) || 0;
+export const getStoredAddons = () => {
+  try {
+    const data = localStorage.getItem('studypoint_addons');
+    if (data) {
+      const parsed = JSON.parse(data);
+      if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+    }
+  } catch (e) {}
+  return [];
+};
+
+export const calculateSeatAddonCharges = (seatAddons = {}, addonList = [], durationMonths = 1) => {
+  const charges = {};
+  let total = 0;
+  if (!seatAddons || typeof seatAddons !== 'object') return { charges, total };
+
+  const duration = Number(durationMonths) || 1;
+  const list = Array.isArray(addonList) && addonList.length > 0 ? addonList : getStoredAddons();
+
+  list.forEach((addon) => {
+    const nameLower = addon.name?.toLowerCase();
+    const isChecked = Boolean(
+      seatAddons[addon.id] ||
+      (nameLower && seatAddons[nameLower]) ||
+      (addon.name && seatAddons[addon.name])
+    );
+    if (isChecked) {
+      const monthly = Number(addon.monthlyCharge) || 0;
+      const totalCharge = monthly * duration;
+      charges[addon.name] = totalCharge;
+      total += totalCharge;
     }
   });
-  return total;
+
+  return { charges, total };
+};
+
+export const calculateTotalFee = (baseFee, addons = {}, addonPricing = []) => {
+  let total = Number(baseFee) || 0;
+  const { total: addonTotal } = calculateSeatAddonCharges(addons, addonPricing, 1);
+  return total + addonTotal;
 };
 
 // Security: XSS & HTML Sanitizer

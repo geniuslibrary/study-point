@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import Modal from '../common/Modal';
 import Button from '../common/Button';
 import { Sun, Sunrise, Sunset, Clock, Armchair, AlertCircle, Calendar, UserX, CheckCircle, Tag, IndianRupee } from 'lucide-react';
-import { formatDate, formatCurrency, getStoredShifts } from '../../utils/helpers';
+import { formatDate, formatCurrency, getStoredShifts, calculateSeatAddonCharges, getStoredAddons } from '../../utils/helpers';
 
 export default function StudentForm({
   isOpen,
@@ -78,13 +78,20 @@ export default function StudentForm({
     }
   }, [editData, isOpen, sections, plans]);
 
-  // Calculate Subscription Period from Join Date & Plan Duration
+  // Calculate Subscription Period & Total Price from Join Date, Plan & Seat Addons
   const getBillingCycleInfo = () => {
     const selectedPlan = plans.find((p) => p.id === formData.membershipPlanId);
     const duration = selectedPlan?.durationMonths || 1;
     const planPrice = Number(selectedPlan?.price) || 0;
     const discount = formData.discountAmount === '' ? 0 : Number(formData.discountAmount) || 0;
-    const finalPrice = Math.max(0, planPrice - discount);
+
+    const selectedSeat = seats.find((s) => s.id === formData.seatId);
+    const { charges: addonCharges, total: addonTotal } = calculateSeatAddonCharges(
+      selectedSeat?.addons,
+      getStoredAddons(),
+      duration
+    );
+    const finalPrice = Math.max(0, planPrice + addonTotal - discount);
 
     try {
       const [y, m, d] = formData.joinDate.split('-').map(Number);
@@ -98,6 +105,8 @@ export default function StudentForm({
         planName: selectedPlan?.name || '1 Month Plan',
         planPrice,
         discount,
+        addonCharges,
+        addonTotal,
         finalPrice,
       };
     } catch (e) {
@@ -109,6 +118,8 @@ export default function StudentForm({
         planName: selectedPlan?.name || '1 Month Plan',
         planPrice,
         discount,
+        addonCharges,
+        addonTotal,
         finalPrice,
       };
     }
@@ -526,6 +537,11 @@ export default function StudentForm({
           <div className="pt-1 border-t border-emerald-200/60 flex items-center justify-between text-xs">
             <span>
               Plan Rate: <strong>₹{cycleInfo.planPrice}</strong>
+              {cycleInfo.addonTotal > 0 && (
+                <span className="text-indigo-700 font-bold ml-1.5">
+                  (+₹{cycleInfo.addonTotal} {Object.keys(cycleInfo.addonCharges || {}).join(', ')} Addon)
+                </span>
+              )}
               {cycleInfo.discount > 0 && <span className="text-emerald-700 font-bold ml-1.5">(-₹{cycleInfo.discount} Discount)</span>}
             </span>
             <span className="font-black text-sm text-emerald-900">

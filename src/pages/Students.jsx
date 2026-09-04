@@ -7,6 +7,7 @@ import StudentForm from '../components/students/StudentForm';
 import StudentProfile from '../components/students/StudentProfile';
 import { Plus, Loader2 } from 'lucide-react';
 import { COLLECTIONS, SEAT_STATUS, STUDENT_STATUS } from '../utils/constants';
+import { calculateSeatAddonCharges, getStoredAddons } from '../utils/helpers';
 import { useAuth } from '../context/AuthContext';
 import {
   fetchCollectionData,
@@ -22,6 +23,7 @@ export default function Students() {
   const [seats, setSeats] = useState([]);
   const [plans, setPlans] = useState([]);
   const [fees, setFees] = useState([]);
+  const [addonPricing, setAddonPricing] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [editData, setEditData] = useState(null);
@@ -37,18 +39,20 @@ export default function Students() {
   const fetchData = async () => {
     setLoading(true);
     try {
-      const [stuDocs, secDocs, seatDocs, planDocs, feeDocs] = await Promise.all([
+      const [stuDocs, secDocs, seatDocs, planDocs, feeDocs, addonDocs] = await Promise.all([
         fetchCollectionData(COLLECTIONS.STUDENTS),
         fetchCollectionData(COLLECTIONS.SECTIONS),
         fetchCollectionData(COLLECTIONS.SEATS),
         fetchCollectionData(COLLECTIONS.MEMBERSHIP_PLANS),
         fetchCollectionData(COLLECTIONS.FEES),
+        fetchCollectionData(COLLECTIONS.ADDON_PRICING),
       ]);
       setStudents(stuDocs);
       setSections(secDocs);
       setSeats(seatDocs);
       setPlans(planDocs);
       setFees(feeDocs);
+      setAddonPricing(addonDocs && addonDocs.length > 0 ? addonDocs : getStoredAddons());
     } catch (err) {
       console.error(err);
     } finally {
@@ -127,7 +131,14 @@ export default function Students() {
 
     const docRecord = await createDocument(COLLECTIONS.STUDENTS, newStudentData);
 
-    // Auto-create initial fee record with discount for this student
+    const allocatedSeat = seats.find((s) => s.id === newStudentData.seatId);
+    const { charges: addonCharges, total: addonTotal } = calculateSeatAddonCharges(
+      allocatedSeat?.addons,
+      addonPricing,
+      duration
+    );
+
+    // Auto-create initial fee record with discount & seat facilities (e.g. Locker) for this student
     if (newStudentData.status === 'active') {
       const monthStr = `${joinD.getFullYear()}-${String(joinD.getMonth() + 1).padStart(2, '0')}`;
       const feeDocId = `fee_${docRecord.id}_${monthStr.replace('-', '_')}`;
@@ -135,10 +146,10 @@ export default function Students() {
         COLLECTIONS.FEES,
         {
           studentId: docRecord.id,
-          amount: Math.max(0, baseFee - discount),
+          amount: Math.max(0, baseFee + addonTotal - discount),
           baseFee,
           discountAmount: discount,
-          addonCharges: {},
+          addonCharges,
           dueDate: membershipEnd.toISOString(),
           paidDate: null,
           status: 'pending',
@@ -196,13 +207,21 @@ export default function Students() {
 
     await updateDocument(COLLECTIONS.STUDENTS, editData.id, updatedData);
 
-    // Also update any pending fee records for this student to reflect new discount / plan
+    const allocatedSeat = seats.find((s) => s.id === updatedData.seatId);
+    const { charges: addonCharges, total: addonTotal } = calculateSeatAddonCharges(
+      allocatedSeat?.addons,
+      addonPricing,
+      duration
+    );
+
+    // Also update any pending fee records for this student to reflect new discount / plan / facilities
     const pendingStudentFee = fees.find((f) => f.studentId === editData.id && f.status === 'pending');
     if (pendingStudentFee) {
       await updateDocument(COLLECTIONS.FEES, pendingStudentFee.id, {
         baseFee,
         discountAmount: discount,
-        amount: Math.max(0, baseFee - discount),
+        addonCharges,
+        amount: Math.max(0, baseFee + addonTotal - discount),
         planId: plan?.id || pendingStudentFee.planId,
         planName: plan?.name || pendingStudentFee.planName,
         planDuration: duration,
