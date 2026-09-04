@@ -5,6 +5,16 @@ import { useAuth } from '../../context/AuthContext';
 import { fetchCollectionData } from '../../firebase/storageService';
 import { COLLECTIONS } from '../../utils/constants';
 
+const getHeaderRoleBadge = (user) => {
+  if (!user) return 'Staff';
+  if (user.role === 'owner') return '👑 Owner';
+  if (user.roleLabel && user.roleLabel.toLowerCase() !== 'custom') return user.roleLabel;
+  if (user.role === 'receptionist') return '🛎️ Receptionist';
+  if (user.role === 'manager') return '👔 Branch Manager';
+  if (user.role === 'custom') return '⚙️ Custom Role';
+  return user.role;
+};
+
 const Header = ({ title, onMenuClick }) => {
   const { user, logout } = useAuth();
   const [notificationOpen, setNotificationOpen] = useState(false);
@@ -91,7 +101,7 @@ const Header = ({ title, onMenuClick }) => {
                 {user?.displayName || 'Study Point Owner'}
               </p>
               <span className="text-[10px] font-bold bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded-md border border-indigo-100 mt-0.5 inline-block">
-                {user?.roleLabel || (user?.role === 'receptionist' ? '🛎️ Receptionist' : user?.role === 'manager' ? '👔 Branch Manager' : user?.role === 'owner' ? '👑 Owner' : user?.role || 'Staff')}
+                {getHeaderRoleBadge(user)}
               </span>
             </div>
           </div>

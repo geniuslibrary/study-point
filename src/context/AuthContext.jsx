@@ -37,13 +37,61 @@ export const AuthProvider = ({ children }) => {
       }
     }
 
-    // 2. Listen to Firebase Auth state
+    // 2. Refresh staff session from database on startup
+    const syncStaffSession = async (currUser) => {
+      if (!currUser || currUser.role === 'owner') return;
+      try {
+        let staffList = getLocalCollection(COLLECTIONS.STAFF_USERS);
+        const cloudStaff = await fetchCollectionData(COLLECTIONS.STAFF_USERS);
+        if (cloudStaff && cloudStaff.length > 0) staffList = cloudStaff;
+
+        const staffMember = staffList.find(
+          (s) => s.id === currUser.uid || s.email?.toLowerCase() === currUser.email?.toLowerCase()
+        );
+
+        if (staffMember) {
+          const roleLabel =
+            staffMember.roleLabel ||
+            (staffMember.role === 'receptionist'
+              ? '🛎️ Receptionist'
+              : staffMember.role === 'manager'
+              ? '👔 Branch Manager'
+              : '⚙️ Custom Role');
+
+          const updated = {
+            ...currUser,
+            displayName: staffMember.name || currUser.displayName,
+            role: staffMember.role || 'receptionist',
+            roleLabel,
+            permissions: staffMember.permissions || currUser.permissions,
+            phone: staffMember.phone || currUser.phone,
+          };
+          setUser(updated);
+          localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(updated));
+        }
+      } catch (e) {
+        console.warn('Session sync error:', e);
+      }
+    };
+
+    if (savedSession) {
+      try {
+        const parsed = JSON.parse(savedSession);
+        syncStaffSession(parsed);
+      } catch (e) {}
+    }
+
+    // 3. Listen to Firebase Auth state
     const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
       if (firebaseUser) {
         const local = localStorage.getItem(LOCAL_STORAGE_KEY);
         if (local) {
           try {
-            setUser(JSON.parse(local));
+            const parsed = JSON.parse(local);
+            setUser(parsed);
+            if (parsed.role !== 'owner') {
+              syncStaffSession(parsed);
+            }
           } catch (e) {}
         } else {
           const userData = {
@@ -51,6 +99,7 @@ export const AuthProvider = ({ children }) => {
             email: firebaseUser.email,
             displayName: firebaseUser.displayName || 'Owner',
             role: 'owner',
+            roleLabel: '👑 Owner',
             permissions: ROLE_PRESETS.owner.permissions,
           };
           setUser(userData);
@@ -58,12 +107,13 @@ export const AuthProvider = ({ children }) => {
         }
       } else {
         const local = localStorage.getItem(LOCAL_STORAGE_KEY);
-        // Only clear if owner session
         if (local) {
           try {
             const parsed = JSON.parse(local);
             if (parsed.role === 'owner') {
               // owner signed out
+            } else {
+              syncStaffSession(parsed);
             }
           } catch (e) {}
         }
@@ -73,6 +123,11 @@ export const AuthProvider = ({ children }) => {
 
     return unsubscribe;
   }, []);
+
+  const refreshUserSession = (updatedSession) => {
+    setUser(updatedSession);
+    localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(updatedSession));
+  };
 
   const hasPermission = (moduleName, action = 'view') => {
     if (!user) return false;
@@ -235,6 +290,7 @@ export const AuthProvider = ({ children }) => {
     signup,
     logout,
     hasPermission,
+    refreshUserSession,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
