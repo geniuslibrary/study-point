@@ -14,6 +14,7 @@ import {
   Layers,
   ArrowUpDown,
   RotateCcw,
+  Tag,
 } from 'lucide-react';
 
 export default function FeeTracker({
@@ -235,7 +236,7 @@ export default function FeeTracker({
               <th className="px-5 py-3.5">Student & Phone</th>
               <th className="px-5 py-3.5">Seat / Section</th>
               <th className="px-5 py-3.5">Billing Validity Period</th>
-              <th className="px-5 py-3.5">Amount</th>
+              <th className="px-5 py-3.5">Amount & Discount</th>
               <th className="px-5 py-3.5">Due Date</th>
               <th className="px-5 py-3.5">Status</th>
               <th className="px-5 py-3.5 text-right">Actions</th>
@@ -245,6 +246,8 @@ export default function FeeTracker({
             {filteredFees.map((fee) => {
               const student = getStudent(fee.studentId);
               const seatNum = getSeatNumber(fee.studentId);
+              const discount = Number(fee.discountAmount) || Number(student?.discountAmount) || 0;
+              const baseRate = Number(fee.baseFee) || (Number(fee.amount) + discount);
 
               return (
                 <tr key={fee.id} className="hover:bg-slate-50/80 transition-colors">
@@ -283,8 +286,18 @@ export default function FeeTracker({
                     )}
                   </td>
 
-                  <td className="px-5 py-3.5 font-extrabold text-slate-900">
-                    {formatCurrency(fee.amount)}
+                  <td className="px-5 py-3.5">
+                    <div className="font-extrabold text-slate-900 text-sm">
+                      {formatCurrency(fee.amount)}
+                    </div>
+                    {discount > 0 ? (
+                      <div className="text-[11px] font-bold text-emerald-700 mt-0.5 flex items-center gap-1">
+                        <Tag className="w-3 h-3 text-emerald-600 shrink-0" />
+                        <span>-₹{discount} छूट ({formatCurrency(baseRate)})</span>
+                      </div>
+                    ) : (
+                      <span className="text-[10px] text-slate-400 font-medium">Standard Rate</span>
+                    )}
                   </td>
 
                   <td className="px-5 py-3.5 text-xs text-slate-500">
@@ -331,6 +344,7 @@ export default function FeeTracker({
         {filteredFees.map((fee) => {
           const student = getStudent(fee.studentId);
           const seatNum = getSeatNumber(fee.studentId);
+          const discount = Number(fee.discountAmount) || Number(student?.discountAmount) || 0;
 
           return (
             <div key={fee.id} className="p-4 space-y-2.5">
@@ -357,8 +371,15 @@ export default function FeeTracker({
 
               <div className="flex items-center justify-between pt-1">
                 <div>
-                  <span className="text-[10px] text-slate-400 font-bold uppercase block">Amount</span>
-                  <span className="text-base font-black text-slate-900">{formatCurrency(fee.amount)}</span>
+                  <span className="text-[10px] text-slate-400 font-bold uppercase block">Amount & Discount</span>
+                  <div className="flex items-baseline gap-1.5">
+                    <span className="text-base font-black text-slate-900">{formatCurrency(fee.amount)}</span>
+                    {discount > 0 && (
+                      <span className="text-[11px] text-emerald-700 font-bold">
+                        (-₹{discount} छूट)
+                      </span>
+                    )}
+                  </div>
                 </div>
 
                 <div className="flex gap-1.5">
