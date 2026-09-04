@@ -204,6 +204,32 @@ export default function Settings() {
     setIsSaving(false);
   };
 
+  // Add New Blank Shift Block
+  const handleAddNewShiftBlock = () => {
+    const newId = 'shift_' + Date.now().toString(36) + Math.random().toString(36).substr(2, 4);
+    const newBlock = {
+      id: newId,
+      label: 'New Shift Slot',
+      start: '',
+      end: '',
+      timing: '',
+      short: '',
+      color: 'indigo',
+    };
+    setShifts((prev) => [...prev, newBlock]);
+    showToast('✨ New blank shift block generated! Enter timing details and save.');
+  };
+
+  // Delete Shift Block
+  const handleDeleteShiftBlock = (shiftId) => {
+    if (shifts.length <= 1) {
+      alert('At least 1 shift must remain configured.');
+      return;
+    }
+    setShifts((prev) => prev.filter((s) => s.id !== shiftId));
+    showToast('Shift block removed');
+  };
+
   // Handle Shift Timing Edit
   const handleShiftChange = (shiftId, field, val) => {
     setShifts((prev) =>
@@ -211,11 +237,13 @@ export default function Settings() {
         if (s.id !== shiftId) return s;
         const updated = { ...s, [field]: val };
         if (field === 'start' || field === 'end') {
-          const start = field === 'start' ? val : (s.start || '6:00 AM');
-          const end = field === 'end' ? val : (s.end || '2:00 PM');
-          updated.timing = `${start} - ${end}`;
-          if (!updated.short || updated.short === s.short) {
-            updated.short = `${start.replace(':00', '')} - ${end.replace(':00', '')}`;
+          const start = field === 'start' ? val : (s.start || '');
+          const end = field === 'end' ? val : (s.end || '');
+          if (start && end) {
+            updated.timing = `${start} - ${end}`;
+            if (!updated.short || updated.short === s.short) {
+              updated.short = `${start.replace(':00', '')} - ${end.replace(':00', '')}`;
+            }
           }
         }
         return updated;
@@ -329,6 +357,15 @@ export default function Settings() {
   const showToast = (msg) => {
     setToastMessage(msg);
     setTimeout(() => setToastMessage(''), 4000);
+  };
+
+  const getShiftIcon = (shiftId = '') => {
+    const id = String(shiftId).toLowerCase();
+    if (id.includes('full')) return <Sun className="w-4 h-4 text-indigo-600 shrink-0" />;
+    if (id.includes('first') || id.includes('morn') || id.includes('1st')) return <Sunrise className="w-4 h-4 text-amber-600 shrink-0" />;
+    if (id.includes('second') || id.includes('even') || id.includes('2nd')) return <Sunset className="w-4 h-4 text-purple-600 shrink-0" />;
+    if (id.includes('night') || id.includes('rat')) return <Clock className="w-4 h-4 text-blue-600 shrink-0" />;
+    return <Clock className="w-4 h-4 text-teal-600 shrink-0" />;
   };
 
   return (
@@ -554,75 +591,98 @@ export default function Settings() {
             </form>
           </Card>
 
-          {/* Seat Shift Timings Configuration (Exact Clean Layout) */}
+          {/* Seat Shift Timings Configuration (Exact Clean Layout + Header Add Button) */}
           <div className="space-y-6">
             <Card title="Seat Shift & Timing Settings (शिफ्ट व समय प्रबंधन)">
               <form onSubmit={handleSaveShifts} className="space-y-4">
-                <p className="text-xs text-slate-500">
-                  Set library shift timings (e.g. Morning 6 AM - 1 PM or 6 AM - 2 PM). These timings will appear in admission forms & seat layout.
-                </p>
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                  <p className="text-xs text-slate-500">
+                    Set library shift timings. These timings will appear in admission forms & seat layout.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={handleAddNewShiftBlock}
+                    className="px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 shrink-0 cursor-pointer shadow-2xs self-start sm:self-auto"
+                  >
+                    <Plus size={14} />
+                    <span>Add Shift Slot</span>
+                  </button>
+                </div>
 
                 <div className="space-y-3">
-                  {shifts.map((shift) => {
-                    const getIcon = () => {
-                      if (shift.id === 'full_day') return <Sun className="w-4 h-4 text-indigo-600 shrink-0" />;
-                      if (shift.id === 'first_half') return <Sunrise className="w-4 h-4 text-amber-600 shrink-0" />;
-                      if (shift.id === 'second_half') return <Sunset className="w-4 h-4 text-purple-600 shrink-0" />;
-                      return <Clock className="w-4 h-4 text-teal-600 shrink-0" />;
-                    };
-
-                    return (
-                      <div
-                        key={shift.id}
-                        className="p-3.5 bg-slate-50 rounded-2xl border border-slate-200 space-y-2"
-                      >
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-2">
-                            {getIcon()}
-                            <span className="text-xs font-bold text-slate-800">{shift.label}</span>
-                          </div>
-                          <span className="text-[11px] font-black text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded-md border border-indigo-100">
-                            {shift.timing || `${shift.start || ''} - ${shift.end || ''}`}
-                          </span>
+                  {shifts.map((shift) => (
+                    <div
+                      key={shift.id}
+                      className="p-3.5 bg-slate-50 rounded-2xl border border-slate-200 space-y-2 relative group"
+                    >
+                      {/* Top Row: Icon + Editable Name + Timing Badge + Delete Button */}
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="flex items-center gap-2 flex-1 min-w-0">
+                          {getShiftIcon(shift.id || shift.label)}
+                          <input
+                            type="text"
+                            value={shift.label || ''}
+                            onChange={(e) => handleShiftChange(shift.id, 'label', e.target.value)}
+                            placeholder="Shift Name (e.g. Night Shift)"
+                            className="font-bold text-xs text-slate-800 bg-transparent border-b border-dashed border-slate-300 hover:border-indigo-400 focus:border-indigo-600 focus:bg-white px-1.5 py-0.5 rounded outline-none w-full max-w-xs transition-colors"
+                          />
                         </div>
 
-                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 pt-1">
-                          <div>
-                            <label className="block text-[10px] font-bold text-slate-500 uppercase">Start Time</label>
-                            <input
-                              type="text"
-                              value={shift.start || ''}
-                              onChange={(e) => handleShiftChange(shift.id, 'start', e.target.value)}
-                              placeholder="e.g. 6:00 AM"
-                              className="w-full px-2.5 py-1.5 bg-white border border-slate-300 rounded-lg text-xs font-semibold text-slate-900"
-                            />
-                          </div>
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          <span className="text-[11px] font-black text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded-md border border-indigo-100">
+                            {shift.timing || (shift.start && shift.end ? `${shift.start} - ${shift.end}` : 'Custom')}
+                          </span>
 
-                          <div>
-                            <label className="block text-[10px] font-bold text-slate-500 uppercase">End Time</label>
-                            <input
-                              type="text"
-                              value={shift.end || ''}
-                              onChange={(e) => handleShiftChange(shift.id, 'end', e.target.value)}
-                              placeholder="e.g. 1:00 PM or 2:00 PM"
-                              className="w-full px-2.5 py-1.5 bg-white border border-slate-300 rounded-lg text-xs font-semibold text-slate-900"
-                            />
-                          </div>
-
-                          <div className="col-span-2 sm:col-span-1">
-                            <label className="block text-[10px] font-bold text-slate-500 uppercase">Short Badge</label>
-                            <input
-                              type="text"
-                              value={shift.short || ''}
-                              onChange={(e) => handleShiftChange(shift.id, 'short', e.target.value)}
-                              placeholder="e.g. 6 AM - 1 PM"
-                              className="w-full px-2.5 py-1.5 bg-white border border-slate-300 rounded-lg text-xs font-semibold text-indigo-700"
-                            />
-                          </div>
+                          {shifts.length > 1 && (
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteShiftBlock(shift.id)}
+                              className="p-1 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-md transition-colors cursor-pointer"
+                              title="Delete shift slot"
+                            >
+                              <Trash2 size={14} />
+                            </button>
+                          )}
                         </div>
                       </div>
-                    );
-                  })}
+
+                      {/* Bottom Inputs Row: Start Time, End Time, Short Badge */}
+                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 pt-1">
+                        <div>
+                          <label className="block text-[10px] font-bold text-slate-500 uppercase">Start Time</label>
+                          <input
+                            type="text"
+                            value={shift.start || ''}
+                            onChange={(e) => handleShiftChange(shift.id, 'start', e.target.value)}
+                            placeholder="e.g. 6:00 AM"
+                            className="w-full px-2.5 py-1.5 bg-white border border-slate-300 rounded-lg text-xs font-semibold text-slate-900"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-[10px] font-bold text-slate-500 uppercase">End Time</label>
+                          <input
+                            type="text"
+                            value={shift.end || ''}
+                            onChange={(e) => handleShiftChange(shift.id, 'end', e.target.value)}
+                            placeholder="e.g. 1:00 PM or 2:00 PM"
+                            className="w-full px-2.5 py-1.5 bg-white border border-slate-300 rounded-lg text-xs font-semibold text-slate-900"
+                          />
+                        </div>
+
+                        <div className="col-span-2 sm:col-span-1">
+                          <label className="block text-[10px] font-bold text-slate-500 uppercase">Short Badge</label>
+                          <input
+                            type="text"
+                            value={shift.short || ''}
+                            onChange={(e) => handleShiftChange(shift.id, 'short', e.target.value)}
+                            placeholder="e.g. 6 AM - 1 PM"
+                            className="w-full px-2.5 py-1.5 bg-white border border-slate-300 rounded-lg text-xs font-semibold text-indigo-700"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  ))}
                 </div>
 
                 <div className="pt-2">
