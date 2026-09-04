@@ -1,11 +1,11 @@
 import React, { useState } from 'react';
 import { useNavigate, Navigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { BookOpen, LogIn, Lock, Mail, Eye, EyeOff } from 'lucide-react';
+import { BookOpen, LogIn, Lock, Mail, Eye, EyeOff, User } from 'lucide-react';
 import Button from '../components/common/Button';
 
 export default function Login() {
-  const [email, setEmail] = useState('');
+  const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
@@ -25,11 +25,11 @@ export default function Login() {
     setLoading(true);
 
     try {
-      await login(email, password);
+      await login(identifier, password);
       navigate('/');
     } catch (err) {
       console.error(err);
-      setError(err.message || 'Invalid email or password. Please check your credentials.');
+      setError(err.message || 'Invalid login details. Please check your email/ID and password.');
     } finally {
       setLoading(false);
     }
@@ -60,17 +60,19 @@ export default function Login() {
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
               <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
-                Login Email
+                Login Email / Staff User ID / Phone
               </label>
               <div className="relative">
-                <Mail className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                <User className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
                 <input
-                  type="email"
+                  type="text"
                   required
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
+                  value={identifier}
+                  onChange={(e) => setIdentifier(e.target.value)}
                   className="w-full pl-10 pr-4 py-2.5 border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-sm outline-none transition-all"
-                  placeholder="owner@studypoint.com"
+                  placeholder="e.g. owner@studypoint.com or staff ID"
+                  autoCapitalize="none"
+                  autoCorrect="off"
                 />
               </div>
             </div>
@@ -112,7 +114,7 @@ export default function Login() {
 
           <div className="mt-6 pt-5 border-t border-slate-100 text-center">
             <p className="text-xs text-slate-400">
-              Authorized Owner & Receptionist Access Only
+              Authorized Owner, Manager & Receptionist Access Only
             </p>
           </div>
         </div>
@@ -120,3 +122,4 @@ export default function Login() {
     </div>
   );
 }
+

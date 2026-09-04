@@ -6,7 +6,7 @@ import {
   onAuthStateChanged,
   createUserWithEmailAndPassword,
 } from 'firebase/auth';
-import { fetchCollectionData } from '../firebase/storageService';
+import { fetchCollectionData, getLocalCollection } from '../firebase/storageService';
 import { COLLECTIONS, ROLE_PRESETS } from '../utils/constants';
 
 const AuthContext = createContext();
@@ -58,7 +58,7 @@ export const AuthProvider = ({ children }) => {
         }
       } else {
         const local = localStorage.getItem(LOCAL_STORAGE_KEY);
-        // Only clear if not a staff session
+        // Only clear if owner session
         if (local) {
           try {
             const parsed = JSON.parse(local);
@@ -83,64 +83,109 @@ export const AuthProvider = ({ children }) => {
     return !!modulePerms[action];
   };
 
-  const login = async (email, password) => {
-    const cleanEmail = email.trim().toLowerCase();
-    const cleanPass = password.trim();
+  const login = async (identifier, password) => {
+    const cleanId = (identifier || '').trim().toLowerCase();
+    const cleanPass = (password || '').trim();
 
-    if (!cleanEmail || !cleanPass) {
-      throw new Error('Please enter both email and password.');
+    if (!cleanId || !cleanPass) {
+      throw new Error('Please enter both Email/ID and Password.');
     }
 
     // 1. Check if login matches a Staff User created by the Owner
     try {
-      const staffList = await fetchCollectionData(COLLECTIONS.STAFF_USERS);
-      const staffMember = staffList.find(
-        (s) =>
-          s.email?.trim().toLowerCase() === cleanEmail &&
-          s.password?.trim() === cleanPass &&
-          s.status !== 'inactive'
-      );
+      let staffList = getLocalCollection(COLLECTIONS.STAFF_USERS);
 
-      if (staffMember) {
-        const staffSession = {
-          uid: staffMember.id,
-          email: staffMember.email,
-          displayName: staffMember.name || 'Staff Member',
-          role: staffMember.role || 'receptionist',
-          permissions: staffMember.permissions || ROLE_PRESETS[staffMember.role]?.permissions || {},
-          phone: staffMember.phone || '',
-        };
-        setUser(staffSession);
-        localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(staffSession));
-        return staffSession;
+      // Always also fetch latest from Firestore
+      try {
+        const cloudStaff = await fetchCollectionData(COLLECTIONS.STAFF_USERS);
+        if (cloudStaff && cloudStaff.length > 0) {
+          staffList = cloudStaff;
+        }
+      } catch (err) {
+        console.warn('Live staff fetch error during login:', err);
+      }
+
+      if (staffList && staffList.length > 0) {
+        const staffMember = staffList.find((s) => {
+          const sEmail = (s.email || '').trim().toLowerCase();
+          const sName = (s.name || '').trim().toLowerCase();
+          const sPhone = (s.phone || '').trim().toLowerCase();
+          const sUsername = sEmail.includes('@') ? sEmail.split('@')[0] : sEmail;
+
+          return (
+            sEmail === cleanId ||
+            sName === cleanId ||
+            sPhone === cleanId ||
+            sUsername === cleanId
+          );
+        });
+
+        if (staffMember) {
+          // Compare password
+          if (String(staffMember.password || '').trim() !== cleanPass) {
+            throw new Error('Incorrect staff password. Please re-enter or check with owner.');
+          }
+
+          if (staffMember.status === 'inactive') {
+            throw new Error('This staff account is currently inactive (disabled). Please contact the Owner.');
+          }
+
+          // Build staff session
+          const fallbackPerms = ROLE_PRESETS[staffMember.role]?.permissions || ROLE_PRESETS.receptionist.permissions;
+          const staffSession = {
+            uid: staffMember.id,
+            email: staffMember.email,
+            displayName: staffMember.name || 'Staff Member',
+            role: staffMember.role || 'receptionist',
+            permissions: staffMember.permissions || fallbackPerms,
+            phone: staffMember.phone || '',
+          };
+
+          setUser(staffSession);
+          localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(staffSession));
+          return staffSession;
+        }
       }
     } catch (e) {
-      console.warn('Staff lookup:', e);
+      if (
+        e.message.includes('Incorrect staff password') ||
+        e.message.includes('inactive')
+      ) {
+        throw e;
+      }
+      console.warn('Staff lookup error:', e);
     }
 
     // 2. Standard Firebase Authentication for Owner
-    try {
-      const userCredential = await signInWithEmailAndPassword(auth, cleanEmail, cleanPass);
-      const userData = {
-        uid: userCredential.user.uid,
-        email: userCredential.user.email,
-        displayName: userCredential.user.displayName || 'Owner',
-        role: 'owner',
-        permissions: ROLE_PRESETS.owner.permissions,
-      };
-      setUser(userData);
-      localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(userData));
-      return userData;
-    } catch (err) {
-      // Friendly error messages
-      if (err.code === 'auth/user-not-found' || err.code === 'auth/invalid-credential' || err.code === 'auth/invalid-login-credentials') {
-        throw new Error('Invalid email or password. If you are a new owner, please sign up.');
-      } else if (err.code === 'auth/wrong-password') {
-        throw new Error('Incorrect password. Please try again.');
-      } else if (err.code === 'auth/too-many-requests') {
-        throw new Error('Too many failed attempts. Please try again later.');
+    if (cleanId.includes('@')) {
+      try {
+        const userCredential = await signInWithEmailAndPassword(auth, cleanId, cleanPass);
+        const userData = {
+          uid: userCredential.user.uid,
+          email: userCredential.user.email,
+          displayName: userCredential.user.displayName || 'Owner',
+          role: 'owner',
+          permissions: ROLE_PRESETS.owner.permissions,
+        };
+        setUser(userData);
+        localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(userData));
+        return userData;
+      } catch (err) {
+        if (
+          err.code === 'auth/user-not-found' ||
+          err.code === 'auth/invalid-credential' ||
+          err.code === 'auth/invalid-login-credentials'
+        ) {
+          throw new Error('Invalid email or password. If you are logging in as staff, verify your ID/Password in Staff & Roles.');
+        } else if (err.code === 'auth/wrong-password') {
+          throw new Error('Incorrect password. Please try again.');
+        } else if (err.code === 'auth/too-many-requests') {
+          throw new Error('Too many failed attempts. Please try again later.');
+        }
+        throw new Error(err.message || 'Authentication failed. Please check credentials.');
       }
-      throw new Error(err.message || 'Authentication failed. Please check credentials.');
+    } else {
+      throw new Error('No staff account found with this ID or Username. Please check your spelling or contact the owner.');
     }
   };
 
@@ -186,3 +231,4 @@ export const AuthProvider = ({ children }) => {
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };
+

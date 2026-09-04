@@ -33,7 +33,7 @@ export const setLocalCollection = (coll, items) => {
 };
 
 // Fast timeout helper to prevent hanging on blocked/pending Firestore network calls
-const fetchWithTimeout = (promise, ms = 1500) => {
+const fetchWithTimeout = (promise, ms = 4000) => {
   return Promise.race([
     promise,
     new Promise((_, reject) => setTimeout(() => reject(new Error('Firestore connection timeout')), ms)),
