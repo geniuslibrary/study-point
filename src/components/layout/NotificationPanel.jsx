@@ -126,14 +126,16 @@ export default function NotificationPanel({ isOpen, onClose }) {
 
     let message = '';
     if (type === 'expiry') {
-      const daysText =
-        student.diffDays === 0
-          ? 'आज (Today)'
-          : student.diffDays < 0
-          ? `${Math.abs(student.diffDays)} दिन पहले`
-          : `${student.diffDays} दिन में`;
+      let statusPhrase = '';
+      if (student.diffDays > 0) {
+        statusPhrase = `${student.diffDays} दिन बाद (${formatDate(student.expiryDate)}) समाप्त होने वाला है`;
+      } else if (student.diffDays < 0) {
+        statusPhrase = `${Math.abs(student.diffDays)} दिन पहले (${formatDate(student.expiryDate)}) समाप्त हो चुका है`;
+      } else {
+        statusPhrase = `आज (${formatDate(student.expiryDate)}) समाप्त हो रहा है`;
+      }
 
-      message = `नमस्ते ${student.name} जी,\n${libraryName} की तरफ से यह रिमाइंडर है कि आपकी Seat #${student.seatNumber} (${student.shiftTiming || 'Shift'}) का Subscription ${daysText} समाप्त (${formatDate(student.expiryDate)}) हो रहा है।\nकृपया अपनी सीट जारी रखने के लिए समय पर फीस जमा करें। धन्यवाद! 🙏`;
+      message = `नमस्ते ${student.name} जी,\n${libraryName} की तरफ से यह रिमाइंडर है कि आपकी Seat #${student.seatNumber} (${student.shiftTiming || 'Shift'}) का Subscription ${statusPhrase}।\nकृपया अपनी सीट जारी रखने के लिए समय पर फीस जमा करें। धन्यवाद! 🙏`;
     } else {
       message = `नमस्ते ${student.name} जी,\n${libraryName} में आपके चालू माह (${currentMonth}) की फीस बकाया है। कृपया समय पर फीस जमा करवाएं। धन्यवाद! 🙏`;
     }
