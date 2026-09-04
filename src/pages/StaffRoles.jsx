@@ -113,6 +113,15 @@ const DEFAULT_SYSTEM_ROLES = [
 export default function StaffRoles() {
   const [staffList, setStaffList] = useState([]);
   const [rolesList, setRolesList] = useState([]);
+  const [ownerRole, setOwnerRole] = useState({
+    id: 'role_owner',
+    name: 'Owner (Super Admin)',
+    emoji: '👑',
+    label: '👑 Owner (Super Admin)',
+    description: 'Full access to all revenue, expenses, audit reports & library settings.',
+    permissions: JSON.parse(JSON.stringify(ROLE_PRESETS.owner.permissions)),
+    isOwner: true,
+  });
   const [loading, setLoading] = useState(true);
 
   // Staff modal states
@@ -155,10 +164,16 @@ export default function StaffRoles() {
         fetchCollectionData(COLLECTIONS.ROLE_PRESETS),
       ]);
 
-      let finalRoles = rolesData;
+      const ownerDoc = rolesData.find((r) => r.id === 'role_owner' || r.isOwner);
+      if (ownerDoc) {
+        setOwnerRole(ownerDoc);
+      }
+
+      let regularRoles = rolesData.filter((r) => r.id !== 'role_owner' && !r.isOwner);
+
       // If no roles in DB yet, seed default system roles
-      if (!rolesData || rolesData.length === 0) {
-        finalRoles = DEFAULT_SYSTEM_ROLES;
+      if (!regularRoles || regularRoles.length === 0) {
+        regularRoles = DEFAULT_SYSTEM_ROLES;
         // Seed to DB in background
         Promise.all(
           DEFAULT_SYSTEM_ROLES.map((r) => createDocument(COLLECTIONS.ROLE_PRESETS, r, r.id))
@@ -166,7 +181,7 @@ export default function StaffRoles() {
       }
 
       setStaffList(staffData);
-      setRolesList(finalRoles);
+      setRolesList(regularRoles);
     } catch (e) {
       console.error('Error fetching staff data:', e);
     } finally {
@@ -180,6 +195,7 @@ export default function StaffRoles() {
 
   const getRoleLabel = (roleId, customLabel) => {
     if (customLabel && customLabel !== 'custom') return customLabel;
+    if (roleId === 'role_owner' || roleId === 'owner') return ownerRole.label || `👑 ${ownerRole.name}`;
     const found = rolesList.find((r) => r.id === roleId || r.name?.toLowerCase() === roleId?.toLowerCase());
     if (found) return found.label || `${found.emoji || '💼'} ${found.name}`;
     if (roleId === 'receptionist' || roleId === 'role_receptionist') return '🛎️ Receptionist';
@@ -327,7 +343,7 @@ export default function StaffRoles() {
     setEditRole(role);
     setRoleFormData({
       name: role.name || '',
-      emoji: role.emoji || '💼',
+      emoji: role.emoji || (role.isOwner ? '👑' : '💼'),
       description: role.description || '',
       permissions: role.permissions
         ? JSON.parse(JSON.stringify(role.permissions))
@@ -378,17 +394,24 @@ export default function StaffRoles() {
       return;
     }
 
+    const isOwnerRole = editRole?.isOwner || editRole?.id === 'role_owner';
+
     const payload = {
       name: roleFormData.name.trim(),
-      emoji: roleFormData.emoji || '💼',
-      label: `${roleFormData.emoji || '💼'} ${roleFormData.name.trim()}`,
-      description: roleFormData.description.trim() || 'Custom staff role template',
+      emoji: roleFormData.emoji || (isOwnerRole ? '👑' : '💼'),
+      label: `${roleFormData.emoji || (isOwnerRole ? '👑' : '💼')} ${roleFormData.name.trim()}`,
+      description: roleFormData.description.trim() || 'Staff role template',
       permissions: roleFormData.permissions,
+      isOwner: isOwnerRole,
     };
 
     try {
       if (editRole) {
-        await updateDocument(COLLECTIONS.ROLE_PRESETS, editRole.id, payload);
+        const docId = isOwnerRole ? 'role_owner' : editRole.id;
+        await updateDocument(COLLECTIONS.ROLE_PRESETS, docId, payload);
+        if (isOwnerRole) {
+          setOwnerRole({ ...payload, id: 'role_owner' });
+        }
         showToast(`Role "${payload.label}" updated successfully!`);
       } else {
         await createDocument(COLLECTIONS.ROLE_PRESETS, payload);
@@ -496,7 +519,7 @@ export default function StaffRoles() {
           <div className="flex items-center justify-between">
             <h3 className="font-bold text-gray-900 text-sm flex items-center gap-2">
               <ShieldCheck className="w-4 h-4 text-indigo-600" />
-              <span>Configured Staff Roles & Templates ({rolesList.length + 1})</span>
+              <span>Configured Roles & Permissions ({rolesList.length + 1})</span>
             </h3>
             <button
               onClick={handleOpenAddRole}
@@ -508,15 +531,28 @@ export default function StaffRoles() {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3.5">
-            {/* Owner Master Card (Fixed) */}
-            <div className="bg-white p-4 rounded-2xl border border-indigo-100 shadow-2xs space-y-1">
-              <div className="flex items-center gap-2 font-bold text-gray-900 text-sm">
-                <span className="text-base">👑</span>
-                <span>Owner (Super Admin)</span>
+            {/* Owner Master Card (Now Fully Editable & Updatable) */}
+            <div className="bg-white p-4 rounded-2xl border border-indigo-100 shadow-2xs space-y-1 flex flex-col justify-between hover:border-indigo-300 transition-all">
+              <div>
+                <div className="flex items-center justify-between gap-1">
+                  <div className="flex items-center gap-2 font-bold text-gray-900 text-sm">
+                    <span className="text-base">{ownerRole.emoji || '👑'}</span>
+                    <span className="truncate">{ownerRole.name}</span>
+                  </div>
+                  <div className="flex items-center gap-1 shrink-0">
+                    <button
+                      onClick={() => handleOpenEditRole(ownerRole)}
+                      className="p-1.5 text-indigo-600 hover:bg-indigo-50 rounded-lg cursor-pointer transition-colors"
+                      title="Edit Owner Role & Permissions"
+                    >
+                      <Edit size={14} />
+                    </button>
+                  </div>
+                </div>
+                <p className="text-xs text-gray-500 leading-relaxed mt-1 line-clamp-2">
+                  {ownerRole.description || 'Full access to all revenue, expenses, audit reports & library settings.'}
+                </p>
               </div>
-              <p className="text-xs text-gray-500 leading-relaxed">
-                Full access to all revenue, expenses, audit reports & library settings.
-              </p>
             </div>
 
             {/* All Configured Roles with Full Edit & Delete Options */}
