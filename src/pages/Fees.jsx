@@ -229,10 +229,27 @@ export default function Fees() {
   };
 
   const currentMonth = getMonthYear();
+  const todayStr = new Date().toISOString().split('T')[0];
+
+  // Daily & Monthly Operational Calculations
+  const todayPaidFees = fees.filter(
+    (f) => f.status === 'paid' && f.paidDate && f.paidDate.startsWith(todayStr)
+  );
+  const todayCollected = todayPaidFees.reduce((s, f) => s + (Number(f.amount) || 0), 0);
+  const todayCount = todayPaidFees.length;
+
   const monthFees = fees.filter((f) => f.month === (selectedMonth || currentMonth));
-  const totalRevenue = fees.filter((f) => f.status === 'paid').reduce((s, f) => s + (Number(f.amount) || 0), 0);
-  const monthCollected = monthFees.filter((f) => f.status === 'paid').reduce((s, f) => s + (Number(f.amount) || 0), 0);
-  const pendingCount = monthFees.filter((f) => f.status !== 'paid').length;
+  const monthPaidFees = monthFees.filter((f) => f.status === 'paid');
+  const monthCollected = monthPaidFees.reduce((s, f) => s + (Number(f.amount) || 0), 0);
+  const monthPaidCount = monthPaidFees.length;
+
+  const monthPendingFees = monthFees.filter((f) => f.status !== 'paid');
+  const monthPendingAmount = monthPendingFees.reduce((s, f) => s + (Number(f.amount) || 0), 0);
+  const monthPendingCount = monthPendingFees.length;
+
+  const totalActiveStudents = students.filter((s) => s.status === 'active').length;
+  const collectionPercentage =
+    monthFees.length > 0 ? Math.round((monthPaidCount / monthFees.length) * 100) : 0;
 
   const collectFeeStudent = collectFee ? students.find((s) => s.id === collectFee.studentId) : null;
   const collectFeePlan = collectFeeStudent ? plans.find((p) => p.id === collectFeeStudent.membershipPlanId) : null;
@@ -259,7 +276,7 @@ export default function Fees() {
           <div>
             <h1 className="text-2xl font-bold text-gray-900">Fee & Subscription Management</h1>
             <p className="text-gray-500 text-xs sm:text-sm mt-0.5">
-              Automatic monthly fee tracking, renewals, discounts & instant WhatsApp PDF receipts
+              Daily collections, monthly dues tracking, discounts & instant WhatsApp PDF receipts
             </p>
           </div>
 
@@ -269,35 +286,77 @@ export default function Fees() {
           </div>
         </div>
 
-        {/* 3 Overview Stat Cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <div className="bg-white rounded-2xl shadow-xs p-4.5 flex items-center gap-3.5 border border-slate-200/80">
-            <div className="w-12 h-12 bg-emerald-100 rounded-2xl flex items-center justify-center text-emerald-700">
-              <TrendingUp className="w-6 h-6" />
+        {/* 4 Practical Operational Stat Cards for Daily Fee & Dues Operations */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          {/* Card 1: Today's Collection */}
+          <div className="bg-white rounded-2xl shadow-xs p-4.5 flex items-center gap-3.5 border border-slate-200/80 hover:border-emerald-200 transition-all">
+            <div className="w-12 h-12 bg-emerald-50 border border-emerald-200 rounded-2xl flex items-center justify-center text-emerald-600 shrink-0">
+              <IndianRupee className="w-6 h-6" />
             </div>
-            <div>
-              <p className="text-xs text-slate-500 font-bold uppercase tracking-wider">Total Lifetime Revenue</p>
-              <p className="text-xl font-black text-slate-900">{formatCurrency(totalRevenue)}</p>
+            <div className="min-w-0">
+              <p className="text-[11px] text-slate-500 font-bold uppercase tracking-wider truncate">
+                Today's Collection (आज)
+              </p>
+              <p className="text-xl font-black text-slate-900 leading-tight mt-0.5">
+                {formatCurrency(todayCollected)}
+              </p>
+              <p className="text-[11px] text-emerald-600 font-semibold mt-0.5">
+                {todayCount} payment{todayCount !== 1 ? 's' : ''} received today
+              </p>
             </div>
           </div>
 
-          <div className="bg-white rounded-2xl shadow-xs p-4.5 flex items-center gap-3.5 border border-slate-200/80">
-            <div className="w-12 h-12 bg-indigo-100 rounded-2xl flex items-center justify-center text-indigo-700">
+          {/* Card 2: This Month's Collection */}
+          <div className="bg-white rounded-2xl shadow-xs p-4.5 flex items-center gap-3.5 border border-slate-200/80 hover:border-indigo-200 transition-all">
+            <div className="w-12 h-12 bg-indigo-50 border border-indigo-200 rounded-2xl flex items-center justify-center text-indigo-600 shrink-0">
               <CheckCircle className="w-6 h-6" />
             </div>
-            <div>
-              <p className="text-xs text-slate-500 font-bold uppercase tracking-wider">Collected ({selectedMonth || currentMonth})</p>
-              <p className="text-xl font-black text-slate-900">{formatCurrency(monthCollected)}</p>
+            <div className="min-w-0">
+              <p className="text-[11px] text-slate-500 font-bold uppercase tracking-wider truncate">
+                Collected ({selectedMonth || currentMonth})
+              </p>
+              <p className="text-xl font-black text-slate-900 leading-tight mt-0.5">
+                {formatCurrency(monthCollected)}
+              </p>
+              <p className="text-[11px] text-indigo-600 font-semibold mt-0.5">
+                {monthPaidCount} student{monthPaidCount !== 1 ? 's' : ''} paid this month
+              </p>
             </div>
           </div>
 
-          <div className="bg-white rounded-2xl shadow-xs p-4.5 flex items-center gap-3.5 border border-slate-200/80">
-            <div className="w-12 h-12 bg-rose-100 rounded-2xl flex items-center justify-center text-rose-700">
+          {/* Card 3: Pending Dues */}
+          <div className="bg-white rounded-2xl shadow-xs p-4.5 flex items-center gap-3.5 border border-slate-200/80 hover:border-rose-200 transition-all">
+            <div className="w-12 h-12 bg-rose-50 border border-rose-200 rounded-2xl flex items-center justify-center text-rose-600 shrink-0">
               <AlertCircle className="w-6 h-6" />
             </div>
-            <div>
-              <p className="text-xs text-slate-500 font-bold uppercase tracking-wider">Pending Dues</p>
-              <p className="text-xl font-black text-slate-900">{pendingCount} students</p>
+            <div className="min-w-0">
+              <p className="text-[11px] text-slate-500 font-bold uppercase tracking-wider truncate">
+                Pending Dues (बाकी फीस)
+              </p>
+              <p className="text-xl font-black text-rose-600 leading-tight mt-0.5">
+                {formatCurrency(monthPendingAmount)}
+              </p>
+              <p className="text-[11px] text-rose-600 font-semibold mt-0.5">
+                {monthPendingCount} student{monthPendingCount !== 1 ? 's' : ''} due
+              </p>
+            </div>
+          </div>
+
+          {/* Card 4: Monthly Collection Progress */}
+          <div className="bg-white rounded-2xl shadow-xs p-4.5 flex items-center gap-3.5 border border-slate-200/80 hover:border-amber-200 transition-all">
+            <div className="w-12 h-12 bg-amber-50 border border-amber-200 rounded-2xl flex items-center justify-center text-amber-600 shrink-0">
+              <Calendar className="w-6 h-6" />
+            </div>
+            <div className="min-w-0">
+              <p className="text-[11px] text-slate-500 font-bold uppercase tracking-wider truncate">
+                Collection Rate ({collectionPercentage}%)
+              </p>
+              <p className="text-xl font-black text-slate-900 leading-tight mt-0.5">
+                {monthPaidCount} / {monthFees.length || totalActiveStudents}
+              </p>
+              <p className="text-[11px] text-amber-700 font-semibold mt-0.5">
+                Paid vs Total Students
+              </p>
             </div>
           </div>
         </div>
