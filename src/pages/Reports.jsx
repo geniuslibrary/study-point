@@ -906,25 +906,31 @@ export default function Reports() {
         {/* ========================================================================= */}
         {activeTab === "custom" && (
           <div className="space-y-6 animate-fade-in" id="custom-report-section">
-            <div className="bg-white p-4 rounded-2xl shadow-xs border border-gray-200 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-              <div className="flex items-center gap-2">
+            {/* Date Range Filter */}
+            <div className="bg-white p-4 rounded-2xl shadow-xs border border-gray-200">
+              <div className="flex items-center gap-2 mb-3">
                 <CalendarDays className="w-5 h-5 text-indigo-600" />
                 <span className="font-bold text-gray-900 text-sm">Select Date Range for Audit:</span>
               </div>
-              <div className="flex items-center gap-2">
-                <input
-                  type="date"
-                  value={customStartDate}
-                  onChange={(e) => setCustomStartDate(e.target.value)}
-                  className="px-3.5 py-1.5 border border-gray-300 rounded-xl text-sm font-medium focus:ring-2 focus:ring-indigo-500 bg-white"
-                />
-                <span className="text-gray-400 font-bold">to</span>
-                <input
-                  type="date"
-                  value={customEndDate}
-                  onChange={(e) => setCustomEndDate(e.target.value)}
-                  className="px-3.5 py-1.5 border border-gray-300 rounded-xl text-sm font-medium focus:ring-2 focus:ring-indigo-500 bg-white"
-                />
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs font-semibold text-gray-500 mb-1 block">From Date</label>
+                  <input
+                    type="date"
+                    value={customStartDate}
+                    onChange={(e) => setCustomStartDate(e.target.value)}
+                    className="w-full px-3.5 py-2 border border-gray-300 rounded-xl text-sm font-medium focus:ring-2 focus:ring-indigo-500 bg-white"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs font-semibold text-gray-500 mb-1 block">To Date</label>
+                  <input
+                    type="date"
+                    value={customEndDate}
+                    onChange={(e) => setCustomEndDate(e.target.value)}
+                    className="w-full px-3.5 py-2 border border-gray-300 rounded-xl text-sm font-medium focus:ring-2 focus:ring-indigo-500 bg-white"
+                  />
+                </div>
               </div>
             </div>
 
