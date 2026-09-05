@@ -47,22 +47,18 @@ export const fetchCollectionData = async (collectionName) => {
     if (snap && snap.docs) {
       const cloudItems = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
 
-      if (cloudItems.length > 0) {
-        setLocalCollection(collectionName, cloudItems);
-        return cloudItems;
-      }
+      // Always update local cache with source of truth, even if empty (wiped database)
+      setLocalCollection(collectionName, cloudItems);
+      return cloudItems;
     }
   } catch (err) {
     // Graceful fallback to local cache on timeout/offline
+    console.warn(`Firestore read failed for ${collectionName}, using cache.`, err);
   }
 
   // 2. Return local collection data
   const localData = getLocalCollection(collectionName);
-  if (localData && localData.length > 0) {
-    return localData;
-  }
-
-  return [];
+  return localData || [];
 };
 
 export const createDocument = async (collectionName, data, customId = null) => {
