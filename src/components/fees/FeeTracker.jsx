@@ -135,17 +135,7 @@ export default function FeeTracker({
             )}
           </div>
 
-          {/* Quick Stats Pills */}
-          <div className="flex flex-wrap items-center gap-2 text-xs font-bold">
-            <span className="inline-flex items-center gap-1.5 text-emerald-800 bg-emerald-50 border border-emerald-200 px-3 py-1.5 rounded-xl shadow-2xs">
-              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
-              <span>Collected: {formatCurrency(totalCollected)}</span>
-            </span>
-            <span className="inline-flex items-center gap-1.5 text-rose-800 bg-rose-50 border border-rose-200 px-3 py-1.5 rounded-xl shadow-2xs">
-              <AlertCircle className="w-3.5 h-3.5 text-rose-600" />
-              <span>Pending: {formatCurrency(totalPending)}</span>
-            </span>
-          </div>
+          {/* Removed Quick Stats Pills */}
         </div>
 
         {/* Filters Row */}
