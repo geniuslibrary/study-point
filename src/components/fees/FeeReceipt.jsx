@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import Modal from '../common/Modal';
 import Button from '../common/Button';
-import { formatCurrency, formatDate, calculateSeatAddonCharges, getStoredAddons } from '../../utils/helpers';
+import { formatCurrency, formatDate, formatMonthDisplay, calculateSeatAddonCharges, getStoredAddons } from '../../utils/helpers';
 import { BookOpen, Download, MessageSquare, CheckCircle2, PenTool, Loader2, ExternalLink, Printer } from 'lucide-react';
 import { doc, getDoc } from 'firebase/firestore';
 import { db } from '../../firebase/config';
@@ -82,11 +82,11 @@ export default function FeeReceipt({ isOpen, onClose, fee, student, section, sea
 
   const planTitle = fee.planName
     ? `${fee.planName}${duration ? ` (${duration} Month${duration > 1 ? 's' : ''})` : ''}`
-    : `Monthly Membership (${fee.month})`;
+    : `Monthly Membership (${formatMonthDisplay(fee.month)})`;
 
   const validityText = fee.periodStart && fee.periodEnd
     ? `${formatDate(fee.periodStart)} to ${formatDate(fee.periodEnd)}`
-    : fee.month;
+    : formatMonthDisplay(fee.month);
 
   const displaySeatNumber =
     seat?.seatNumber ||

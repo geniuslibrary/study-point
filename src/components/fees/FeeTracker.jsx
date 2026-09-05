@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { formatCurrency, formatDate } from '../../utils/helpers';
+import { formatCurrency, formatDate, formatMonthDisplay } from '../../utils/helpers';
 import StatusBadge from '../common/StatusBadge';
 import {
   IndianRupee,
@@ -151,7 +151,7 @@ export default function FeeTracker({
               <option value="">All Months</option>
               {months.map((m) => (
                 <option key={m} value={m}>
-                  Month: {m}
+                  Month: {formatMonthDisplay(m)}
                 </option>
               ))}
             </select>
@@ -260,7 +260,7 @@ export default function FeeTracker({
                       </div>
                     ) : (
                       <span className="text-xs font-mono font-semibold text-indigo-700">
-                        Month: {fee.month}
+                        Month: {formatMonthDisplay(fee.month)}
                       </span>
                     )}
                   </td>
@@ -348,7 +348,7 @@ export default function FeeTracker({
                 <span className="font-bold text-indigo-900">
                   {fee.periodStart && fee.periodEnd
                     ? `${formatDate(fee.periodStart)} to ${formatDate(fee.periodEnd)}`
-                    : fee.month}
+                    : formatMonthDisplay(fee.month)}
                 </span>
               </div>
 

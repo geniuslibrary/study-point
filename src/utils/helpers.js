@@ -48,6 +48,12 @@ export const getMonthYear = (date = new Date()) => {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
 };
 
+export const formatMonthDisplay = (yyyy_mm) => {
+  if (!yyyy_mm || !yyyy_mm.includes('-')) return yyy_mm;
+  const [year, month] = yyy_mm.split('-');
+  return `${month}/${year}`;
+};
+
 export const getMonthName = (monthStr) => {
   if (!monthStr || !monthStr.includes('-')) return '';
   const [year, month] = monthStr.split('-');

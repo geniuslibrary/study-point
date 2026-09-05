@@ -3,7 +3,7 @@ import { useParams, Link } from 'react-router-dom';
 import { doc, getDoc } from 'firebase/firestore';
 import { db } from '../firebase/config';
 import { COLLECTIONS } from '../utils/constants';
-import { formatCurrency, formatDate } from '../utils/helpers';
+import { formatCurrency, formatDate, formatMonthDisplay } from '../utils/helpers';
 import { BookOpen, Download, Printer, CheckCircle2, ShieldCheck, ArrowLeft, Loader2 } from 'lucide-react';
 import html2canvas from 'html2canvas';
 import { jsPDF } from 'jspdf';
@@ -105,11 +105,11 @@ export default function PublicReceipt() {
 
   const planTitle = fee.planName
     ? `${fee.planName}${fee.planDuration ? ` (${fee.planDuration} Months)` : ''}`
-    : `Monthly Membership (${fee.month})`;
+    : `Monthly Membership (${formatMonthDisplay(fee.month)})`;
 
   const validityText = fee.periodStart && fee.periodEnd
     ? `${formatDate(fee.periodStart)} to ${formatDate(fee.periodEnd)}`
-    : fee.month;
+    : formatMonthDisplay(fee.month);
 
   const displaySeatNumber =
     seat?.seatNumber ||
