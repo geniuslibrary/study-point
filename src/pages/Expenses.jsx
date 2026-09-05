@@ -210,15 +210,16 @@ export default function Expenses() {
         isOpen={isRecurringOpen}
         onClose={() => setIsRecurringOpen(false)}
         allCategories={[...new Set([...customCategories, 'Electricity', 'Rent', 'Staff Salary'])]}
-        onRecordExpense={(item) => {
-          setPrefillData({
+        onAutoRecordExpense={async (item, recordDate) => {
+          const expenseRecord = {
             category: item.category,
-            amount: item.amount,
-            description: `Fixed Monthly: ${item.name}`,
-            date: new Date().toISOString().split('T')[0]
-          });
-          setEditData(null);
-          setIsFormOpen(true);
+            amount: Number(item.amount),
+            description: `Auto-recorded Recurring: ${item.name}`,
+            date: recordDate,
+            month: recordDate.substring(0, 7)
+          };
+          await createDocument(COLLECTIONS.EXPENSES, expenseRecord);
+          fetchData();
         }}
       />
 
