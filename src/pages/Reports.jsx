@@ -42,15 +42,32 @@ export default function Reports() {
   const [seats, setSeats] = useState([]);
 
   // Date selection states
-  const now = new Date();
-  const todayStr = now.toISOString().split('T')[0];
-  const currentMonthStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+  const todayStr = new Date().toISOString().split('T')[0];
+  const currentMonthStr = `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}`;
 
   const [selectedDate, setSelectedDate] = useState(todayStr);
   const [selectedMonth, setSelectedMonth] = useState(currentMonthStr);
-  const [customStartDate, setCustomStartDate] = useState(new Date(now.setDate(now.getDate() - 30)).toISOString().split('T')[0]);
+  
+  const [customStartDate, setCustomStartDate] = useState(() => {
+    const d = new Date();
+    d.setDate(d.getDate() - 30);
+    return d.toISOString().split('T')[0];
+  });
+  
   const [customEndDate, setCustomEndDate] = useState(todayStr);
   const [showStatementMode, setShowStatementMode] = useState(null);
+
+  const [portalTarget, setPortalTarget] = useState(null);
+  useEffect(() => {
+    let el = document.getElementById("print-only-container");
+    if (!el) {
+      el = document.createElement("div");
+      el.id = "print-only-container";
+      document.body.appendChild(el);
+    }
+    setPortalTarget(el);
+  }, []);
+
 
   const fetchData = async () => {
     setLoading(true);
@@ -113,12 +130,15 @@ export default function Reports() {
   const matchesDateRange = (dateVal, startStr, endStr) => {
     if (!dateVal) return false;
     let dStr = "";
-    if (typeof dateVal === "string") dStr = dateVal.split("T")[0];
-    else if (dateVal.seconds) dStr = new Date(dateVal.seconds * 1000).toISOString().split("T")[0];
-    else if (dateVal.toDate) dStr = dateVal.toDate().toISOString().split("T")[0];
-    else dStr = new Date(dateVal).toISOString().split("T")[0];
-    
-    return dStr >= startStr && dStr <= endStr;
+    try {
+      if (typeof dateVal === "string") dStr = dateVal.split("T")[0];
+      else if (dateVal.seconds) dStr = new Date(dateVal.seconds * 1000).toISOString().split("T")[0];
+      else if (dateVal.toDate) dStr = dateVal.toDate().toISOString().split("T")[0];
+      else dStr = new Date(dateVal).toISOString().split("T")[0];
+    } catch (e) {
+      dStr = "";
+    }
+    return dStr ? (dStr >= startStr && dStr <= endStr) : false;
   };
 
   const matchesMonth = (dateVal, targetMonthStr) => {
@@ -225,31 +245,14 @@ export default function Reports() {
   const customTotalExpense = customExpenses.reduce((sum, e) => sum + (Number(e.amount) || 0), 0);
   const customNetProfit = customTotalRevenue - customTotalExpense;
 
-  let portalTarget = null;
-  if (showStatementMode) {
-      portalTarget = document.getElementById("print-only-container");
-      if (!portalTarget) {
-          portalTarget = document.createElement("div");
-          portalTarget.id = "print-only-container";
-          document.body.appendChild(portalTarget);
-      }
-  }
+  
 
   return (
       <Layout title="Reports">
         <div className="flex items-center justify-center h-64">
           <Loader2 className="w-8 h-8 animate-spin text-indigo-600" />
         </div>
-      
-        {/* Helper Action Buttons for Daily and Monthly */}
-        {activeTab !== "custom" && (
-            <div className="flex justify-end mt-8 border-t border-gray-200 pt-6">
-                <Button variant="primary" icon={<FileSpreadsheet size={16}/>} onClick={() => handlePrintStatement(activeTab)}>
-                    Download ${activeTab === "daily" ? "Daily" : "Monthly"} Official PDF Statement
-                </Button>
-            </div>
-        )}
-      </Layout>
+            </Layout>
     );
   }
 
@@ -944,6 +947,15 @@ export default function Reports() {
             portalTarget
         )}
 
+
+        {/* Helper Action Buttons for Daily and Monthly */}
+        {activeTab !== "custom" && (
+            <div className="flex justify-end mt-8 border-t border-gray-200 pt-6">
+                <Button variant="primary" icon={<FileSpreadsheet size={16}/>} onClick={() => handlePrintStatement(activeTab)}>
+                    Download {activeTab === "daily" ? "Daily" : "Monthly"} Official PDF Statement
+                </Button>
+            </div>
+        )}
       </div>
     </Layout>
   );

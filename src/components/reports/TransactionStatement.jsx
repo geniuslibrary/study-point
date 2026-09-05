@@ -16,14 +16,17 @@ export default function TransactionStatement({
     
     fees.forEach(f => {
         if(f.status === "paid") {
-            // Find a valid date string
             let dStr = "";
-            if (f.paidDate) {
-                if (typeof f.paidDate === "string") dStr = f.paidDate.split("T")[0];
-                else if (f.paidDate.toDate) dStr = f.paidDate.toDate().toISOString().split("T")[0];
-                else dStr = new Date(f.paidDate).toISOString().split("T")[0];
-            } else if (f.month) {
-                dStr = f.month + "-01";
+            try {
+                if (f.paidDate) {
+                    if (typeof f.paidDate === "string") dStr = f.paidDate.split("T")[0];
+                    else if (f.paidDate.toDate) dStr = f.paidDate.toDate().toISOString().split("T")[0];
+                    else dStr = new Date(f.paidDate).toISOString().split("T")[0];
+                } else if (f.month) {
+                    dStr = f.month + "-01";
+                }
+            } catch (e) {
+                dStr = f.month ? f.month + "-01" : "2026-01-01";
             }
             
             transactions.push({
@@ -41,10 +44,14 @@ export default function TransactionStatement({
     
     expenses.forEach(e => {
         let dStr = "";
-        if (e.date) {
-            if (typeof e.date === "string") dStr = e.date.split("T")[0];
-            else if (e.date.toDate) dStr = e.date.toDate().toISOString().split("T")[0];
-            else dStr = new Date(e.date).toISOString().split("T")[0];
+        try {
+            if (e.date) {
+                if (typeof e.date === "string") dStr = e.date.split("T")[0];
+                else if (e.date.toDate) dStr = e.date.toDate().toISOString().split("T")[0];
+                else dStr = new Date(e.date).toISOString().split("T")[0];
+            }
+        } catch (e) {
+            dStr = "2026-01-01";
         }
         
         transactions.push({
