@@ -13,7 +13,7 @@ export default function RecurringExpensesModal({ isOpen, onClose, allCategories,
   const [isSaving, setIsSaving] = useState(false);
 
   // New Item State
-  const [newItem, setNewItem] = useState({ name: '', category: 'Staff Salary', amount: '' });
+  const [newItem, setNewItem] = useState({ name: '', category: 'Staff Salary', customCategory: '', amount: '' });
 
   useEffect(() => {
     if (isOpen) {
@@ -54,15 +54,21 @@ export default function RecurringExpensesModal({ isOpen, onClose, allCategories,
     e.preventDefault();
     if (!newItem.name || !newItem.amount) return;
     
+    const finalCategory = newItem.category === 'Custom...' ? newItem.customCategory.trim() : newItem.category;
+    if (!finalCategory) {
+      alert("Please specify a category.");
+      return;
+    }
+
     const newEntry = {
       id: Date.now().toString(),
       name: newItem.name.trim(),
-      category: newItem.category,
+      category: finalCategory,
       amount: Number(newItem.amount)
     };
     
     handleSave([...items, newEntry]);
-    setNewItem({ name: '', category: 'Staff Salary', amount: '' });
+    setNewItem({ name: '', category: 'Staff Salary', customCategory: '', amount: '' });
   };
 
   const handleDeleteItem = (id) => {
@@ -75,47 +81,70 @@ export default function RecurringExpensesModal({ isOpen, onClose, allCategories,
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} title="Manage Fixed / Recurring Expenses">
-      <div className="p-5 sm:p-6 bg-white flex flex-col h-[75vh] max-h-[600px]">
+      <div className="p-5 sm:p-6 bg-white flex flex-col h-[85vh] sm:h-[75vh] max-h-[700px]">
         <div className="mb-4 text-xs text-gray-500">
           Save your fixed monthly expenses here (like Staff Salaries, WiFi, Rent). If a staff leaves, just delete them from this list. You can quickly record these expenses every month.
         </div>
 
         {/* Add New Fixed Expense Form */}
-        <form onSubmit={handleAddItem} className="bg-indigo-50/50 p-4 rounded-xl border border-indigo-100 flex flex-col sm:flex-row gap-3 mb-6 flex-shrink-0">
-          <div className="flex-1">
-            <input
-              type="text"
-              placeholder="Name (e.g. Ramesh - Staff, Jio WiFi)"
-              required
-              value={newItem.name}
-              onChange={(e) => setNewItem({ ...newItem, name: e.target.value })}
-              className="w-full px-3 py-2 border border-indigo-200 rounded-lg text-sm bg-white"
-            />
+        <form onSubmit={handleAddItem} className="bg-indigo-50/50 p-4 rounded-xl border border-indigo-100 flex flex-col gap-3 mb-6 flex-shrink-0">
+          <div className="grid grid-cols-1 sm:grid-cols-12 gap-3">
+            <div className="sm:col-span-4">
+              <label className="block text-[10px] font-bold text-indigo-800 uppercase tracking-wider mb-1">Name / Title</label>
+              <input
+                type="text"
+                placeholder="e.g. Ramesh - Staff"
+                required
+                value={newItem.name}
+                onChange={(e) => setNewItem({ ...newItem, name: e.target.value })}
+                className="w-full px-3 py-2 border border-indigo-200 rounded-lg text-sm bg-white focus:ring-2 focus:ring-indigo-500"
+              />
+            </div>
+            
+            <div className="sm:col-span-5">
+              <label className="block text-[10px] font-bold text-indigo-800 uppercase tracking-wider mb-1">Category</label>
+              <select
+                value={newItem.category}
+                onChange={(e) => setNewItem({ ...newItem, category: e.target.value })}
+                className="w-full px-3 py-2 border border-indigo-200 rounded-lg text-sm bg-white focus:ring-2 focus:ring-indigo-500"
+              >
+                {allCategories.map(cat => (
+                  <option key={cat} value={cat}>{cat}</option>
+                ))}
+                <option value="Custom...">+ Add Custom Category...</option>
+              </select>
+            </div>
+            
+            <div className="sm:col-span-3">
+              <label className="block text-[10px] font-bold text-indigo-800 uppercase tracking-wider mb-1">Monthly (₹)</label>
+              <input
+                type="number"
+                min="0"
+                placeholder="₹ 0"
+                required
+                value={newItem.amount}
+                onChange={(e) => setNewItem({ ...newItem, amount: e.target.value })}
+                className="w-full px-3 py-2 border border-indigo-200 rounded-lg text-sm bg-white font-bold focus:ring-2 focus:ring-indigo-500"
+              />
+            </div>
           </div>
-          <div className="sm:w-1/4">
-            <select
-              value={newItem.category}
-              onChange={(e) => setNewItem({ ...newItem, category: e.target.value })}
-              className="w-full px-3 py-2 border border-indigo-200 rounded-lg text-sm bg-white"
-            >
-              {allCategories.map(cat => (
-                <option key={cat} value={cat}>{cat}</option>
-              ))}
-            </select>
-          </div>
-          <div className="sm:w-1/4">
-            <input
-              type="number"
-              min="0"
-              placeholder="Amount (?)"
-              required
-              value={newItem.amount}
-              onChange={(e) => setNewItem({ ...newItem, amount: e.target.value })}
-              className="w-full px-3 py-2 border border-indigo-200 rounded-lg text-sm bg-white font-bold"
-            />
-          </div>
-          <Button type="submit" disabled={isSaving} className="bg-indigo-600 hover:bg-indigo-700 text-white whitespace-nowrap">
-            <Plus size={16} /> Add
+
+          {newItem.category === 'Custom...' && (
+            <div className="animate-in fade-in slide-in-from-top-2">
+               <label className="block text-[10px] font-bold text-indigo-800 uppercase tracking-wider mb-1">New Category Name</label>
+               <input 
+                 type="text" 
+                 placeholder="e.g. Snacks" 
+                 required 
+                 value={newItem.customCategory}
+                 onChange={(e) => setNewItem({ ...newItem, customCategory: e.target.value })}
+                 className="w-full px-3 py-2 border border-indigo-300 rounded-lg text-sm bg-white focus:ring-2 focus:ring-indigo-500"
+               />
+            </div>
+          )}
+
+          <Button type="submit" disabled={isSaving} className="bg-indigo-600 hover:bg-indigo-700 text-white w-full sm:w-auto self-end mt-1">
+            <Plus size={16} className="mr-1" /> Add Fixed Expense
           </Button>
         </form>
 
@@ -138,8 +167,8 @@ export default function RecurringExpensesModal({ isOpen, onClose, allCategories,
                     </span>
                   </div>
                   
-                  <div className="flex items-center justify-between sm:justify-end w-full sm:w-auto gap-4">
-                    <span className="font-extrabold text-red-600">
+                  <div className="flex items-center justify-between sm:justify-end w-full sm:w-auto gap-3">
+                    <span className="font-extrabold text-red-600 text-sm">
                       {formatCurrency(item.amount)}/mo
                     </span>
                     <div className="flex items-center gap-2">
