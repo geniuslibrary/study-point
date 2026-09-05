@@ -859,73 +859,86 @@ export default function Reports() {
                   type="date"
                   value={customStartDate}
                   onChange={(e) => setCustomStartDate(e.target.value)}
-                  className="px-3 py-1.5 text-sm font-semibold border-2 border-indigo-100 rounded-lg text-indigo-900 focus:outline-none focus:border-indigo-500 bg-indigo-50/30"
+                  className="px-3.5 py-1.5 border border-gray-300 rounded-xl text-sm font-medium focus:ring-2 focus:ring-indigo-500 bg-white"
                 />
                 <span className="text-gray-400 font-bold">to</span>
                 <input
                   type="date"
                   value={customEndDate}
                   onChange={(e) => setCustomEndDate(e.target.value)}
-                  className="px-3 py-1.5 text-sm font-semibold border-2 border-indigo-100 rounded-lg text-indigo-900 focus:outline-none focus:border-indigo-500 bg-indigo-50/30"
+                  className="px-3.5 py-1.5 border border-gray-300 rounded-xl text-sm font-medium focus:ring-2 focus:ring-indigo-500 bg-white"
                 />
               </div>
             </div>
 
             {/* Custom Range Summary */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <Card className="bg-gradient-to-br from-emerald-500 to-emerald-600 text-white border-none shadow-md shadow-emerald-500/20">
-                <div className="p-5 flex items-center justify-between">
-                  <div>
-                    <p className="text-emerald-100 font-bold text-sm uppercase tracking-wider mb-1">
-                      Total Revenue (IN)
-                    </p>
-                    <h3 className="text-2xl font-black">{formatCurrency(customTotalRevenue)}</h3>
-                  </div>
-                  <div className="w-12 h-12 bg-white/20 rounded-2xl flex items-center justify-center backdrop-blur-sm">
-                    <TrendingUp className="w-6 h-6 text-white" />
+              {/* Card 1: Revenue */}
+              <div className="bg-white rounded-2xl p-5 shadow-xs border border-gray-100 flex flex-col justify-between">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-gray-500 uppercase tracking-wider">
+                    Total Revenue (IN)
+                  </span>
+                  <div className="w-9 h-9 bg-green-50 text-green-600 rounded-xl flex items-center justify-center">
+                    <TrendingUp className="w-5 h-5" />
                   </div>
                 </div>
-              </Card>
+                <div className="mt-3">
+                  <p className="text-2xl font-extrabold text-gray-900">{formatCurrency(customTotalRevenue)}</p>
+                  <p className="text-xs text-green-600 font-medium mt-0.5">
+                    {customFees.length} Fee Payments Received
+                  </p>
+                </div>
+              </div>
 
-              <Card className="bg-gradient-to-br from-rose-500 to-rose-600 text-white border-none shadow-md shadow-rose-500/20">
-                <div className="p-5 flex items-center justify-between">
-                  <div>
-                    <p className="text-rose-100 font-bold text-sm uppercase tracking-wider mb-1">
-                      Total Expenses (OUT)
-                    </p>
-                    <h3 className="text-2xl font-black">{formatCurrency(customTotalExpense)}</h3>
-                  </div>
-                  <div className="w-12 h-12 bg-white/20 rounded-2xl flex items-center justify-center backdrop-blur-sm">
-                    <TrendingDown className="w-6 h-6 text-white" />
+              {/* Card 2: Expenses */}
+              <div className="bg-white rounded-2xl p-5 shadow-xs border border-gray-100 flex flex-col justify-between">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-gray-500 uppercase tracking-wider">
+                    Total Expenses (OUT)
+                  </span>
+                  <div className="w-9 h-9 bg-rose-50 text-rose-600 rounded-xl flex items-center justify-center">
+                    <TrendingDown className="w-5 h-5" />
                   </div>
                 </div>
-              </Card>
+                <div className="mt-3">
+                  <p className="text-2xl font-extrabold text-gray-900">{formatCurrency(customTotalExpense)}</p>
+                  <p className="text-xs text-rose-600 font-medium mt-0.5">
+                    {customExpenses.length} Expense Records
+                  </p>
+                </div>
+              </div>
 
-              <Card
-                className={`border-none shadow-md ${
-                  customNetProfit >= 0
-                    ? "bg-gradient-to-br from-indigo-500 to-indigo-600 shadow-indigo-500/20"
-                    : "bg-gradient-to-br from-orange-500 to-orange-600 shadow-orange-500/20"
-                } text-white`}
-              >
-                <div className="p-5 flex items-center justify-between">
-                  <div>
-                    <p className="text-white/80 font-bold text-sm uppercase tracking-wider mb-1">
-                      Net Profit / Loss
-                    </p>
-                    <h3 className="text-2xl font-black">{formatCurrency(customNetProfit)}</h3>
-                  </div>
-                  <div className="w-12 h-12 bg-white/20 rounded-2xl flex items-center justify-center backdrop-blur-sm">
-                    <IndianRupee className="w-6 h-6 text-white" />
+              {/* Card 3: Net Profit */}
+              <div className="bg-white rounded-2xl p-5 shadow-xs border border-gray-100 flex flex-col justify-between relative overflow-hidden">
+                <div className="absolute top-0 right-0 w-24 h-24 bg-indigo-50 rounded-bl-full -mr-4 -mt-4 z-0 transition-transform hover:scale-110"></div>
+                <div className="flex items-center justify-between relative z-10">
+                  <span className="text-xs font-bold text-gray-500 uppercase tracking-wider">
+                    Net Profit / Loss
+                  </span>
+                  <div className={`w-9 h-9 rounded-xl flex items-center justify-center ${customNetProfit >= 0 ? "bg-indigo-100 text-indigo-700" : "bg-orange-100 text-orange-700"}`}>
+                    <IndianRupee className="w-5 h-5" />
                   </div>
                 </div>
-              </Card>
+                <div className="mt-3 relative z-10">
+                  <p className={`text-2xl font-extrabold ${customNetProfit >= 0 ? "text-indigo-700" : "text-orange-600"}`}>
+                    {formatCurrency(customNetProfit)}
+                  </p>
+                  <p className="text-xs text-gray-500 font-medium mt-0.5">
+                    Overall financial balance
+                  </p>
+                </div>
+              </div>
             </div>
 
-            <div className="flex justify-center mt-8">
-               <Button variant="primary" icon={<FileSpreadsheet size={16}/>} onClick={() => handlePrintStatement("custom")}>
+            <div className="flex flex-col sm:flex-row gap-4 items-center justify-end mt-4">
+               <button 
+                  onClick={() => handlePrintStatement("custom")}
+                  className="flex items-center justify-center gap-2 px-6 py-2.5 bg-indigo-600 text-white font-bold rounded-xl hover:bg-indigo-700 shadow-md transition-all active:scale-95 w-full sm:w-auto"
+               >
+                  <FileSpreadsheet size={18} />
                   Download Official PDF Statement
-               </Button>
+               </button>
             </div>
           </div>
         )}
