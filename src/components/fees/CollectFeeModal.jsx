@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import Modal from '../common/Modal';
 import Button from '../common/Button';
 import { formatCurrency, formatDate, formatDateInput, calculateSeatAddonCharges, getStoredAddons } from '../../utils/helpers';
-import { Armchair, Clock, Tag, Calendar, Sparkles, CheckCircle2, ArrowRight } from 'lucide-react';
+import { Armchair, Clock, Tag, Calendar, Sparkles, CheckCircle2, ArrowRight, MessageSquare } from 'lucide-react';
 
 export default function CollectFeeModal({
   isOpen,
@@ -119,7 +119,7 @@ export default function CollectFeeModal({
   const discount = discountAmount === '' ? 0 : Number(discountAmount) || 0;
   const totalPayable = Math.max(0, planPrice + addonTotal - discount);
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = async (e, shareWhatsApp = false) => {
     if (e) e.preventDefault();
     setLoading(true);
     try {
@@ -139,6 +139,43 @@ export default function CollectFeeModal({
         periodStart: startDateObj.toISOString(),
         periodEnd: endDateObj.toISOString(),
       });
+
+      if (shareWhatsApp) {
+        const cleanPhone = (student?.phone || '').replace(/\D/g, '');
+        const phoneWithCountry = cleanPhone.length === 10 ? `91${cleanPhone}` : cleanPhone;
+        
+        const libraryTitle = localStorage.getItem('studypoint_library_name') || 'Study Point Library';
+        const receiptNo = fee?.receiptNumber || `REC-${Date.now().toString().slice(-6)}`;
+        
+        const startText = formatDate(startDateObj.toISOString());
+        const endText = formatDate(endDateObj.toISOString());
+        const validityText = `${startText} to ${endText}`;
+        const displaySeatNumber = seat?.seatNumber || 'N/A';
+
+        let addonSummary = '';
+        if (Object.keys(addonCharges).length > 0) {
+          addonSummary = Object.entries(addonCharges)
+            .map(([n, a]) => `🔒 *${n} Add-on:* ₹${a} (${duration} Mo)\n`)
+            .join('');
+        }
+
+        const message = `🎉 *FEE PAYMENT RECEIPT - ${libraryTitle.toUpperCase()}*\n\n` +
+          `Hello *${student?.name || 'Student'}*,\n` +
+          `Your official fee payment of *₹${totalPayable}* has been confirmed!\n\n` +
+          `🧾 *Receipt No:* ${receiptNo}\n` +
+          `📦 *Plan:* ${activePlan.name}\n` +
+          (addonSummary ? addonSummary : '') +
+          (discount > 0 ? `🏷️ *Discount:* -₹${discount}\n` : '') +
+          `📅 *Validity Period:* ${validityText}\n` +
+          `💺 *Seat Allocated:* Seat #${displaySeatNumber} (${student?.shiftTiming || 'Shift'})\n` +
+          `💳 *Payment Mode:* ${(paymentMode || 'CASH').toUpperCase()}\n` +
+          `✅ *Status:* PAID & VERIFIED\n\n` +
+          `Thank you for studying at ${libraryTitle}! 🙏`;
+
+        const waUrl = `https://api.whatsapp.com/send?phone=${phoneWithCountry}&text=${encodeURIComponent(message)}`;
+        window.open(waUrl, '_blank', 'noopener,noreferrer');
+      }
+
       onClose();
     } catch (err) {
       console.error(err);
@@ -316,14 +353,28 @@ export default function CollectFeeModal({
         </div>
 
         {/* Action Buttons */}
-        <div className="flex justify-end gap-3 pt-3 border-t border-slate-100">
+        <div className="flex justify-end gap-2 pt-3 border-t border-slate-100 flex-wrap">
           <Button variant="secondary" onClick={onClose} type="button">
             Cancel
           </Button>
-          <Button type="submit" loading={loading}>
+          <Button 
+            type="button" 
+            variant="outline" 
+            loading={loading}
+            onClick={(e) => handleSubmit(e, false)}
+            className="border-indigo-200 text-indigo-700 hover:bg-indigo-50"
+          >
+            Collect Only
+          </Button>
+          <Button 
+            type="button" 
+            loading={loading}
+            onClick={(e) => handleSubmit(e, true)}
+            className="bg-emerald-600 hover:bg-emerald-700 text-white"
+          >
             <span className="flex items-center gap-1.5 font-bold">
-              <CheckCircle2 className="w-4 h-4" />
-              <span>Collect {formatCurrency(totalPayable)} & Renew</span>
+              <MessageSquare className="w-4 h-4" />
+              <span>Collect {formatCurrency(totalPayable)} & WhatsApp Bill</span>
             </span>
           </Button>
         </div>
