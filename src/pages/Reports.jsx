@@ -156,6 +156,10 @@ export default function Reports() {
     return mStr === targetMonthStr;
   };
 
+  
+
+  
+
   // ----------------------------------------------------
   // DAILY REPORT CALCULATIONS
   // ----------------------------------------------------
@@ -230,8 +234,7 @@ export default function Reports() {
   };
 
   if (loading) {
-  
-  // ----------------------------------------------------
+    // ----------------------------------------------------
   // CUSTOM / LIFETIME REPORT CALCULATIONS
   // ----------------------------------------------------
   const customFees = fees.filter((f) => 
@@ -244,17 +247,6 @@ export default function Reports() {
   const customTotalRevenue = customFees.reduce((sum, f) => sum + (Number(f.amount) || 0), 0);
   const customTotalExpense = customExpenses.reduce((sum, e) => sum + (Number(e.amount) || 0), 0);
   const customNetProfit = customTotalRevenue - customTotalExpense;
-
-  
-
-  return (
-      <Layout title="Reports">
-        <div className="flex items-center justify-center h-64">
-          <Loader2 className="w-8 h-8 animate-spin text-indigo-600" />
-        </div>
-            </Layout>
-    );
-  }
 
   return (
     <Layout title="Reports">
@@ -959,4 +951,5 @@ export default function Reports() {
       </div>
     </Layout>
   );
+}
 }
