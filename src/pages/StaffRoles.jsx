@@ -526,13 +526,6 @@ export default function StaffRoles() {
               <ShieldCheck className="w-4 h-4 text-indigo-600" />
               <span>Configured Roles & Permissions ({rolesList.length + 1})</span>
             </h3>
-            <button
-              onClick={handleOpenAddRole}
-              className="text-xs font-bold text-indigo-600 hover:text-indigo-800 flex items-center gap-1 cursor-pointer"
-            >
-              <Plus className="w-3.5 h-3.5" />
-              <span>Add Custom Role</span>
-            </button>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3.5">
