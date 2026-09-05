@@ -16,6 +16,7 @@ export default function ExpenseForm({ isOpen, onClose, onSubmit, editData }) {
     date: new Date().toISOString().split('T')[0],
     description: '',
     expenseType: 'general',
+    isRecurring: false,
   });
 
   // Electricity specific calculator fields
@@ -51,19 +52,18 @@ export default function ExpenseForm({ isOpen, onClose, onSubmit, editData }) {
           ? new Date(editData.date.seconds * 1000).toISOString().split('T')[0]
           : editData.date || new Date().toISOString().split('T')[0];
 
-      setFormData({
-        ...editData,
-        amount: editData.amount !== undefined && editData.amount !== null ? String(editData.amount) : '',
-        date: dStr,
-        category: editData.category || 'Electricity',
-        description: editData.description || '',
-        expenseType: editData.expenseType || 'general',
-      });
+        setFormData({
+          ...editData,
+          amount: editData.amount !== undefined && editData.amount !== null ? String(editData.amount) : '',
+          date: dStr,
+          expenseType: editData.expenseType || 'general',
+          isRecurring: editData.isRecurring || false,
+        });
 
-      if (editData.category === 'Electricity') setFormMode('electricity');
-      else if (editData.category === 'Staff Salary') setFormMode('salary');
-      else if (editData.expenseType === 'additional') setFormMode('additional');
-      else setFormMode('general');
+        if (editData.category === 'Electricity') setFormMode('electricity');
+        else if (editData.category === 'Staff Salary') setFormMode('salary');
+        else if (editData.expenseType === 'additional') setFormMode('additional');
+        else setFormMode('general');
     } else {
       setFormData({
         category: 'Electricity',
@@ -71,6 +71,7 @@ export default function ExpenseForm({ isOpen, onClose, onSubmit, editData }) {
         date: new Date().toISOString().split('T')[0],
         description: '',
         expenseType: 'general',
+        isRecurring: false,
       });
       setMeterData({
         meterNumber: '',
@@ -181,6 +182,14 @@ export default function ExpenseForm({ isOpen, onClose, onSubmit, editData }) {
   const handleSubmit = (e) => {
     e.preventDefault();
     const finalAmount = formData.amount === '' ? 0 : Number(formData.amount) || 0;
+    
+    let nextDueDateStr = null;
+    if (formData.isRecurring) {
+        const d = new Date(formData.date);
+        d.setMonth(d.getMonth() + 1);
+        nextDueDateStr = d.toISOString().split('T')[0];
+    }
+    
     onSubmit({
       ...formData,
       amount: finalAmount,
@@ -188,6 +197,8 @@ export default function ExpenseForm({ isOpen, onClose, onSubmit, editData }) {
       expenseType: formMode,
       meterDetails: formMode === 'electricity' ? meterData : null,
       salaryDetails: formMode === 'salary' ? salaryData : null,
+      isRecurring: formData.isRecurring || false,
+      nextDueDate: formData.isRecurring ? (formData.nextDueDate || nextDueDateStr) : null
     });
   };
 
@@ -533,6 +544,42 @@ export default function ExpenseForm({ isOpen, onClose, onSubmit, editData }) {
               />
             </div>
           </div>
+
+          {/* Recurrence Toggle for General/Standard Expenses */}
+          {(formMode === 'general' || formMode === 'additional') && (
+            <div className="bg-slate-50 p-3 rounded-xl border border-slate-200 mt-2">
+              <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-2">
+                Expense Frequency
+              </label>
+              <div className="flex items-center gap-6">
+                <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
+                  <input
+                    type="radio"
+                    name="isRecurring"
+                    checked={!formData.isRecurring}
+                    onChange={() => setFormData({ ...formData, isRecurring: false })}
+                    className="w-4 h-4 text-indigo-600 focus:ring-indigo-500"
+                  />
+                  <span className="font-semibold">One Time</span>
+                </label>
+                <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
+                  <input
+                    type="radio"
+                    name="isRecurring"
+                    checked={formData.isRecurring}
+                    onChange={() => setFormData({ ...formData, isRecurring: true })}
+                    className="w-4 h-4 text-indigo-600 focus:ring-indigo-500"
+                  />
+                  <span className="font-semibold">Monthly Recurring</span>
+                </label>
+              </div>
+              {formData.isRecurring && (
+                <p className="text-[11px] font-medium text-indigo-600 mt-1.5 flex items-center gap-1">
+                  <Sparkles size={12} /> This expense will automatically be added every month on this date.
+                </p>
+              )}
+            </div>
+          )}
 
           <div>
             <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">

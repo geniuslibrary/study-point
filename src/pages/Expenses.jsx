@@ -36,6 +36,53 @@ export default function Expenses() {
         fetchCollectionData(COLLECTIONS.FEES),
       ]);
 
+      // Auto-Sync Recurring Expenses
+      let hasNewRecurring = false;
+      const today = new Date().toISOString().split('T')[0];
+      const activeRecurring = expensesData.filter((e) => e.isRecurring && e.nextDueDate && e.nextDueDate <= today);
+
+      for (const exp of activeRecurring) {
+        let currentNextDue = exp.nextDueDate;
+        let currentOldId = exp.id;
+
+        while (currentNextDue <= today) {
+          const d = new Date(currentNextDue);
+          d.setMonth(d.getMonth() + 1);
+          const nextNextDueStr = d.toISOString().split('T')[0];
+
+          const newExpense = {
+            category: exp.category,
+            amount: exp.amount,
+            date: currentNextDue,
+            description: (exp.description || '').replace(' (Auto-generated)', '') + ' (Auto-generated)',
+            expenseType: exp.expenseType,
+            isRecurring: true,
+            nextDueDate: nextNextDueStr,
+            meterDetails: exp.meterDetails || null,
+            salaryDetails: exp.salaryDetails || null,
+            month: currentNextDue.substring(0, 7)
+          };
+
+          const newId = await createDocument(COLLECTIONS.EXPENSES, newExpense).then(res => res.id || res);
+          
+          await updateDocument(COLLECTIONS.EXPENSES, currentOldId, {
+            isRecurring: false,
+            nextDueDate: null
+          });
+
+          currentOldId = newId;
+          currentNextDue = nextNextDueStr;
+          hasNewRecurring = true;
+        }
+      }
+
+      if (hasNewRecurring) {
+        // Fetch again to get the newly generated expenses accurately
+        const refreshedExpenses = await fetchCollectionData(COLLECTIONS.EXPENSES);
+        expensesData.length = 0;
+        expensesData.push(...refreshedExpenses);
+      }
+
       const [year, month] = selectedMonth.split('-');
 
       const filteredExpenses = expensesData.filter((exp) => {
