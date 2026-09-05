@@ -97,23 +97,43 @@ export default function FeeReceipt({ isOpen, onClose, fee, student, section, sea
   const pdfFileName = `Fee_Receipt_${(student?.name || 'Student').replace(/\s+/g, '_')}_${receiptNo}.pdf`;
   const onlineReceiptUrl = `${window.location.origin}/receipt/${fee.id}`;
 
-  // 1. Direct High-Resolution PDF Download (Strict 1-2 Pages)
+  // 1. Direct High-Resolution PDF Download (Strict 1-2 Pages with Clean Offscreen Rendering)
   const handleDownloadPDF = async () => {
     const element = document.getElementById('printable-fee-receipt') || receiptRef.current;
     if (!element) return;
     setIsGeneratingPdf(true);
 
+    let cloneContainer = null;
     try {
-      const canvas = await html2canvas(element, {
+      // 1. Create clean offscreen container with exact standard width
+      cloneContainer = document.createElement('div');
+      cloneContainer.style.position = 'fixed';
+      cloneContainer.style.left = '-9999px';
+      cloneContainer.style.top = '0';
+      cloneContainer.style.width = '750px';
+      cloneContainer.style.background = '#ffffff';
+      cloneContainer.style.zIndex = '-9999';
+
+      // 2. Clone receipt without modal scroll/bounds interference
+      const clone = element.cloneNode(true);
+      clone.style.width = '100%';
+      clone.style.maxWidth = '100%';
+      clone.style.margin = '0';
+      clone.style.padding = '24px';
+      clone.style.boxShadow = 'none';
+      clone.style.border = '2px solid #e2e8f0';
+      clone.style.borderRadius = '16px';
+      cloneContainer.appendChild(clone);
+      document.body.appendChild(cloneContainer);
+
+      // 3. Render canvas safely
+      const canvas = await html2canvas(clone, {
         scale: 2,
         useCORS: true,
         allowTaint: false,
         backgroundColor: '#ffffff',
         logging: false,
-        scrollX: 0,
-        scrollY: -window.scrollY,
-        windowWidth: document.documentElement.offsetWidth,
-        windowHeight: document.documentElement.offsetHeight,
+        imageTimeout: 4000,
       });
 
       const imgData = canvas.toDataURL('image/jpeg', 0.98);
@@ -131,10 +151,10 @@ export default function FeeReceipt({ isOpen, onClose, fee, student, section, sea
       const printableHeight = pdfHeight - margin * 2; // 277mm
 
       if (contentHeight <= printableHeight) {
-        // Fits perfectly on a single 1-page A4
+        // Fits on 1 single page
         pdf.addImage(imgData, 'JPEG', margin, margin, contentWidth, contentHeight);
       } else {
-        // Multi-page clean split (max 2 pages)
+        // Clean multi-page split
         let heightLeft = contentHeight;
         let position = margin;
 
@@ -154,10 +174,36 @@ export default function FeeReceipt({ isOpen, onClose, fee, student, section, sea
       setPdfToast('🎉 PDF Receipt Downloaded Successfully!');
       setTimeout(() => setPdfToast(''), 4000);
     } catch (err) {
-      console.error('PDF error:', err);
-      setPdfToast('⚠️ PDF error: ' + (err?.message || 'Download failed'));
-      setTimeout(() => setPdfToast(''), 4000);
+      console.warn('Primary PDF generation failed, attempting safe text fallback:', err);
+      try {
+        if (cloneContainer) {
+          const imgs = cloneContainer.querySelectorAll('img');
+          imgs.forEach((img) => img.remove());
+          const canvas2 = await html2canvas(cloneContainer.firstElementChild || cloneContainer, {
+            scale: 2,
+            backgroundColor: '#ffffff',
+            logging: false,
+          });
+          const imgData2 = canvas2.toDataURL('image/jpeg', 0.98);
+          const pdf2 = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+          const pdfWidth2 = pdf2.internal.pageSize.getWidth();
+          const margin2 = 10;
+          const contentWidth2 = pdfWidth2 - margin2 * 2;
+          const contentHeight2 = (canvas2.height * contentWidth2) / canvas2.width;
+          pdf2.addImage(imgData2, 'JPEG', margin2, margin2, contentWidth2, Math.min(contentHeight2, 277));
+          pdf2.save(pdfFileName);
+          setPdfToast('🎉 PDF Receipt Downloaded Successfully!');
+          setTimeout(() => setPdfToast(''), 4000);
+        }
+      } catch (fallbackErr) {
+        console.error('PDF error:', fallbackErr);
+        setPdfToast('⚠️ PDF Download Error. Please try again.');
+        setTimeout(() => setPdfToast(''), 4000);
+      }
     } finally {
+      if (cloneContainer && cloneContainer.parentNode) {
+        cloneContainer.parentNode.removeChild(cloneContainer);
+      }
       setIsGeneratingPdf(false);
     }
   };
