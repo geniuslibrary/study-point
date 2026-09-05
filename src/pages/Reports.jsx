@@ -287,7 +287,7 @@ export default function Reports() {
     <Layout title="Reports">
       <div className="space-y-6">
         {/* Top Header & Tab Controls */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div className="flex flex-col gap-3">
           <div>
             <h1 className="text-2xl font-bold text-gray-900">Study Point Reports</h1>
             <p className="text-gray-500 text-sm mt-0.5">
@@ -307,7 +307,7 @@ export default function Reports() {
                 }`}
               >
                 <Calendar className="w-3.5 h-3.5" />
-                <span>Daily Report (दैनिक)</span>
+                <span>Daily</span>
               </button>
               <button
                 onClick={() => setActiveTab('monthly')}
@@ -318,7 +318,7 @@ export default function Reports() {
                 }`}
               >
                 <CalendarDays className="w-3.5 h-3.5" />
-                <span>Monthly Report (मासिक)</span>
+                <span>Monthly</span>
               </button>
             
               <button
@@ -1104,7 +1104,7 @@ export default function Reports() {
             <div className="flex flex-col sm:flex-row gap-4 items-center justify-end mt-4">
                <button 
                   onClick={() => handlePrintStatement("custom")}
-                  className="flex items-center justify-center gap-2 px-6 py-2.5 bg-indigo-600 text-white font-bold rounded-xl hover:bg-indigo-700 shadow-md transition-all active:scale-95 w-full sm:w-auto"
+                  className="flex items-center justify-center gap-2 px-6 py-3 bg-indigo-600 text-white font-bold rounded-xl hover:bg-indigo-700 shadow-md transition-all active:scale-95 w-full"
                >
                   <FileSpreadsheet size={18} />
                   Download Official PDF Statement
@@ -1134,7 +1134,7 @@ export default function Reports() {
 
         {/* Helper Action Buttons for Daily and Monthly */}
         {activeTab !== "custom" && (
-            <div className="flex justify-end mt-8 border-t border-gray-200 pt-6">
+            <div className="flex justify-center sm:justify-end mt-8 border-t border-gray-200 pt-6">
                 <Button variant="primary" icon={<FileSpreadsheet size={16}/>} onClick={() => handlePrintStatement(activeTab)}>
                     Download {activeTab === "daily" ? "Daily" : "Monthly"} Official PDF Statement
                 </Button>
