@@ -159,6 +159,8 @@ export default function CollectFeeModal({
             .join('');
         }
 
+        const onlineReceiptUrl = `${window.location.origin}/receipt/${fee?.id}`;
+
         const message = `🎉 *FEE PAYMENT RECEIPT - ${libraryTitle.toUpperCase()}*\n\n` +
           `Hello *${student?.name || 'Student'}*,\n` +
           `Your official fee payment of *₹${totalPayable}* has been confirmed!\n\n` +
@@ -170,6 +172,7 @@ export default function CollectFeeModal({
           `💺 *Seat Allocated:* Seat #${displaySeatNumber} (${student?.shiftTiming || 'Shift'})\n` +
           `💳 *Payment Mode:* ${(paymentMode || 'CASH').toUpperCase()}\n` +
           `✅ *Status:* PAID & VERIFIED\n\n` +
+          `📄 *View & Download Official PDF Receipt:* \n👉 ${onlineReceiptUrl}\n\n` +
           `Thank you for studying at ${libraryTitle}! 🙏`;
 
         const waUrl = `https://api.whatsapp.com/send?phone=${phoneWithCountry}&text=${encodeURIComponent(message)}`;
