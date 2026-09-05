@@ -84,63 +84,27 @@ input[type="number"] {
     print-color-adjust: exact !important;
   }
 
-  /* Hide entire application background, modals backdrop, navbars, sidebars, buttons */
-  body > * {
-    display: none !important;
+  /* Hide everything by default */
+  body * {
+    visibility: hidden !important;
   }
 
-  /* Hide all buttons & control elements inside receipt when printing */
+  /* Hide buttons and interactive controls */
   button,
   .no-print,
   header,
   aside,
   nav {
     display: none !important;
+    visibility: hidden !important;
   }
 
-  /* Show ONLY the printable receipt container */
+  /* Show ONLY the printable receipt container and all its elements */
   #printable-fee-receipt,
   #printable-fee-receipt *,
   #public-receipt-card,
   #public-receipt-card * {
     visibility: visible !important;
-    display: block !important;
-  }
-
-  #printable-fee-receipt table *,
-  #public-receipt-card table * {
-    display: table-cell !important;
-  }
-
-  #printable-fee-receipt tr,
-  #public-receipt-card tr {
-    display: table-row !important;
-  }
-
-  #printable-fee-receipt thead,
-  #public-receipt-card thead {
-    display: table-header-group !important;
-  }
-
-  #printable-fee-receipt tbody,
-  #public-receipt-card tbody {
-    display: table-row-group !important;
-  }
-
-  #printable-fee-receipt table,
-  #public-receipt-card table {
-    display: table !important;
-  }
-
-  /* Flex containers in receipt */
-  #printable-fee-receipt .flex,
-  #public-receipt-card .flex {
-    display: flex !important;
-  }
-
-  #printable-fee-receipt .grid,
-  #public-receipt-card .grid {
-    display: grid !important;
   }
 
   #printable-fee-receipt,

@@ -128,11 +128,13 @@ export default function PublicReceipt() {
       const canvas = await html2canvas(element, {
         scale: 2,
         useCORS: true,
-        allowTaint: true,
+        allowTaint: false,
         backgroundColor: '#ffffff',
         logging: false,
-        scrollY: 0,
         scrollX: 0,
+        scrollY: -window.scrollY,
+        windowWidth: document.documentElement.offsetWidth,
+        windowHeight: document.documentElement.offsetHeight,
       });
 
       const imgData = canvas.toDataURL('image/jpeg', 0.98);
@@ -170,8 +172,7 @@ export default function PublicReceipt() {
 
       pdf.save(pdfFileName);
     } catch (err) {
-      console.warn('PDF error, falling back to print:', err);
-      window.print();
+      console.warn('PDF error:', err);
     } finally {
       setIsGeneratingPdf(false);
     }
@@ -228,6 +229,7 @@ export default function PublicReceipt() {
                 <img
                   src={libraryLogo}
                   alt="Library Logo"
+                  crossOrigin="anonymous"
                   className="max-h-20 max-w-44 object-contain rounded-2xl p-1 border border-slate-100 bg-white"
                 />
               </div>
@@ -344,6 +346,7 @@ export default function PublicReceipt() {
                   <img
                     src={librarySignature}
                     alt="Authorized Signature"
+                    crossOrigin="anonymous"
                     className="max-h-12 max-w-28 object-contain mx-auto"
                   />
                   <p className="text-[10px] text-slate-400 font-bold uppercase mt-0.5 border-t border-slate-300 pt-0.5">

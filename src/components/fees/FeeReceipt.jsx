@@ -107,11 +107,13 @@ export default function FeeReceipt({ isOpen, onClose, fee, student, section, sea
       const canvas = await html2canvas(element, {
         scale: 2,
         useCORS: true,
-        allowTaint: true,
+        allowTaint: false,
         backgroundColor: '#ffffff',
         logging: false,
-        scrollY: 0,
         scrollX: 0,
+        scrollY: -window.scrollY,
+        windowWidth: document.documentElement.offsetWidth,
+        windowHeight: document.documentElement.offsetHeight,
       });
 
       const imgData = canvas.toDataURL('image/jpeg', 0.98);
@@ -152,8 +154,9 @@ export default function FeeReceipt({ isOpen, onClose, fee, student, section, sea
       setPdfToast('🎉 PDF Receipt Downloaded Successfully!');
       setTimeout(() => setPdfToast(''), 4000);
     } catch (err) {
-      console.error('PDF error, falling back to print:', err);
-      window.print();
+      console.error('PDF error:', err);
+      setPdfToast('⚠️ PDF error: ' + (err?.message || 'Download failed'));
+      setTimeout(() => setPdfToast(''), 4000);
     } finally {
       setIsGeneratingPdf(false);
     }
@@ -220,6 +223,7 @@ export default function FeeReceipt({ isOpen, onClose, fee, student, section, sea
                 <img
                   src={libraryLogo}
                   alt="Library Logo"
+                  crossOrigin="anonymous"
                   className="max-h-16 max-w-36 object-contain rounded-xl shadow-xs p-1 border border-slate-100 bg-white"
                 />
               </div>
@@ -343,6 +347,7 @@ export default function FeeReceipt({ isOpen, onClose, fee, student, section, sea
                   <img
                     src={librarySignature}
                     alt="Authorized Signature"
+                    crossOrigin="anonymous"
                     className="max-h-12 max-w-28 object-contain mx-auto"
                   />
                   <p className="text-[10px] text-slate-400 font-bold uppercase mt-0.5 border-t border-slate-300 pt-0.5">
