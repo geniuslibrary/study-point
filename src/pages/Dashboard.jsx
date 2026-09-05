@@ -4,6 +4,9 @@ import StatsCards from '../components/dashboard/StatsCards';
 import RevenueChart from '../components/dashboard/RevenueChart';
 import OccupancyOverview from '../components/dashboard/OccupancyOverview';
 import RecentActivity from '../components/dashboard/RecentActivity';
+import TodayPulse from '../components/dashboard/TodayPulse';
+import ShiftDistribution from '../components/dashboard/ShiftDistribution';
+import PendingDuesAlert from '../components/dashboard/PendingDuesAlert';
 import { COLLECTIONS } from '../utils/constants';
 import { fetchCollectionData } from '../firebase/storageService';
 import { useAuth } from '../context/AuthContext';
@@ -18,10 +21,10 @@ import {
   Calendar,
   Receipt,
   FileSpreadsheet,
-  ArrowRight,
-  TrendingUp,
   CreditCard,
   ShieldCheck,
+  Building2,
+  TrendingUp,
 } from 'lucide-react';
 import { formatCurrency, formatDate } from '../utils/helpers';
 
@@ -37,9 +40,46 @@ export default function Dashboard() {
     revenue: 0,
     pendingFees: 0,
   });
+
+  // New Live Metrics State
+  const [todayPulse, setTodayPulse] = useState({
+    todayCollection: 0,
+    todayFeesCount: 0,
+    todayAdmissions: 0,
+    todayExpense: 0,
+    emptySeats: 0,
+  });
+
+  const [shiftStats, setShiftStats] = useState({
+    fullDayCount: 0,
+    morningCount: 0,
+    eveningCount: 0,
+  });
+
+  const [urgentPendingList, setUrgentPendingList] = useState([]);
   const [chartData, setChartData] = useState([]);
   const [recentFees, setRecentFees] = useState([]);
   const [occupancyData, setOccupancyData] = useState([]);
+
+  // Date matcher helper
+  const matchesDate = (dateVal, targetDateStr) => {
+    if (!dateVal) return false;
+    let dStr = '';
+    try {
+      if (typeof dateVal === 'string') {
+        dStr = dateVal.split('T')[0];
+      } else if (dateVal.seconds) {
+        dStr = new Date(dateVal.seconds * 1000).toISOString().split('T')[0];
+      } else if (dateVal.toDate) {
+        dStr = dateVal.toDate().toISOString().split('T')[0];
+      } else {
+        dStr = new Date(dateVal).toISOString().split('T')[0];
+      }
+    } catch (e) {
+      dStr = '';
+    }
+    return dStr === targetDateStr;
+  };
 
   const fetchAll = async () => {
     try {
@@ -63,7 +103,9 @@ export default function Dashboard() {
       const uniqueSeatsList = Array.from(uniqueSeatsMap.values());
 
       const now = new Date();
+      const todayIso = now.toISOString().split('T')[0];
       const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+      
       const currentMonthFees = allFees.filter((f) => f.month === currentMonth);
       const revenue = currentMonthFees
         .filter((f) => f.status === 'paid')
@@ -78,7 +120,57 @@ export default function Dashboard() {
         pendingFees,
       });
 
-      // 6-Month Chart Data
+      // 1. Calculate Today's Live Pulse
+      const todayPaidFees = allFees.filter(
+        (f) => f.status === 'paid' && matchesDate(f.paidDate, todayIso)
+      );
+      const todayCollection = todayPaidFees.reduce((sum, f) => sum + (Number(f.amount) || 0), 0);
+
+      const todayAdmissions = students.filter((s) =>
+        matchesDate(s.joinDate || s.createdAt, todayIso)
+      ).length;
+
+      const todayExpenses = allExpenses.filter((e) => matchesDate(e.date, todayIso));
+      const todayExpenseTotal = todayExpenses.reduce((sum, e) => sum + (Number(e.amount) || 0), 0);
+
+      const emptySeatsCount = Math.max(0, uniqueSeatsList.length - occupiedSeatIds.size);
+
+      setTodayPulse({
+        todayCollection,
+        todayFeesCount: todayPaidFees.length,
+        todayAdmissions,
+        todayExpense: todayExpenseTotal,
+        emptySeats: emptySeatsCount,
+      });
+
+      // 2. Shift Wise Counts
+      const fullDay = activeStudents.filter((s) => !s.shift || s.shift === 'full_day').length;
+      const morning = activeStudents.filter((s) => s.shift === 'first_half').length;
+      const evening = activeStudents.filter((s) => s.shift === 'second_half').length;
+
+      setShiftStats({
+        fullDayCount: fullDay,
+        morningCount: morning,
+        eveningCount: evening,
+      });
+
+      // 3. Urgent Pending Dues List (With Student & Seat Info for 1-Click WhatsApp)
+      const pendingDuesWithDetails = currentMonthFees
+        .filter((f) => f.status !== 'paid')
+        .map((fee) => {
+          const stu = students.find((s) => s.id === fee.studentId);
+          const seat = uniqueSeatsList.find((st) => st.id === stu?.seatId);
+          return {
+            ...fee,
+            studentName: stu?.name || 'Student',
+            phone: stu?.phone || '',
+            seatNumber: seat?.seatNumber || '—',
+          };
+        });
+
+      setUrgentPendingList(pendingDuesWithDetails);
+
+      // 4. 6-Month Chart Data
       const months = [];
       for (let i = 5; i >= 0; i--) {
         const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
@@ -97,7 +189,7 @@ export default function Dashboard() {
       }
       setChartData(months);
 
-      // Recent Activity
+      // 5. Recent Activity
       const feesSorted = [...allFees]
         .filter((f) => f.status === 'paid')
         .sort((a, b) => {
@@ -113,7 +205,7 @@ export default function Dashboard() {
       });
       setRecentFees(feesWithNames);
 
-      // Section Occupancy
+      // 6. Section Occupancy
       const occData = allSections.map((sec) => {
         const secSeats = uniqueSeatsList.filter((s) => s.sectionId === sec.id);
         const occupied = secSeats.filter((s) => occupiedSeatIds.has(s.id)).length;
@@ -160,13 +252,11 @@ export default function Dashboard() {
         
         {/* Welcome Header Hero Banner */}
         <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-indigo-950 via-indigo-900 to-slate-950 p-6 sm:p-8 text-white shadow-xl shadow-indigo-950/20 border border-indigo-800/40">
-          {/* Subtle Ambient Background Gradients */}
           <div className="absolute top-0 right-0 -mt-8 -mr-8 w-64 h-64 rounded-full bg-indigo-500/20 blur-3xl pointer-events-none" />
           <div className="absolute bottom-0 left-1/3 -mb-12 w-48 h-48 rounded-full bg-emerald-500/15 blur-2xl pointer-events-none" />
 
           <div className="relative z-10 flex flex-col md:flex-row md:items-center md:justify-between gap-5">
             <div>
-              {/* Date & Role Pill */}
               <div className="flex flex-wrap items-center gap-2 mb-3">
                 <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/10 backdrop-blur-md text-xs font-bold text-indigo-200 border border-white/10">
                   <Calendar className="w-3.5 h-3.5 text-indigo-300" />
@@ -182,7 +272,7 @@ export default function Dashboard() {
                 Welcome back, {user?.displayName || user?.name || (userRole === 'owner' ? 'Admin' : 'Team Member')} 👋
               </h1>
               <p className="text-indigo-200/90 text-xs sm:text-sm mt-1.5 max-w-xl font-medium leading-relaxed">
-                Study Point Smart Hub • <span className="text-white font-bold">{stats.totalStudents} Active Students</span> currently enrolled across <span className="text-white font-bold">{stats.totalSeats} seats</span> ({occupancyRate}% occupancy).
+                Study Point Smart Hub • <span className="text-white font-bold">{stats.totalStudents} Active Students</span> enrolled across <span className="text-white font-bold">{stats.totalSeats} seats</span> ({occupancyRate}% occupancy).
               </p>
             </div>
 
@@ -211,7 +301,7 @@ export default function Dashboard() {
           </div>
         </div>
 
-        {/* Quick Workflow Action Strip (Instant 1-Click Access for Mobile & Desktop) */}
+        {/* Quick Workflow Action Strip */}
         <div className="bg-white rounded-2xl p-3 sm:p-4 border border-slate-200/80 shadow-xs">
           <div className="flex items-center justify-between gap-2 overflow-x-auto scrollbar-hide py-1">
             <button
@@ -256,20 +346,44 @@ export default function Dashboard() {
           </div>
         </div>
 
-        {/* 4 Core Stat Cards */}
+        {/* ⚡ NEW: Today's Live Pulse (Aaj Ka Hisaab) */}
+        <TodayPulse
+          todayCollection={todayPulse.todayCollection}
+          todayFeesCount={todayPulse.todayFeesCount}
+          todayAdmissions={todayPulse.todayAdmissions}
+          todayExpense={todayPulse.todayExpense}
+          emptySeats={todayPulse.emptySeats}
+        />
+
+        {/* 4 Core Monthly Stat Cards */}
         <StatsCards stats={stats} />
 
-        {/* Charts & Occupancy Grid */}
+        {/* Row 1: Revenue vs Expenses Chart & Urgent Dues Follow-ups */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 sm:gap-6">
           <div className="bg-white rounded-3xl p-5 sm:p-6 border border-slate-200/80 shadow-xs flex flex-col">
             <RevenueChart data={chartData} />
+          </div>
+          <div className="flex flex-col">
+            <PendingDuesAlert pendingFees={urgentPendingList} />
+          </div>
+        </div>
+
+        {/* Row 2: Shift Wise Distribution & Section Occupancy */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 sm:gap-6">
+          <div className="flex flex-col">
+            <ShiftDistribution
+              fullDayCount={shiftStats.fullDayCount}
+              morningCount={shiftStats.morningCount}
+              eveningCount={shiftStats.eveningCount}
+              totalStudents={stats.totalStudents}
+            />
           </div>
           <div className="bg-white rounded-3xl p-5 sm:p-6 border border-slate-200/80 shadow-xs flex flex-col">
             <OccupancyOverview sections={occupancyData} />
           </div>
         </div>
 
-        {/* Recent Activity Table */}
+        {/* Row 3: Recent Activity Table */}
         <div className="bg-white rounded-3xl border border-slate-200/80 shadow-xs overflow-hidden">
           <RecentActivity fees={recentFees} />
         </div>
