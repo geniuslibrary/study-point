@@ -368,6 +368,32 @@ export default function Settings() {
     return <Clock className="w-4 h-4 text-teal-600 shrink-0" />;
   };
 
+  // --- FACTORY RESET ---
+  const [showWipeConfirm, setShowWipeConfirm] = useState(false);
+  const [wipeInput, setWipeInput] = useState('');
+  const [isWiping, setIsWiping] = useState(false);
+
+  const handleWipeData = async () => {
+    if (wipeInput !== 'CONFIRM') return;
+    setIsWiping(true);
+    try {
+      const allColls = Object.values(COLLECTIONS);
+      for (const collName of allColls) {
+        const collRef = collection(db, collName);
+        const snap = await getDocs(collRef);
+        for (const d of snap.docs) {
+          await deleteDoc(doc(db, collName, d.id));
+        }
+      }
+      localStorage.clear();
+      window.location.href = '/';
+    } catch (error) {
+      console.error('Error wiping data:', error);
+      alert('Error wiping data. Check console.');
+      setIsWiping(false);
+    }
+  };
+
   return (
     <Layout title="Settings">
       <div className="space-y-6">
@@ -815,6 +841,60 @@ export default function Settings() {
                     </p>
                   )}
                 </div>
+              </div>
+            </Card>
+          </div>
+          
+          {/* --- DANGER ZONE --- */}
+          <div className="mt-8 border-t border-rose-100 pt-8">
+            <Card title="Danger Zone (Factory Reset)">
+              <div className="space-y-4">
+                <p className="text-sm text-slate-600">
+                  This action will permanently delete <strong>ALL</strong> data across the entire software. All students, fees, seats, expenses, memberships, and configurations will be completely wiped out. The software will become brand new.
+                </p>
+                {!showWipeConfirm ? (
+                  <Button
+                    onClick={() => setShowWipeConfirm(true)}
+                    className="bg-rose-600 hover:bg-rose-700 text-white font-bold"
+                  >
+                    <Trash2 className="w-4 h-4 mr-2" />
+                    Wipe All Data & Factory Reset
+                  </Button>
+                ) : (
+                  <div className="bg-rose-50 border border-rose-200 p-4 rounded-2xl space-y-3">
+                    <p className="text-sm font-bold text-rose-800">
+                      Are you absolutely sure? Type <strong className="font-mono bg-rose-100 px-1 py-0.5 rounded text-rose-900">CONFIRM</strong> below to delete everything permanently.
+                    </p>
+                    <div className="flex flex-col sm:flex-row gap-3">
+                      <input
+                        type="text"
+                        value={wipeInput}
+                        onChange={(e) => setWipeInput(e.target.value)}
+                        placeholder="Type CONFIRM here"
+                        className="px-3 py-2 border border-rose-300 rounded-xl text-sm font-bold w-full sm:w-64"
+                      />
+                      <div className="flex gap-2">
+                        <Button
+                          onClick={handleWipeData}
+                          disabled={wipeInput !== 'CONFIRM' || isWiping}
+                          className="bg-rose-600 hover:bg-rose-700 text-white font-bold whitespace-nowrap"
+                          loading={isWiping}
+                        >
+                          Delete Everything
+                        </Button>
+                        <Button
+                          onClick={() => {
+                            setShowWipeConfirm(false);
+                            setWipeInput('');
+                          }}
+                          className="bg-white border-rose-200 text-slate-700 hover:bg-slate-100 font-bold"
+                        >
+                          Cancel
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
             </Card>
           </div>
