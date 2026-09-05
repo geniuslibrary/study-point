@@ -5,7 +5,7 @@ import { EXPENSE_CATEGORIES } from '../../utils/constants';
 
 export default function ExpenseForm({ isOpen, onClose, onSubmit, editData, prefillData, customCategories = [] }) {
   const [formData, setFormData] = useState({
-    category: 'Electricity',
+    category: 'Internet/WiFi',
     customCategory: '',
     amount: '',
     date: new Date().toISOString().split('T')[0],
@@ -26,7 +26,7 @@ export default function ExpenseForm({ isOpen, onClose, onSubmit, editData, prefi
               ? dataToLoad.date
               : new Date().toISOString().split('T')[0];
 
-        const cat = dataToLoad.category || 'Electricity';
+        const cat = dataToLoad.category || 'Internet/WiFi';
         const isCustom = !EXPENSE_CATEGORIES.includes(cat) && !customCategories.includes(cat);
 
         setFormData({
@@ -38,7 +38,7 @@ export default function ExpenseForm({ isOpen, onClose, onSubmit, editData, prefi
         });
       } else {
         setFormData({
-          category: 'Electricity',
+          category: 'Internet/WiFi',
           customCategory: '',
           amount: '',
           date: new Date().toISOString().split('T')[0],

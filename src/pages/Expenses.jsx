@@ -209,7 +209,7 @@ export default function Expenses() {
       <RecurringExpensesModal
         isOpen={isRecurringOpen}
         onClose={() => setIsRecurringOpen(false)}
-        allCategories={[...new Set([...customCategories, 'Electricity', 'Rent', 'Staff Salary'])]}
+        allCategories={[...new Set([...customCategories, 'Internet/WiFi', 'Rent', 'Staff Salary'])]}
         onAutoRecordExpense={async (item, recordDate) => {
           const expenseRecord = {
             category: item.category,
