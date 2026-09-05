@@ -5,7 +5,8 @@ import { db } from '../firebase/config';
 import { COLLECTIONS } from '../utils/constants';
 import { formatCurrency, formatDate } from '../utils/helpers';
 import { BookOpen, Download, Printer, CheckCircle2, ShieldCheck, ArrowLeft, Loader2 } from 'lucide-react';
-import html2pdf from 'html2pdf.js';
+import html2canvas from 'html2canvas';
+import { jsPDF } from 'jspdf';
 
 export default function PublicReceipt() {
   const { id } = useParams();
@@ -123,24 +124,42 @@ export default function PublicReceipt() {
     if (!element) return;
     setIsGeneratingPdf(true);
 
-    const opt = {
-      margin: [5, 5, 5, 5],
-      filename: pdfFileName,
-      image: { type: 'jpeg', quality: 0.98 },
-      html2canvas: {
+    try {
+      const canvas = await html2canvas(element, {
         scale: 2,
         useCORS: true,
         allowTaint: true,
+        backgroundColor: '#ffffff',
         logging: false,
         scrollY: 0,
         scrollX: 0,
-      },
-      jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
-      pagebreak: { mode: 'avoid-all' },
-    };
+      });
 
-    try {
-      await html2pdf().set(opt).from(element).save();
+      const imgData = canvas.toDataURL('image/jpeg', 0.98);
+      const pdf = new jsPDF({
+        orientation: 'portrait',
+        unit: 'mm',
+        format: 'a4',
+      });
+
+      const pdfWidth = pdf.internal.pageSize.getWidth(); // 210mm
+      const pdfHeight = pdf.internal.pageSize.getHeight(); // 297mm
+      const margin = 10;
+      const contentWidth = pdfWidth - margin * 2; // 190mm
+      const contentHeight = (canvas.height * contentWidth) / canvas.width;
+
+      let finalWidth = contentWidth;
+      let finalHeight = contentHeight;
+      if (finalHeight > pdfHeight - margin * 2) {
+        finalHeight = pdfHeight - margin * 2;
+        finalWidth = (canvas.width * finalHeight) / canvas.height;
+      }
+
+      const xPos = margin + (contentWidth - finalWidth) / 2;
+      const yPos = margin;
+
+      pdf.addImage(imgData, 'JPEG', xPos, yPos, finalWidth, finalHeight);
+      pdf.save(pdfFileName);
     } catch (err) {
       console.warn('PDF error, falling back to print:', err);
       window.print();

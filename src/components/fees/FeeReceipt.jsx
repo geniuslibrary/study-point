@@ -6,7 +6,8 @@ import { BookOpen, Download, MessageSquare, CheckCircle2, PenTool, Loader2, Exte
 import { doc, getDoc } from 'firebase/firestore';
 import { db } from '../../firebase/config';
 import { COLLECTIONS } from '../../utils/constants';
-import html2pdf from 'html2pdf.js';
+import html2canvas from 'html2canvas';
+import { jsPDF } from 'jspdf';
 
 const SETTINGS_LOCAL_KEY = 'studypoint_settings';
 
@@ -96,34 +97,53 @@ export default function FeeReceipt({ isOpen, onClose, fee, student, section, sea
   const pdfFileName = `Fee_Receipt_${(student?.name || 'Student').replace(/\s+/g, '_')}_${receiptNo}.pdf`;
   const onlineReceiptUrl = `${window.location.origin}/receipt/${fee.id}`;
 
-  // 1. Direct Download High-Resolution PDF
+  // 1. Direct Single-Page High-Resolution PDF Download
   const handleDownloadPDF = async () => {
     const element = document.getElementById('printable-fee-receipt') || receiptRef.current;
     if (!element) return;
     setIsGeneratingPdf(true);
 
-    const opt = {
-      margin: [5, 5, 5, 5],
-      filename: pdfFileName,
-      image: { type: 'jpeg', quality: 0.98 },
-      html2canvas: {
+    try {
+      const canvas = await html2canvas(element, {
         scale: 2,
         useCORS: true,
         allowTaint: true,
+        backgroundColor: '#ffffff',
         logging: false,
         scrollY: 0,
         scrollX: 0,
-      },
-      jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
-      pagebreak: { mode: 'avoid-all' },
-    };
+      });
 
-    try {
-      await html2pdf().set(opt).from(element).save();
-      setPdfToast('🎉 PDF Receipt Downloaded Successfully!');
+      const imgData = canvas.toDataURL('image/jpeg', 0.98);
+      const pdf = new jsPDF({
+        orientation: 'portrait',
+        unit: 'mm',
+        format: 'a4',
+      });
+
+      const pdfWidth = pdf.internal.pageSize.getWidth(); // 210mm
+      const pdfHeight = pdf.internal.pageSize.getHeight(); // 297mm
+      const margin = 10;
+      const contentWidth = pdfWidth - margin * 2; // 190mm
+      const contentHeight = (canvas.height * contentWidth) / canvas.width;
+
+      let finalWidth = contentWidth;
+      let finalHeight = contentHeight;
+      if (finalHeight > pdfHeight - margin * 2) {
+        finalHeight = pdfHeight - margin * 2;
+        finalWidth = (canvas.width * finalHeight) / canvas.height;
+      }
+
+      const xPos = margin + (contentWidth - finalWidth) / 2;
+      const yPos = margin;
+
+      pdf.addImage(imgData, 'JPEG', xPos, yPos, finalWidth, finalHeight);
+      pdf.save(pdfFileName);
+
+      setPdfToast('🎉 1-Page PDF Receipt Downloaded Successfully!');
       setTimeout(() => setPdfToast(''), 4000);
     } catch (err) {
-      console.warn('PDF generate error, falling back to print:', err);
+      console.error('PDF error, falling back to print:', err);
       window.print();
     } finally {
       setIsGeneratingPdf(false);
