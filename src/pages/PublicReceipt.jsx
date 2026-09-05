@@ -120,11 +120,82 @@ export default function PublicReceipt() {
   const pdfFileName = `Fee_Receipt_${(student?.name || 'Student').replace(/\s+/g, '_')}_${receiptNo}.pdf`;
 
   const handleDownloadPDF = () => {
-    window.print();
-  };
+    const receiptEl = document.getElementById('public-receipt-card') || receiptRef.current;
+    if (!receiptEl) {
+      window.print();
+      return;
+    }
 
-  const handlePrint = () => {
-    window.print();
+    const oldIframe = document.getElementById('receipt-print-frame');
+    if (oldIframe) oldIframe.remove();
+
+    const iframe = document.createElement('iframe');
+    iframe.id = 'receipt-print-frame';
+    iframe.style.position = 'fixed';
+    iframe.style.top = '-9999px';
+    iframe.style.left = '-9999px';
+    iframe.style.width = '900px';
+    iframe.style.height = '1200px';
+    iframe.style.border = 'none';
+    document.body.appendChild(iframe);
+
+    const doc = iframe.contentWindow.document;
+    const styles = Array.from(document.querySelectorAll('style, link[rel="stylesheet"]'))
+      .map((el) => el.outerHTML)
+      .join('\n');
+
+    doc.open();
+    doc.write(`
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <title>${pdfFileName.replace('.pdf', '')}</title>
+          <meta charset="utf-8" />
+          <meta name="viewport" content="width=device-width, initial-scale=1" />
+          ${styles}
+          <style>
+            @page {
+              size: A4 portrait;
+              margin: 6mm;
+            }
+            * {
+              -webkit-print-color-adjust: exact !important;
+              print-color-adjust: exact !important;
+              box-sizing: border-box;
+            }
+            html, body {
+              margin: 0 !important;
+              padding: 0 !important;
+              background: #ffffff !important;
+              color: #0f172a !important;
+              width: 100% !important;
+              height: auto !important;
+            }
+            .print-wrapper {
+              width: 100%;
+              max-width: 720px;
+              margin: 0 auto;
+              padding: 4px;
+            }
+          </style>
+        </head>
+        <body>
+          <div class="print-wrapper">
+            ${receiptEl.outerHTML}
+          </div>
+        </body>
+      </html>
+    `);
+    doc.close();
+
+    setTimeout(() => {
+      try {
+        iframe.contentWindow.focus();
+        iframe.contentWindow.print();
+      } catch (e) {
+        window.print();
+      }
+    }, 250);
   };
 
   return (
