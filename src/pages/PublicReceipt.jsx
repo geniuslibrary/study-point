@@ -124,11 +124,19 @@ export default function PublicReceipt() {
     setIsGeneratingPdf(true);
 
     const opt = {
-      margin: [8, 8, 8, 8],
+      margin: [5, 5, 5, 5],
       filename: pdfFileName,
       image: { type: 'jpeg', quality: 0.98 },
-      html2canvas: { scale: 2, useCORS: true, logging: false, scrollY: 0, scrollX: 0 },
+      html2canvas: {
+        scale: 2,
+        useCORS: true,
+        allowTaint: true,
+        logging: false,
+        scrollY: 0,
+        scrollX: 0,
+      },
       jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
+      pagebreak: { mode: 'avoid-all' },
     };
 
     try {
@@ -139,6 +147,10 @@ export default function PublicReceipt() {
     } finally {
       setIsGeneratingPdf(false);
     }
+  };
+
+  const handlePrint = () => {
+    window.print();
   };
 
   return (
@@ -153,14 +165,26 @@ export default function PublicReceipt() {
             </span>
           </div>
 
-          <button
-            onClick={handleDownloadPDF}
-            disabled={isGeneratingPdf}
-            className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white rounded-xl text-xs font-black transition-all shadow-md flex items-center gap-2 cursor-pointer"
-          >
-            {isGeneratingPdf ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
-            <span>{isGeneratingPdf ? 'Generating PDF...' : 'Download Official PDF'}</span>
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={handlePrint}
+              disabled={isGeneratingPdf}
+              className="px-3.5 py-2 bg-slate-800 hover:bg-slate-900 disabled:opacity-50 text-white rounded-xl text-xs font-bold transition-all shadow-md flex items-center gap-1.5 cursor-pointer"
+              title="Direct 1-Page Print"
+            >
+              <Printer className="w-4 h-4" />
+              <span>Print (1-Page)</span>
+            </button>
+
+            <button
+              onClick={handleDownloadPDF}
+              disabled={isGeneratingPdf}
+              className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white rounded-xl text-xs font-black transition-all shadow-md flex items-center gap-2 cursor-pointer"
+            >
+              {isGeneratingPdf ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
+              <span>{isGeneratingPdf ? 'Saving...' : 'Download PDF'}</span>
+            </button>
+          </div>
         </div>
 
         {/* Printable Official Receipt */}

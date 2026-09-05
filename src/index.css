@@ -61,3 +61,105 @@ input[type="number"] {
   mask-composite: exclude;
   pointer-events: none;
 }
+
+/* =========================================================
+   STRICT 1-PAGE PRINT STYLES FOR FEE RECEIPTS
+   ========================================================= */
+@media print {
+  @page {
+    size: A4 portrait;
+    margin: 6mm;
+  }
+
+  html, body {
+    background: #ffffff !important;
+    color: #0f172a !important;
+    font-size: 11pt !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    height: auto !important;
+    min-height: auto !important;
+    overflow: visible !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  /* Hide entire application background, modals backdrop, navbars, sidebars, buttons */
+  body > * {
+    display: none !important;
+  }
+
+  /* Hide all buttons & control elements inside receipt when printing */
+  button,
+  .no-print,
+  header,
+  aside,
+  nav {
+    display: none !important;
+  }
+
+  /* Show ONLY the printable receipt container */
+  #printable-fee-receipt,
+  #printable-fee-receipt *,
+  #public-receipt-card,
+  #public-receipt-card * {
+    visibility: visible !important;
+    display: block !important;
+  }
+
+  #printable-fee-receipt table *,
+  #public-receipt-card table * {
+    display: table-cell !important;
+  }
+
+  #printable-fee-receipt tr,
+  #public-receipt-card tr {
+    display: table-row !important;
+  }
+
+  #printable-fee-receipt thead,
+  #public-receipt-card thead {
+    display: table-header-group !important;
+  }
+
+  #printable-fee-receipt tbody,
+  #public-receipt-card tbody {
+    display: table-row-group !important;
+  }
+
+  #printable-fee-receipt table,
+  #public-receipt-card table {
+    display: table !important;
+  }
+
+  /* Flex containers in receipt */
+  #printable-fee-receipt .flex,
+  #public-receipt-card .flex {
+    display: flex !important;
+  }
+
+  #printable-fee-receipt .grid,
+  #public-receipt-card .grid {
+    display: grid !important;
+  }
+
+  #printable-fee-receipt,
+  #public-receipt-card {
+    position: absolute !important;
+    top: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 auto !important;
+    padding: 16px !important;
+    background: #ffffff !important;
+    border: 2px solid #e2e8f0 !important;
+    border-radius: 16px !important;
+    box-shadow: none !important;
+    page-break-after: avoid !important;
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
+}
+

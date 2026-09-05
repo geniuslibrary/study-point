@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import Modal from '../common/Modal';
 import Button from '../common/Button';
 import { formatCurrency, formatDate, calculateSeatAddonCharges, getStoredAddons } from '../../utils/helpers';
-import { BookOpen, Download, MessageSquare, CheckCircle2, PenTool, Loader2, ExternalLink } from 'lucide-react';
+import { BookOpen, Download, MessageSquare, CheckCircle2, PenTool, Loader2, ExternalLink, Printer } from 'lucide-react';
 import { doc, getDoc } from 'firebase/firestore';
 import { db } from '../../firebase/config';
 import { COLLECTIONS } from '../../utils/constants';
@@ -103,11 +103,19 @@ export default function FeeReceipt({ isOpen, onClose, fee, student, section, sea
     setIsGeneratingPdf(true);
 
     const opt = {
-      margin: [8, 8, 8, 8],
+      margin: [5, 5, 5, 5],
       filename: pdfFileName,
       image: { type: 'jpeg', quality: 0.98 },
-      html2canvas: { scale: 2, useCORS: true, logging: false, scrollY: 0, scrollX: 0 },
+      html2canvas: {
+        scale: 2,
+        useCORS: true,
+        allowTaint: true,
+        logging: false,
+        scrollY: 0,
+        scrollX: 0,
+      },
       jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
+      pagebreak: { mode: 'avoid-all' },
     };
 
     try {
@@ -120,6 +128,11 @@ export default function FeeReceipt({ isOpen, onClose, fee, student, section, sea
     } finally {
       setIsGeneratingPdf(false);
     }
+  };
+
+  // 2. Direct 1-Page Print Handler
+  const handlePrint = () => {
+    window.print();
   };
 
   // 2. Share Live Digital Bill on WhatsApp (Instant non-blocking redirect)
@@ -326,20 +339,30 @@ export default function FeeReceipt({ isOpen, onClose, fee, student, section, sea
             Close
           </Button>
 
-          <div className="flex items-center gap-2.5">
+          <div className="flex flex-wrap items-center gap-2">
             <button
               onClick={handleShareWhatsApp}
-              className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition-all shadow-md flex items-center gap-2 cursor-pointer"
+              className="px-3.5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition-all shadow-md flex items-center gap-1.5 cursor-pointer"
               title="Share Live Digital Bill on WhatsApp"
             >
               <MessageSquare className="w-4 h-4" />
-              <span>Share on WhatsApp</span>
+              <span>WhatsApp</span>
+            </button>
+
+            <button
+              onClick={handlePrint}
+              disabled={isGeneratingPdf}
+              className="px-3.5 py-2.5 bg-slate-800 hover:bg-slate-900 disabled:opacity-50 text-white rounded-xl text-xs font-bold transition-all shadow-md flex items-center gap-1.5 cursor-pointer"
+              title="Direct 1-Page Print"
+            >
+              <Printer className="w-4 h-4" />
+              <span>Print (1-Page)</span>
             </button>
 
             <button
               onClick={handleDownloadPDF}
               disabled={isGeneratingPdf}
-              className="px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white rounded-xl text-xs font-black transition-all shadow-md flex items-center gap-2 cursor-pointer"
+              className="px-3.5 py-2.5 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white rounded-xl text-xs font-black transition-all shadow-md flex items-center gap-1.5 cursor-pointer"
               title="Download PDF Receipt"
             >
               {isGeneratingPdf ? (
@@ -347,7 +370,7 @@ export default function FeeReceipt({ isOpen, onClose, fee, student, section, sea
               ) : (
                 <Download className="w-4 h-4" />
               )}
-              <span>Download PDF</span>
+              <span>{isGeneratingPdf ? 'Saving...' : 'Download PDF'}</span>
             </button>
           </div>
         </div>
