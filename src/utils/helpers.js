@@ -49,7 +49,9 @@ export const getMonthYear = (date = new Date()) => {
 };
 
 export const formatMonthDisplay = (yyyy_mm) => {
-  if (!yyyy_mm || typeof yyy_mm !== 'string' || !yyyy_mm.includes('-')) return yyy_mm;
+  if (!yyyy_mm) return '';
+  if (typeof yyy_mm !== 'string') return String(yyyy_mm);
+  if (!yyyy_mm.includes('-')) return yyy_mm;
   const [year, month] = yyy_mm.split('-');
   return `${month}/${year}`;
 };

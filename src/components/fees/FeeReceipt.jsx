@@ -60,7 +60,7 @@ export default function FeeReceipt({ isOpen, onClose, fee, student, section, sea
   const libraryOwner = libraryInfo.ownerName || 'Study Point Owner';
   const libraryLogo = libraryInfo.logoUrl || '';
   const librarySignature = libraryInfo.signatureUrl || '';
-  const receiptNo = `SP-${fee.month?.replace('-', '') || '2026'}-${(fee.id || '001').slice(-4).toUpperCase()}`;
+  const receiptNo = `SP-${String(fee.month || '').replace('-', '') || '2026'}-${(fee.id || '001').slice(-4).toUpperCase()}`;
 
   const duration = Number(fee.planDuration) || (fee.periodStart && fee.periodEnd ? Math.max(1, Math.round((new Date(fee.periodEnd) - new Date(fee.periodStart)) / (30 * 24 * 60 * 60 * 1000))) : 1);
 

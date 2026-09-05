@@ -101,7 +101,7 @@ export default function PublicReceipt() {
   const libraryOwner = libraryInfo.ownerName || 'Study Point Owner';
   const libraryLogo = libraryInfo.logoUrl || '';
   const librarySignature = libraryInfo.signatureUrl || '';
-  const receiptNo = `SP-${fee.month?.replace('-', '') || '2026'}-${(fee.id || '001').slice(-4).toUpperCase()}`;
+  const receiptNo = `SP-${String(fee.month || '').replace('-', '') || '2026'}-${(fee.id || '001').slice(-4).toUpperCase()}`;
 
   const planTitle = fee.planName
     ? `${fee.planName}${fee.planDuration ? ` (${fee.planDuration} Months)` : ''}`
