@@ -65,73 +65,50 @@ input[type="number"] {
 /* =========================================================
    STRICT 1-PAGE PRINT STYLES FOR FEE RECEIPTS
    ========================================================= */
+#print-only-container {
+  display: none;
+}
+
 @media print {
   @page {
     size: A4 portrait;
-    margin: 8mm;
-  }
-
-  *, *::before, *::after {
-    box-shadow: none !important;
-    text-shadow: none !important;
+    margin: 6mm;
   }
 
   html, body {
     background: #ffffff !important;
     color: #0f172a !important;
-    font-size: 11pt !important;
     margin: 0 !important;
     padding: 0 !important;
     height: auto !important;
     min-height: auto !important;
-    overflow: hidden !important;
+    overflow: visible !important;
     -webkit-print-color-adjust: exact !important;
     print-color-adjust: exact !important;
   }
 
-  /* Hide everything by default */
-  body * {
-    visibility: hidden !important;
+  body.is-printing-receipt > #root {
+    display: none !important;
   }
 
-  /* Hide buttons and interactive controls */
+  body.is-printing-receipt > #print-only-container {
+    display: block !important;
+    width: 100% !important;
+    max-width: 760px !important;
+    margin: 0 auto !important;
+    padding: 0 !important;
+    background: #ffffff !important;
+    page-break-after: avoid !important;
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
+
   button,
   .no-print,
   header,
   aside,
   nav {
     display: none !important;
-    visibility: hidden !important;
-  }
-
-  /* Show ONLY the printable receipt container and all its elements */
-  #printable-fee-receipt,
-  #printable-fee-receipt *,
-  #public-receipt-card,
-  #public-receipt-card * {
-    visibility: visible !important;
-  }
-
-  #printable-fee-receipt,
-  #public-receipt-card {
-    position: fixed !important;
-    top: 0 !important;
-    left: 0 !important;
-    right: 0 !important;
-    width: 100% !important;
-    max-width: 100% !important;
-    margin: 0 auto !important;
-    padding: 16px !important;
-    background: #ffffff !important;
-    border: 2px solid #e2e8f0 !important;
-    border-radius: 16px !important;
-    box-shadow: none !important;
-    page-break-after: avoid !important;
-    page-break-before: avoid !important;
-    page-break-inside: avoid !important;
-    break-after: avoid !important;
-    break-before: avoid !important;
-    break-inside: avoid !important;
   }
 }
 

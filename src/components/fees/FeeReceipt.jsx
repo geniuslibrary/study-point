@@ -97,7 +97,7 @@ export default function FeeReceipt({ isOpen, onClose, fee, student, section, sea
   const pdfFileName = `Fee_Receipt_${(student?.name || 'Student').replace(/\s+/g, '_')}_${receiptNo}.pdf`;
   const onlineReceiptUrl = `${window.location.origin}/receipt/${fee.id}`;
 
-  // 1. Download / Save as PDF via native browser dialog (Guaranteed 1 of 1 Page)
+  // 1. Download / Save as PDF via native browser dialog (Guaranteed Strict 1 of 1 Page)
   const handleDownloadPDF = () => {
     const receiptEl = document.getElementById('printable-fee-receipt') || receiptRef.current;
     if (!receiptEl) {
@@ -105,78 +105,28 @@ export default function FeeReceipt({ isOpen, onClose, fee, student, section, sea
       return;
     }
 
-    // Remove any previous print iframe
-    const oldIframe = document.getElementById('receipt-print-frame');
-    if (oldIframe) oldIframe.remove();
+    // 1. Get or create dedicated print container directly in body
+    let printDiv = document.getElementById('print-only-container');
+    if (!printDiv) {
+      printDiv = document.createElement('div');
+      printDiv.id = 'print-only-container';
+      document.body.appendChild(printDiv);
+    }
 
-    const iframe = document.createElement('iframe');
-    iframe.id = 'receipt-print-frame';
-    iframe.style.position = 'fixed';
-    iframe.style.top = '-9999px';
-    iframe.style.left = '-9999px';
-    iframe.style.width = '900px';
-    iframe.style.height = '1200px';
-    iframe.style.border = 'none';
-    document.body.appendChild(iframe);
+    // 2. Clone the fully styled receipt into the print container
+    printDiv.innerHTML = receiptEl.outerHTML;
 
-    const doc = iframe.contentWindow.document;
-    const styles = Array.from(document.querySelectorAll('style, link[rel="stylesheet"]'))
-      .map((el) => el.outerHTML)
-      .join('\n');
+    // 3. Mark body to isolate print container and hide root
+    document.body.classList.add('is-printing-receipt');
 
-    doc.open();
-    doc.write(`
-      <!DOCTYPE html>
-      <html>
-        <head>
-          <title>${pdfFileName.replace('.pdf', '')}</title>
-          <meta charset="utf-8" />
-          <meta name="viewport" content="width=device-width, initial-scale=1" />
-          ${styles}
-          <style>
-            @page {
-              size: A4 portrait;
-              margin: 6mm;
-            }
-            * {
-              -webkit-print-color-adjust: exact !important;
-              print-color-adjust: exact !important;
-              box-sizing: border-box;
-            }
-            html, body {
-              margin: 0 !important;
-              padding: 0 !important;
-              background: #ffffff !important;
-              color: #0f172a !important;
-              width: 100% !important;
-              height: auto !important;
-            }
-            .print-wrapper {
-              width: 100%;
-              max-width: 720px;
-              margin: 0 auto;
-              padding: 4px;
-            }
-          </style>
-        </head>
-        <body>
-          <div class="print-wrapper">
-            ${receiptEl.outerHTML}
-          </div>
-        </body>
-      </html>
-    `);
-    doc.close();
+    // 4. Trigger print
+    window.print();
 
-    // Trigger print after iframe renders
+    // 5. Clean up after print dialog finishes
     setTimeout(() => {
-      try {
-        iframe.contentWindow.focus();
-        iframe.contentWindow.print();
-      } catch (e) {
-        window.print();
-      }
-    }, 250);
+      document.body.classList.remove('is-printing-receipt');
+      if (printDiv) printDiv.innerHTML = '';
+    }, 1000);
   };
 
   // 2. Share Live Digital Bill on WhatsApp (Instant non-blocking redirect)
