@@ -410,6 +410,14 @@ export default function StudentList({
                     Edit
                   </button>
                 )}
+                {canDelete && (
+                  <button
+                    onClick={() => onDelete(student)}
+                    className="px-2.5 py-1 bg-rose-50 text-rose-700 rounded-lg text-xs font-bold"
+                  >
+                    Delete
+                  </button>
+                )}
               </div>
             </div>
           );
