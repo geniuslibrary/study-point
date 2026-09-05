@@ -22,6 +22,7 @@ export default function Expenses() {
   const [editData, setEditData] = useState(null);
   const [deleteData, setDeleteData] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [customCategories, setCustomCategories] = useState([]);
 
   // Month filter: format YYYY-MM
   const now = new Date();
@@ -35,6 +36,9 @@ export default function Expenses() {
         fetchCollectionData(COLLECTIONS.EXPENSES),
         fetchCollectionData(COLLECTIONS.FEES),
       ]);
+
+      const extractedCats = [...new Set(expensesData.map((e) => e.category))].filter(Boolean);
+      setCustomCategories(extractedCats);
 
       const [year, month] = selectedMonth.split('-');
 
@@ -201,6 +205,7 @@ export default function Expenses() {
           expenses={expenses}
           onEdit={handleEdit}
           onDelete={handleDeleteClick}
+          allCategories={customCategories}
         />
       </div>
 
@@ -209,6 +214,7 @@ export default function Expenses() {
         onClose={() => setIsFormOpen(false)}
         onSubmit={handleFormSubmit}
         editData={editData}
+        customCategories={customCategories}
       />
 
       <ConfirmDialog

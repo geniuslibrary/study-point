@@ -1,10 +1,12 @@
-import React, { useState } from 'react';
+﻿import React, { useState } from 'react';
 import { Pencil, Trash2, Zap, Users, Receipt, Wrench, Calendar } from 'lucide-react';
 import { formatCurrency, formatDate } from '../../utils/helpers';
 import { EXPENSE_CATEGORIES } from '../../utils/constants';
 
-export default function ExpenseList({ expenses, onEdit, onDelete }) {
+export default function ExpenseList({ expenses, onEdit, onDelete, allCategories = [] }) {
   const [filterCategory, setFilterCategory] = useState('All');
+
+  const combinedCategories = [...new Set([...EXPENSE_CATEGORIES, ...allCategories])];
 
   const filteredExpenses = expenses
     .filter((e) => filterCategory === 'All' || e.category === filterCategory)
@@ -28,8 +30,8 @@ export default function ExpenseList({ expenses, onEdit, onDelete }) {
     <div className="bg-white rounded-2xl shadow-xs border border-gray-200 overflow-hidden">
       <div className="p-4 border-b border-gray-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-gray-50/70">
         <div>
-          <h3 className="font-bold text-gray-900 text-sm">Monthly Expense & Utility Records</h3>
-          <p className="text-xs text-gray-500 mt-0.5">Electricity bills, staff salaries & additional repairs</p>
+          <h3 className="font-bold text-gray-900 text-sm">Monthly Expense Records</h3>
+          <p className="text-xs text-gray-500 mt-0.5">Track all outgoing payments for the selected month</p>
         </div>
 
         <div className="flex items-center gap-2">
@@ -40,7 +42,7 @@ export default function ExpenseList({ expenses, onEdit, onDelete }) {
             className="rounded-lg border-gray-300 text-xs font-medium focus:border-indigo-500 focus:ring-indigo-500 border p-1.5 bg-white"
           >
             <option value="All">All Categories ({expenses.length})</option>
-            {EXPENSE_CATEGORIES.map((cat) => (
+            {combinedCategories.map((cat) => (
               <option key={cat} value={cat}>
                 {cat}
               </option>
@@ -55,8 +57,8 @@ export default function ExpenseList({ expenses, onEdit, onDelete }) {
             <tr>
               <th className="px-5 py-3 text-left">Date</th>
               <th className="px-5 py-3 text-left">Category</th>
-              <th className="px-5 py-3 text-left">Description / Meter Details</th>
-              <th className="px-5 py-3 text-right">Amount (₹)</th>
+              <th className="px-5 py-3 text-left">Description</th>
+              <th className="px-5 py-3 text-right">Amount (?)</th>
               <th className="px-5 py-3 text-right">Actions</th>
             </tr>
           </thead>
