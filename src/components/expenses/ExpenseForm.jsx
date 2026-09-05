@@ -499,25 +499,27 @@ export default function ExpenseForm({ isOpen, onClose, onSubmit, editData }) {
 
           {/* Standard Expense Fields */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">
-                Expense Category *
-              </label>
-              <select
-                name="category"
-                value={formData.category}
-                onChange={handleChange}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white focus:ring-2 focus:ring-indigo-500"
-              >
-                {EXPENSE_CATEGORIES.map((cat) => (
-                  <option key={cat} value={cat}>
-                    {cat}
-                  </option>
-                ))}
-              </select>
-            </div>
+            {formMode === 'general' || formMode === 'additional' ? (
+              <div>
+                <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">
+                  Expense Category *
+                </label>
+                <select
+                  name="category"
+                  value={formData.category}
+                  onChange={handleChange}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white focus:ring-2 focus:ring-indigo-500"
+                >
+                  {EXPENSE_CATEGORIES.map((cat) => (
+                    <option key={cat} value={cat}>
+                      {cat}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            ) : null}
 
-            <div>
+            <div className={formMode === 'general' || formMode === 'additional' ? '' : 'sm:col-span-2'}>
               <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">
                 Expense Date *
               </label>
