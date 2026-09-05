@@ -713,21 +713,21 @@ export default function Reports() {
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div className="p-3 bg-gray-50 rounded-xl border border-gray-200 flex items-center justify-between">
                   <div className="flex items-center gap-2">
-                    <span className="text-lg">??</span>
+                    <span className="text-lg">💵</span>
                     <span className="text-sm font-semibold text-gray-700">Cash</span>
                   </div>
                   <span className="text-base font-extrabold text-gray-900">{formatCurrency(monthlyCashCollection)}</span>
                 </div>
                 <div className="p-3 bg-indigo-50/60 rounded-xl border border-indigo-100 flex items-center justify-between">
                   <div className="flex items-center gap-2">
-                    <span className="text-lg">??</span>
+                    <span className="text-lg">📱</span>
                     <span className="text-sm font-semibold text-indigo-900">UPI / QR Code</span>
                   </div>
                   <span className="text-base font-extrabold text-indigo-700">{formatCurrency(monthlyUpiCollection)}</span>
                 </div>
                 <div className="p-3 bg-purple-50/60 rounded-xl border border-purple-100 flex items-center justify-between">
                   <div className="flex items-center gap-2">
-                    <span className="text-lg">??</span>
+                    <span className="text-lg">🏦</span>
                     <span className="text-sm font-semibold text-purple-900">Bank Transfer</span>
                   </div>
                   <span className="text-base font-extrabold text-purple-700">{formatCurrency(monthlyBankCollection)}</span>
@@ -997,21 +997,21 @@ export default function Reports() {
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div className="p-3 bg-gray-50 rounded-xl border border-gray-200 flex items-center justify-between">
                   <div className="flex items-center gap-2">
-                    <span className="text-lg">??</span>
+                    <span className="text-lg">💵</span>
                     <span className="text-sm font-semibold text-gray-700">Cash</span>
                   </div>
                   <span className="text-base font-extrabold text-gray-900">{formatCurrency(customCashCollection)}</span>
                 </div>
                 <div className="p-3 bg-indigo-50/60 rounded-xl border border-indigo-100 flex items-center justify-between">
                   <div className="flex items-center gap-2">
-                    <span className="text-lg">??</span>
+                    <span className="text-lg">📱</span>
                     <span className="text-sm font-semibold text-indigo-900">UPI / QR Code</span>
                   </div>
                   <span className="text-base font-extrabold text-indigo-700">{formatCurrency(customUpiCollection)}</span>
                 </div>
                 <div className="p-3 bg-purple-50/60 rounded-xl border border-purple-100 flex items-center justify-between">
                   <div className="flex items-center gap-2">
-                    <span className="text-lg">??</span>
+                    <span className="text-lg">🏦</span>
                     <span className="text-sm font-semibold text-purple-900">Bank Transfer</span>
                   </div>
                   <span className="text-base font-extrabold text-purple-700">{formatCurrency(customBankCollection)}</span>
