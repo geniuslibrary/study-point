@@ -1,9 +1,9 @@
-﻿import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import Modal from '../common/Modal';
 import Button from '../common/Button';
 import { EXPENSE_CATEGORIES } from '../../utils/constants';
 
-export default function ExpenseForm({ isOpen, onClose, onSubmit, editData, customCategories = [] }) {
+export default function ExpenseForm({ isOpen, onClose, onSubmit, editData, prefillData, customCategories = [] }) {
   const [formData, setFormData] = useState({
     category: 'Electricity',
     customCategory: '',
@@ -16,24 +16,25 @@ export default function ExpenseForm({ isOpen, onClose, onSubmit, editData, custo
 
   useEffect(() => {
     if (isOpen) {
-      if (editData) {
-        const dStr = editData.date instanceof Date
-          ? editData.date.toISOString().split('T')[0]
-          : editData.date?.seconds
-            ? new Date(editData.date.seconds * 1000).toISOString().split('T')[0]
-            : typeof editData.date === 'string'
-              ? editData.date
+      const dataToLoad = editData || prefillData;
+      if (dataToLoad) {
+        const dStr = dataToLoad.date instanceof Date
+          ? dataToLoad.date.toISOString().split('T')[0]
+          : dataToLoad.date?.seconds
+            ? new Date(dataToLoad.date.seconds * 1000).toISOString().split('T')[0]
+            : typeof dataToLoad.date === 'string'
+              ? dataToLoad.date
               : new Date().toISOString().split('T')[0];
 
-        const cat = editData.category || 'Electricity';
+        const cat = dataToLoad.category || 'Electricity';
         const isCustom = !EXPENSE_CATEGORIES.includes(cat) && !customCategories.includes(cat);
 
         setFormData({
           category: isCustom ? 'Custom...' : cat,
           customCategory: isCustom ? cat : '',
-          amount: editData.amount || '',
+          amount: dataToLoad.amount || '',
           date: dStr,
-          description: editData.description || '',
+          description: dataToLoad.description || '',
         });
       } else {
         setFormData({
@@ -45,7 +46,7 @@ export default function ExpenseForm({ isOpen, onClose, onSubmit, editData, custo
         });
       }
     }
-  }, [editData, isOpen, customCategories]);
+  }, [editData, prefillData, isOpen, customCategories]);
 
   const handleChange = (e) => {
     setFormData((prev) => ({ ...prev, [e.target.name]: e.target.value }));
