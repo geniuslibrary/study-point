@@ -47,10 +47,16 @@ export default function Fees() {
     const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
 
     // 1. Sync existing pending fees to make sure seat addons (like Locker) and durations are accurately reflected
-    const updatedCurrentFees = await Promise.all(
+    const updatedCurrentFeesRaw = await Promise.all(
       currentFees.map(async (fee) => {
         const student = activeStudents.find((s) => s.id === fee.studentId);
-        if (!student) return fee;
+        if (!student) {
+          if (fee.status === 'pending') {
+            try { await removeDocument(COLLECTIONS.FEES, fee.id); } catch (e) {}
+            return null;
+          }
+          return fee;
+        }
 
         const seat = allSeats.find((s) => s.id === student.seatId);
         const plan = allPlans.find((p) => p.id === student.membershipPlanId) || {
@@ -89,6 +95,8 @@ export default function Fees() {
         return fee;
       })
     );
+
+    const updatedCurrentFees = updatedCurrentFeesRaw.filter(Boolean);
 
     // 2. Create missing dues ONLY for active students whose membership has truly expired
     const missingStudents = activeStudents.filter((student) => {
