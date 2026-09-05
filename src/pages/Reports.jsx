@@ -268,6 +268,21 @@ export default function Reports() {
   const customTotalExpense = customExpenses.reduce((sum, e) => sum + (Number(e.amount) || 0), 0);
   const customNetProfit = customTotalRevenue - customTotalExpense;
 
+  const customCashCollection = customFees
+    .filter((f) => !f.paymentMode || f.paymentMode === 'cash')
+    .reduce((sum, f) => sum + (Number(f.amount) || 0), 0);
+  const customUpiCollection = customFees
+    .filter((f) => f.paymentMode === 'upi')
+    .reduce((sum, f) => sum + (Number(f.amount) || 0), 0);
+  const customBankCollection = customFees
+    .filter((f) => f.paymentMode === 'bank')
+    .reduce((sum, f) => sum + (Number(f.amount) || 0), 0);
+  const customCategoryExpenseMap = {};
+  customExpenses.forEach((exp) => {
+    const cat = exp.category || 'Other';
+    customCategoryExpenseMap[cat] = (customCategoryExpenseMap[cat] || 0) + (Number(exp.amount) || 0);
+  });
+
   return (
     <Layout title="Reports">
       <div className="space-y-6">
