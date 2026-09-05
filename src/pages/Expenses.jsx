@@ -5,8 +5,7 @@ import ConfirmDialog from '../components/common/ConfirmDialog';
 import ExpenseForm from '../components/expenses/ExpenseForm';
 import ExpenseList from '../components/expenses/ExpenseList';
 import ExpenseSummary from '../components/expenses/ExpenseSummary';
-import RecurringExpensesModal from '../components/expenses/RecurringExpensesModal';
-import { Plus, Loader2, Zap, Users, Receipt, Calendar, Repeat } from 'lucide-react';
+import { Plus, Loader2, Zap, Users, Receipt, Calendar } from 'lucide-react';
 import { COLLECTIONS } from '../utils/constants';
 import { getMonthName } from '../utils/helpers';
 import {
@@ -20,12 +19,9 @@ export default function Expenses() {
   const [expenses, setExpenses] = useState([]);
   const [revenue, setRevenue] = useState(0);
   const [isFormOpen, setIsFormOpen] = useState(false);
-  const [isRecurringOpen, setIsRecurringOpen] = useState(false);
   const [editData, setEditData] = useState(null);
-  const [prefillData, setPrefillData] = useState(null);
   const [deleteData, setDeleteData] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [customCategories, setCustomCategories] = useState([]);
 
   // Month filter: format YYYY-MM
   const now = new Date();
@@ -39,9 +35,6 @@ export default function Expenses() {
         fetchCollectionData(COLLECTIONS.EXPENSES),
         fetchCollectionData(COLLECTIONS.FEES),
       ]);
-
-      const extractedCats = [...new Set(expensesData.map((e) => e.category))].filter(Boolean);
-      setCustomCategories(extractedCats);
 
       const [year, month] = selectedMonth.split('-');
 
@@ -85,15 +78,22 @@ export default function Expenses() {
     fetchData();
   }, [selectedMonth]);
 
-  const handleAdd = () => {
-    setEditData(null);
-    setPrefillData(null);
+  const handleAdd = (prefillCategory = null) => {
+    if (prefillCategory) {
+      setEditData({
+        category: prefillCategory,
+        amount: '',
+        date: new Date().toISOString().split('T')[0],
+        description: '',
+      });
+    } else {
+      setEditData(null);
+    }
     setIsFormOpen(true);
   };
 
   const handleEdit = (expense) => {
     setEditData(expense);
-    setPrefillData(null);
     setIsFormOpen(true);
   };
 
@@ -120,8 +120,6 @@ export default function Expenses() {
     } else {
       await createDocument(COLLECTIONS.EXPENSES, expenseRecord);
     }
-    setEditData(null);
-    setPrefillData(null);
     setIsFormOpen(false);
     fetchData();
   };
@@ -168,15 +166,25 @@ export default function Expenses() {
               />
             </div>
 
-            {/* Quick Action: Fixed Bills & Staff */}
-            <Button
-              variant="secondary"
-              icon={<Repeat className="w-4 h-4" />}
-              onClick={() => setIsRecurringOpen(true)}
-              className="bg-indigo-50 border-indigo-200 text-indigo-700 hover:bg-indigo-100 whitespace-nowrap"
+            {/* Quick Action: Light Bill */}
+            <button
+              onClick={() => handleAdd('Electricity')}
+              className="px-3 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-xl text-xs font-bold transition-all shadow-xs flex items-center gap-1.5 cursor-pointer"
+              title="Add Monthly Electricity Bill with Meter Reading"
             >
-              Fixed Bills & Staff
-            </Button>
+              <Zap className="w-3.5 h-3.5" />
+              <span>⚡ Light Bill</span>
+            </button>
+
+            {/* Quick Action: Staff Salary */}
+            <button
+              onClick={() => handleAdd('Staff Salary')}
+              className="px-3 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition-all shadow-xs flex items-center gap-1.5 cursor-pointer"
+              title="Calculate & Add Monthly Staff Salary"
+            >
+              <Users className="w-3.5 h-3.5" />
+              <span>👥 Staff Salary</span>
+            </button>
 
             {/* Add General Expense Button */}
             <Button icon={<Plus className="w-4 h-4" />} onClick={() => handleAdd()}>
@@ -193,7 +201,6 @@ export default function Expenses() {
           expenses={expenses}
           onEdit={handleEdit}
           onDelete={handleDeleteClick}
-          allCategories={customCategories}
         />
       </div>
 
@@ -202,25 +209,6 @@ export default function Expenses() {
         onClose={() => setIsFormOpen(false)}
         onSubmit={handleFormSubmit}
         editData={editData}
-        prefillData={prefillData}
-        customCategories={customCategories}
-      />
-
-      <RecurringExpensesModal
-        isOpen={isRecurringOpen}
-        onClose={() => setIsRecurringOpen(false)}
-        allCategories={[...new Set([...customCategories, 'Internet/WiFi', 'Rent', 'Staff Salary'])]}
-        onAutoRecordExpense={async (item, recordDate) => {
-          const expenseRecord = {
-            category: item.category,
-            amount: Number(item.amount),
-            description: `Auto-recorded Recurring: ${item.name}`,
-            date: recordDate,
-            month: recordDate.substring(0, 7)
-          };
-          await createDocument(COLLECTIONS.EXPENSES, expenseRecord);
-          fetchData();
-        }}
       />
 
       <ConfirmDialog
