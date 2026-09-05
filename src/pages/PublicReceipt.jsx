@@ -147,18 +147,27 @@ export default function PublicReceipt() {
       const margin = 10;
       const contentWidth = pdfWidth - margin * 2; // 190mm
       const contentHeight = (canvas.height * contentWidth) / canvas.width;
+      const printableHeight = pdfHeight - margin * 2; // 277mm
 
-      let finalWidth = contentWidth;
-      let finalHeight = contentHeight;
-      if (finalHeight > pdfHeight - margin * 2) {
-        finalHeight = pdfHeight - margin * 2;
-        finalWidth = (canvas.width * finalHeight) / canvas.height;
+      if (contentHeight <= printableHeight) {
+        // Fits on 1 single page
+        pdf.addImage(imgData, 'JPEG', margin, margin, contentWidth, contentHeight);
+      } else {
+        // If it really exceeds 1 page, clean split
+        let heightLeft = contentHeight;
+        let position = margin;
+
+        pdf.addImage(imgData, 'JPEG', margin, position, contentWidth, contentHeight);
+        heightLeft -= printableHeight;
+
+        while (heightLeft > 0) {
+          position = position - printableHeight;
+          pdf.addPage();
+          pdf.addImage(imgData, 'JPEG', margin, position, contentWidth, contentHeight);
+          heightLeft -= printableHeight;
+        }
       }
 
-      const xPos = margin + (contentWidth - finalWidth) / 2;
-      const yPos = margin;
-
-      pdf.addImage(imgData, 'JPEG', xPos, yPos, finalWidth, finalHeight);
       pdf.save(pdfFileName);
     } catch (err) {
       console.warn('PDF error, falling back to print:', err);

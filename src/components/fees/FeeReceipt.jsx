@@ -97,7 +97,7 @@ export default function FeeReceipt({ isOpen, onClose, fee, student, section, sea
   const pdfFileName = `Fee_Receipt_${(student?.name || 'Student').replace(/\s+/g, '_')}_${receiptNo}.pdf`;
   const onlineReceiptUrl = `${window.location.origin}/receipt/${fee.id}`;
 
-  // 1. Direct Single-Page High-Resolution PDF Download
+  // 1. Direct High-Resolution PDF Download (Strict 1-2 Pages)
   const handleDownloadPDF = async () => {
     const element = document.getElementById('printable-fee-receipt') || receiptRef.current;
     if (!element) return;
@@ -126,21 +126,30 @@ export default function FeeReceipt({ isOpen, onClose, fee, student, section, sea
       const margin = 10;
       const contentWidth = pdfWidth - margin * 2; // 190mm
       const contentHeight = (canvas.height * contentWidth) / canvas.width;
+      const printableHeight = pdfHeight - margin * 2; // 277mm
 
-      let finalWidth = contentWidth;
-      let finalHeight = contentHeight;
-      if (finalHeight > pdfHeight - margin * 2) {
-        finalHeight = pdfHeight - margin * 2;
-        finalWidth = (canvas.width * finalHeight) / canvas.height;
+      if (contentHeight <= printableHeight) {
+        // Fits perfectly on a single 1-page A4
+        pdf.addImage(imgData, 'JPEG', margin, margin, contentWidth, contentHeight);
+      } else {
+        // Multi-page clean split (max 2 pages)
+        let heightLeft = contentHeight;
+        let position = margin;
+
+        pdf.addImage(imgData, 'JPEG', margin, position, contentWidth, contentHeight);
+        heightLeft -= printableHeight;
+
+        while (heightLeft > 0) {
+          position = position - printableHeight;
+          pdf.addPage();
+          pdf.addImage(imgData, 'JPEG', margin, position, contentWidth, contentHeight);
+          heightLeft -= printableHeight;
+        }
       }
 
-      const xPos = margin + (contentWidth - finalWidth) / 2;
-      const yPos = margin;
-
-      pdf.addImage(imgData, 'JPEG', xPos, yPos, finalWidth, finalHeight);
       pdf.save(pdfFileName);
 
-      setPdfToast('🎉 1-Page PDF Receipt Downloaded Successfully!');
+      setPdfToast('🎉 PDF Receipt Downloaded Successfully!');
       setTimeout(() => setPdfToast(''), 4000);
     } catch (err) {
       console.error('PDF error, falling back to print:', err);
@@ -362,27 +371,17 @@ export default function FeeReceipt({ isOpen, onClose, fee, student, section, sea
           <div className="flex flex-wrap items-center gap-2">
             <button
               onClick={handleShareWhatsApp}
-              className="px-3.5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition-all shadow-md flex items-center gap-1.5 cursor-pointer"
+              className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition-all shadow-md flex items-center gap-2 cursor-pointer"
               title="Share Live Digital Bill on WhatsApp"
             >
               <MessageSquare className="w-4 h-4" />
-              <span>WhatsApp</span>
-            </button>
-
-            <button
-              onClick={handlePrint}
-              disabled={isGeneratingPdf}
-              className="px-3.5 py-2.5 bg-slate-800 hover:bg-slate-900 disabled:opacity-50 text-white rounded-xl text-xs font-bold transition-all shadow-md flex items-center gap-1.5 cursor-pointer"
-              title="Direct 1-Page Print"
-            >
-              <Printer className="w-4 h-4" />
-              <span>Print (1-Page)</span>
+              <span>WhatsApp PDF Bill</span>
             </button>
 
             <button
               onClick={handleDownloadPDF}
               disabled={isGeneratingPdf}
-              className="px-3.5 py-2.5 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white rounded-xl text-xs font-black transition-all shadow-md flex items-center gap-1.5 cursor-pointer"
+              className="px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white rounded-xl text-xs font-black transition-all shadow-md flex items-center gap-2 cursor-pointer"
               title="Download PDF Receipt"
             >
               {isGeneratingPdf ? (
