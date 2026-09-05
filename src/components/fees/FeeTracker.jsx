@@ -199,18 +199,6 @@ export default function FeeTracker({
             </div>
           )}
 
-          {/* Reset Filters Button */}
-          {hasActiveFilters && (
-            <button
-              onClick={handleResetFilters}
-              className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-xs font-bold text-slate-500 hover:text-rose-600 hover:bg-rose-50 border border-slate-200 transition-all cursor-pointer"
-              title="Reset all filters"
-            >
-              <RotateCcw size={12} />
-              <span>Reset</span>
-            </button>
-          )}
-
           {/* Count Badge */}
           <span className="text-[11px] font-bold text-slate-400 ml-auto">
             Showing {filteredFees.length} of {fees.length} bills
@@ -415,15 +403,6 @@ export default function FeeTracker({
           <p className="text-xs text-slate-400">
             Try adjusting your search keywords, month or status filter.
           </p>
-          {hasActiveFilters && (
-            <button
-              onClick={handleResetFilters}
-              className="mt-2 px-3 py-1.5 bg-indigo-50 text-indigo-700 text-xs font-bold rounded-xl hover:bg-indigo-100 transition-colors inline-flex items-center gap-1"
-            >
-              <RotateCcw size={12} />
-              <span>Clear All Filters</span>
-            </button>
-          )}
         </div>
       )}
     </div>
