@@ -161,7 +161,7 @@ export default function Visitors() {
         examTarget: formData.examTarget.trim(),
         shift: formData.shift,
         sectionId: formData.sectionId,
-        seatId: formData.seatId,
+        seatId: formData.status === 'not_interested' ? '' : formData.seatId,
         startDate: formData.startDate,
         endDate: formData.endDate,
         durationDays: formData.durationDays,
@@ -775,10 +775,11 @@ export default function Visitors() {
                             {item.status !== 'converted' && item.status !== 'not_interested' && (
                               <button
                                 onClick={() => handleMarkNotInterested(item)}
-                                className="p-2 rounded-xl bg-slate-100 hover:bg-amber-50 text-slate-400 hover:text-amber-700 transition-all cursor-pointer"
-                                title="Mark Not Interested (Frees seat, archives details)"
+                                className="px-2.5 py-1.5 rounded-xl bg-slate-100 hover:bg-rose-50 text-slate-600 hover:text-rose-700 border border-slate-200/80 hover:border-rose-200 text-xs font-bold transition-all cursor-pointer flex items-center gap-1"
+                                title="Mark Not Interested (Frees trial seat immediately, keeps data saved)"
                               >
-                                <UserX className="w-4 h-4" />
+                                <UserX className="w-3.5 h-3.5 text-rose-500" />
+                                <span>Not Interested</span>
                               </button>
                             )}
 
@@ -1050,14 +1051,21 @@ export default function Visitors() {
                 </label>
                 <select
                   value={formData.status}
-                  onChange={(e) => setFormData({ ...formData, status: e.target.value })}
+                  onChange={(e) => {
+                    const nextStatus = e.target.value;
+                    setFormData({
+                      ...formData,
+                      status: nextStatus,
+                      seatId: nextStatus === 'not_interested' ? '' : formData.seatId,
+                    });
+                  }}
                   className="w-full px-3.5 py-2 border border-slate-300 rounded-xl text-xs font-semibold bg-white"
                 >
                   <option value="demo_active">🟢 Active Demo Trial</option>
                   <option value="demo_completed">⏳ Demo Trial Completed</option>
                   <option value="converted">🤝 Converted to Regular Student</option>
                   <option value="inquiry">📋 Inquiry / Visit Only</option>
-                  <option value="not_interested">⚪ Not Interested / Left</option>
+                  <option value="not_interested">⚪ Not Interested (Frees Seat)</option>
                 </select>
               </div>
             )}

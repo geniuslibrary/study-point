@@ -486,10 +486,11 @@ export default function NotificationPanel({ isOpen, onClose }) {
 
                           <button
                             onClick={() => handleMarkDemoNotInterested(demo)}
-                            className="p-1.5 bg-slate-100 hover:bg-amber-100 text-slate-500 hover:text-amber-700 rounded-lg transition-all cursor-pointer"
-                            title="Mark Not Interested (Frees seat)"
+                            className="px-2.5 py-1 bg-slate-100 hover:bg-rose-50 text-slate-600 hover:text-rose-700 border border-slate-200 hover:border-rose-200 rounded-lg text-xs font-bold transition-all flex items-center gap-1 shadow-2xs cursor-pointer"
+                            title="Mark Not Interested (Frees trial seat immediately)"
                           >
-                            <UserX className="w-3.5 h-3.5" />
+                            <UserX className="w-3.5 h-3.5 text-rose-500" />
+                            <span>Not Interested</span>
                           </button>
                         </div>
                       </div>
