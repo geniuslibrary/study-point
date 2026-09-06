@@ -16,7 +16,7 @@ import {
   UserX,
 } from 'lucide-react';
 import { COLLECTIONS } from '../../utils/constants';
-import { formatDate, formatCurrency } from '../../utils/helpers';
+import { formatDate, formatCurrency, formatReminderTime } from '../../utils/helpers';
 import { fetchCollectionData, updateDocument } from '../../firebase/storageService';
 import { doc, getDoc } from 'firebase/firestore';
 import { db } from '../../firebase/config';
@@ -156,7 +156,23 @@ export default function NotificationPanel({ isOpen, onClose }) {
 
   const totalAlertsCount = expiringStudents.length + pendingFeeStudents.length + demoAlerts.length;
 
-  const handleWhatsAppReminder = (student, type = 'expiry') => {
+  const isDateToday = (dateStr) => {
+    if (!dateStr) return false;
+    const d = new Date(dateStr);
+    return !isNaN(d.getTime()) && d.toDateString() === new Date().toDateString();
+  };
+
+  const sentTodayCount = [
+    ...students.filter(
+      (s) =>
+        isDateToday(s.lastReminderAt) ||
+        isDateToday(s.lastExpiryReminderAt) ||
+        (s.lastFeeReminderMonth === currentMonth && isDateToday(s.lastFeeReminderAt))
+    ),
+    ...visitors.filter((v) => isDateToday(v.lastReminderAt)),
+  ].length;
+
+  const handleWhatsAppReminder = async (student, type = 'expiry') => {
     const cleanPhone = (student.phone || '').replace(/\D/g, '');
     const phoneWithCountry = cleanPhone.length === 10 ? `91${cleanPhone}` : cleanPhone;
 
@@ -176,11 +192,43 @@ export default function NotificationPanel({ isOpen, onClose }) {
       message = `नमस्ते ${student.name} जी,\n${libraryName} में आपके चालू माह (${currentMonth}) की फीस बकाया है। कृपया समय पर फीस जमा करवाएं। धन्यवाद! 🙏`;
     }
 
+    const nowIso = new Date().toISOString();
+    try {
+      if (type === 'expiry') {
+        await updateDocument(COLLECTIONS.STUDENTS, student.id, {
+          lastExpiryReminderAt: nowIso,
+          lastReminderAt: nowIso,
+          lastReminderType: 'expiry',
+        });
+        setStudents((prev) =>
+          prev.map((s) =>
+            s.id === student.id
+              ? { ...s, lastExpiryReminderAt: nowIso, lastReminderAt: nowIso, lastReminderType: 'expiry' }
+              : s
+          )
+        );
+      } else {
+        await updateDocument(COLLECTIONS.STUDENTS, student.id, {
+          lastFeeReminderAt: nowIso,
+          lastFeeReminderMonth: currentMonth,
+        });
+        setStudents((prev) =>
+          prev.map((s) =>
+            s.id === student.id
+              ? { ...s, lastFeeReminderAt: nowIso, lastFeeReminderMonth: currentMonth }
+              : s
+          )
+        );
+      }
+    } catch (err) {
+      console.error('Error saving reminder timestamp:', err);
+    }
+
     const waUrl = `https://api.whatsapp.com/send?phone=${phoneWithCountry}&text=${encodeURIComponent(message)}`;
     window.open(waUrl, '_blank', 'noopener,noreferrer');
   };
 
-  const handleDemoWhatsApp = (demo) => {
+  const handleDemoWhatsApp = async (demo) => {
     const cleanPhone = (demo.phone || '').replace(/\D/g, '');
     const phoneWithCountry = cleanPhone.length === 10 ? `91${cleanPhone}` : cleanPhone;
 
@@ -189,6 +237,18 @@ export default function NotificationPanel({ isOpen, onClose }) {
       message = `नमस्ते ${demo.name} जी 🙏\n\n${libraryName} में आज आपके Free Demo Trial का आखिरी दिन है।\n\nआशा है आपको हमारी लाइब्रेरी का माहौल, शांत वातावरण और AC सीट पसंद आई होगी। अपनी सीट नियमित रूप से कन्फर्म करवाने के लिए संपर्क करें।\n\nधन्यवाद! ✨\n${libraryName}`;
     } else {
       message = `नमस्ते ${demo.name} जी 🙏\n\n${libraryName} में आपका Free Demo Trial समाप्त हो चुका है।\n\nयदि आप अपनी सीट जारी रखना चाहते हैं तो कृपया जल्द संपर्क करें क्योंकि सीटें सीमित हैं।\n\nधन्यवाद! ✨\n${libraryName}`;
+    }
+
+    const nowIso = new Date().toISOString();
+    try {
+      await updateDocument(COLLECTIONS.VISITORS, demo.id, {
+        lastReminderAt: nowIso,
+      });
+      setVisitors((prev) =>
+        prev.map((v) => (v.id === demo.id ? { ...v, lastReminderAt: nowIso } : v))
+      );
+    } catch (err) {
+      console.error('Error saving demo reminder timestamp:', err);
     }
 
     const waUrl = `https://api.whatsapp.com/send?phone=${phoneWithCountry}&text=${encodeURIComponent(message)}`;
@@ -246,7 +306,7 @@ export default function NotificationPanel({ isOpen, onClose }) {
             <div>
               <h3 className="font-bold text-sm leading-tight">Notification Center</h3>
               <p className="text-[11px] text-indigo-100 font-medium">
-                {totalAlertsCount} actionable reminders & warnings
+                {totalAlertsCount} actionable alerts {sentTodayCount > 0 ? `• ✅ ${sentTodayCount} reminded today` : '• 0 sent today'}
               </p>
             </div>
           </div>
@@ -342,6 +402,7 @@ export default function NotificationPanel({ isOpen, onClose }) {
 
                   {demoAlerts.map((demo) => {
                     const isToday = demo.isToday;
+                    const reminderInfo = formatReminderTime(demo.lastReminderAt);
 
                     return (
                       <div
@@ -375,9 +436,27 @@ export default function NotificationPanel({ isOpen, onClose }) {
                               <span className="capitalize">⏰ {demo.shift?.replace('_', ' ') || 'Full Day'}</span>
                             </p>
 
-                            <p className="text-[11px] text-gray-500 mt-0.5">
-                              Trial Date: <strong>{demo.endDateFormatted}</strong> • Phone: {demo.phone}
-                            </p>
+                            <div className="flex flex-wrap items-center gap-2 mt-1">
+                              <p className="text-[11px] text-gray-500">
+                                Trial Date: <strong>{demo.endDateFormatted}</strong> • Phone: {demo.phone}
+                              </p>
+                              {reminderInfo ? (
+                                <span
+                                  className={`text-[10px] font-bold px-2 py-0.5 rounded-md flex items-center gap-1 ${
+                                    reminderInfo.isToday
+                                      ? 'bg-emerald-100 text-emerald-800 border border-emerald-300'
+                                      : 'bg-slate-100 text-slate-700'
+                                  }`}
+                                >
+                                  <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+                                  <span>{reminderInfo.text}</span>
+                                </span>
+                              ) : (
+                                <span className="text-[10px] font-semibold text-slate-400 bg-slate-100 px-2 py-0.5 rounded-md">
+                                  ⏳ Not sent yet
+                                </span>
+                              )}
+                            </div>
                           </div>
                         </div>
 
@@ -385,11 +464,15 @@ export default function NotificationPanel({ isOpen, onClose }) {
                         <div className="mt-2.5 pt-2 border-t border-gray-200/60 flex items-center justify-end gap-1.5">
                           <button
                             onClick={() => handleDemoWhatsApp(demo)}
-                            className="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold transition-all flex items-center gap-1 shadow-2xs cursor-pointer"
-                            title="Send WhatsApp Follow-up / Offer"
+                            className={`px-2.5 py-1 text-white rounded-lg text-xs font-bold transition-all flex items-center gap-1 shadow-2xs cursor-pointer ${
+                              reminderInfo?.isToday
+                                ? 'bg-emerald-700 hover:bg-emerald-800 ring-1 ring-emerald-400'
+                                : 'bg-emerald-600 hover:bg-emerald-700'
+                            }`}
+                            title={reminderInfo?.isToday ? 'Follow-up already sent today. Click to resend' : 'Send WhatsApp Follow-up / Offer'}
                           >
                             <MessageSquare className="w-3.5 h-3.5" />
-                            <span>WhatsApp Follow-up</span>
+                            <span>{reminderInfo?.isToday ? 'Resend WhatsApp' : 'WhatsApp Follow-up'}</span>
                           </button>
 
                           <button
@@ -430,6 +513,9 @@ export default function NotificationPanel({ isOpen, onClose }) {
                   {expiringStudents.map((st) => {
                     const isOverdue = st.diffDays < 0;
                     const isToday = st.diffDays === 0;
+                    const reminderInfo = formatReminderTime(
+                      st.lastExpiryReminderAt || (st.lastReminderType === 'expiry' ? st.lastReminderAt : null)
+                    );
 
                     return (
                       <div
@@ -471,9 +557,27 @@ export default function NotificationPanel({ isOpen, onClose }) {
                               <span>⏰ {st.shiftTiming || 'Full Day'}</span>
                             </p>
 
-                            <p className="text-[11px] text-gray-500 mt-0.5">
-                              Valid Till: <strong>{formatDate(st.expiryDate)}</strong> • Phone: {st.phone}
-                            </p>
+                            <div className="flex flex-wrap items-center gap-2 mt-1">
+                              <p className="text-[11px] text-gray-500">
+                                Valid Till: <strong>{formatDate(st.expiryDate)}</strong> • Phone: {st.phone}
+                              </p>
+                              {reminderInfo ? (
+                                <span
+                                  className={`text-[10px] font-bold px-2 py-0.5 rounded-md flex items-center gap-1 ${
+                                    reminderInfo.isToday
+                                      ? 'bg-emerald-100 text-emerald-800 border border-emerald-300'
+                                      : 'bg-slate-100 text-slate-700'
+                                  }`}
+                                >
+                                  <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+                                  <span>{reminderInfo.text}</span>
+                                </span>
+                              ) : (
+                                <span className="text-[10px] font-semibold text-slate-400 bg-slate-100 px-2 py-0.5 rounded-md">
+                                  ⏳ Not sent yet
+                                </span>
+                              )}
+                            </div>
                           </div>
                         </div>
 
@@ -481,11 +585,15 @@ export default function NotificationPanel({ isOpen, onClose }) {
                         <div className="mt-2.5 pt-2 border-t border-gray-200/60 flex items-center justify-end gap-2">
                           <button
                             onClick={() => handleWhatsAppReminder(st, 'expiry')}
-                            className="px-2.5 py-1 bg-green-600 hover:bg-green-700 text-white rounded-lg text-xs font-bold transition-all flex items-center gap-1 shadow-2xs cursor-pointer"
-                            title="Send pre-filled WhatsApp renewal reminder"
+                            className={`px-2.5 py-1 text-white rounded-lg text-xs font-bold transition-all flex items-center gap-1 shadow-2xs cursor-pointer ${
+                              reminderInfo?.isToday
+                                ? 'bg-emerald-700 hover:bg-emerald-800 ring-1 ring-emerald-400'
+                                : 'bg-green-600 hover:bg-green-700'
+                            }`}
+                            title={reminderInfo?.isToday ? 'Reminder already sent today. Click to resend' : 'Send pre-filled WhatsApp renewal reminder'}
                           >
                             <MessageSquare className="w-3.5 h-3.5" />
-                            <span>WhatsApp Reminder</span>
+                            <span>{reminderInfo?.isToday ? 'Resend Reminder' : 'WhatsApp Reminder'}</span>
                           </button>
 
                           <button
@@ -518,40 +626,68 @@ export default function NotificationPanel({ isOpen, onClose }) {
                     </span>
                   </div>
 
-                  {pendingFeeStudents.map(({ student, seatNumber }) => (
-                    <div
-                      key={student.id}
-                      className="p-3 bg-red-50/40 rounded-xl border border-red-200 flex flex-wrap sm:flex-nowrap items-center justify-between gap-2"
-                    >
-                      <div className="min-w-0">
-                        <p className="font-bold text-gray-900 text-xs truncate">{student.name}</p>
-                        <p className="text-[11px] text-gray-500">
-                          Seat #{seatNumber} • {student.phone}
-                        </p>
-                      </div>
+                  {pendingFeeStudents.map(({ student, seatNumber }) => {
+                    const reminderInfo = formatReminderTime(
+                      student.lastFeeReminderMonth === currentMonth ? student.lastFeeReminderAt : null
+                    );
 
-                      <div className="flex items-center gap-1.5 shrink-0">
-                        <button
-                          onClick={() => handleWhatsAppReminder(student, 'fee')}
-                          className="px-2.5 py-1 bg-green-600 hover:bg-green-700 text-white rounded-lg text-xs font-bold transition-all flex items-center gap-1 shadow-2xs cursor-pointer"
-                          title="Send WhatsApp Fee Reminder"
-                        >
-                          <MessageSquare className="w-3.5 h-3.5" />
-                          <span>WhatsApp Reminder</span>
-                        </button>
+                    return (
+                      <div
+                        key={student.id}
+                        className="p-3 bg-red-50/40 rounded-xl border border-red-200 flex flex-wrap sm:flex-nowrap items-center justify-between gap-2"
+                      >
+                        <div className="min-w-0">
+                          <p className="font-bold text-gray-900 text-xs truncate">{student.name}</p>
+                          <p className="text-[11px] text-gray-500">
+                            Seat #{seatNumber} • {student.phone}
+                          </p>
+                          <div className="mt-1">
+                            {reminderInfo ? (
+                              <span
+                                className={`text-[10px] font-bold px-2 py-0.5 rounded-md inline-flex items-center gap-1 ${
+                                  reminderInfo.isToday
+                                    ? 'bg-emerald-100 text-emerald-800 border border-emerald-300'
+                                    : 'bg-slate-100 text-slate-700'
+                                }`}
+                              >
+                                <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+                                <span>{reminderInfo.text}</span>
+                              </span>
+                            ) : (
+                              <span className="text-[10px] font-semibold text-slate-400 bg-slate-100 px-2 py-0.5 rounded-md inline-flex items-center gap-1">
+                                ⏳ Not sent yet
+                              </span>
+                            )}
+                          </div>
+                        </div>
 
-                        <button
-                          onClick={() => {
-                            onClose();
-                            navigate('/fees');
-                          }}
-                          className="px-2 py-1 bg-red-600 hover:bg-red-700 text-white rounded-lg text-xs font-bold transition-colors cursor-pointer"
-                        >
-                          Collect
-                        </button>
+                        <div className="flex items-center gap-1.5 shrink-0 self-end sm:self-auto">
+                          <button
+                            onClick={() => handleWhatsAppReminder(student, 'fee')}
+                            className={`px-2.5 py-1 text-white rounded-lg text-xs font-bold transition-all flex items-center gap-1 shadow-2xs cursor-pointer ${
+                              reminderInfo?.isToday
+                                ? 'bg-emerald-700 hover:bg-emerald-800 ring-1 ring-emerald-400'
+                                : 'bg-green-600 hover:bg-green-700'
+                            }`}
+                            title={reminderInfo?.isToday ? 'Fee reminder already sent today. Click to resend' : 'Send WhatsApp Fee Reminder'}
+                          >
+                            <MessageSquare className="w-3.5 h-3.5" />
+                            <span>{reminderInfo?.isToday ? 'Resend Reminder' : 'WhatsApp Reminder'}</span>
+                          </button>
+
+                          <button
+                            onClick={() => {
+                              onClose();
+                              navigate('/fees');
+                            }}
+                            className="px-2 py-1 bg-red-600 hover:bg-red-700 text-white rounded-lg text-xs font-bold transition-colors cursor-pointer"
+                          >
+                            Collect
+                          </button>
+                        </div>
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
             </>

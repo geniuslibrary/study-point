@@ -1,16 +1,34 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AlertCircle, MessageSquare, CheckCircle2, IndianRupee, ChevronRight, Phone } from 'lucide-react';
-import { formatCurrency } from '../../utils/helpers';
+import { formatCurrency, formatReminderTime } from '../../utils/helpers';
+import { updateDocument } from '../../firebase/storageService';
+import { COLLECTIONS } from '../../utils/constants';
 
 export default function PendingDuesAlert({ pendingFees = [] }) {
   const navigate = useNavigate();
+  const [remindedMap, setRemindedMap] = useState({});
 
-  const handleSendReminder = (item) => {
+  const handleSendReminder = async (item) => {
     const cleanPhone = (item.phone || '').replace(/\D/g, '');
     const phoneWithCountry = cleanPhone.length === 10 ? `91${cleanPhone}` : cleanPhone;
     
     const message = `Namaste ${item.studentName || 'Student'} ji 🙏\n\nYeh ek reminder hai Study Point Library ki taraf se. Aapki is mahine ki fees ₹${item.amount || 0} pending hai.\n\nKripya samay par jama karwayein taaki aapki seat reserve rahe.\n\nDhanyawad! ✨\nStudy Point Library`;
+
+    const nowIso = new Date().toISOString();
+    const currentMonth = `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}`;
+
+    if (item.studentId) {
+      setRemindedMap((prev) => ({ ...prev, [item.id]: nowIso }));
+      try {
+        await updateDocument(COLLECTIONS.STUDENTS, item.studentId, {
+          lastFeeReminderAt: nowIso,
+          lastFeeReminderMonth: currentMonth,
+        });
+      } catch (err) {
+        console.error('Error saving fee reminder in dashboard:', err);
+      }
+    }
 
     const waUrl = `https://api.whatsapp.com/send?phone=${phoneWithCountry}&text=${encodeURIComponent(message)}`;
     window.open(waUrl, '_blank', 'noopener,noreferrer');
@@ -39,43 +57,65 @@ export default function PendingDuesAlert({ pendingFees = [] }) {
       {/* List */}
       {pendingFees.length > 0 ? (
         <div className="space-y-2.5 flex-1">
-          {pendingFees.slice(0, 4).map((item) => (
-            <div
-              key={item.id}
-              className="p-3 rounded-2xl bg-slate-50 border border-slate-100 flex items-center justify-between gap-3 hover:bg-rose-50/30 transition-colors"
-            >
-              <div className="min-w-0">
-                <div className="flex items-center gap-2">
-                  <p className="font-bold text-slate-900 text-sm truncate">{item.studentName}</p>
-                  <span className="text-[10px] font-extrabold px-1.5 py-0.5 rounded bg-slate-200 text-slate-700">
-                    Seat {item.seatNumber || '—'}
-                  </span>
-                </div>
-                <p className="text-xs text-rose-600 font-extrabold mt-0.5">
-                  Due: {formatCurrency(item.amount || 0)}
-                </p>
-              </div>
+          {pendingFees.slice(0, 4).map((item) => {
+            const reminderTimestamp = remindedMap[item.id] || item.lastFeeReminderAt;
+            const reminderInfo = formatReminderTime(reminderTimestamp);
 
-              {/* Action Buttons */}
-              <div className="flex items-center gap-1.5 flex-shrink-0">
-                {item.phone && (
+            return (
+              <div
+                key={item.id}
+                className="p-3 rounded-2xl bg-slate-50 border border-slate-100 flex items-center justify-between gap-3 hover:bg-rose-50/30 transition-colors"
+              >
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2">
+                    <p className="font-bold text-slate-900 text-sm truncate">{item.studentName}</p>
+                    <span className="text-[10px] font-extrabold px-1.5 py-0.5 rounded bg-slate-200 text-slate-700">
+                      Seat {item.seatNumber || '—'}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2 mt-0.5">
+                    <p className="text-xs text-rose-600 font-extrabold">
+                      Due: {formatCurrency(item.amount || 0)}
+                    </p>
+                    {reminderInfo ? (
+                      <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded flex items-center gap-1 ${
+                        reminderInfo.isToday ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-200 text-slate-700'
+                      }`}>
+                        <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+                        <span>{reminderInfo.isToday ? 'Sent Today' : reminderInfo.text}</span>
+                      </span>
+                    ) : (
+                      <span className="text-[10px] text-slate-400">⏳ Not sent</span>
+                    )}
+                  </div>
+                </div>
+
+                {/* Action Buttons */}
+                <div className="flex items-center gap-1.5 flex-shrink-0">
+                  {item.phone && (
+                    <button
+                      onClick={() => handleSendReminder(item)}
+                      className={`px-2.5 py-1.5 rounded-xl active:scale-95 text-white transition-all shadow-xs cursor-pointer flex items-center gap-1 text-xs font-bold ${
+                        reminderInfo?.isToday
+                          ? 'bg-emerald-700 hover:bg-emerald-800 ring-1 ring-emerald-400'
+                          : 'bg-emerald-500 hover:bg-emerald-600'
+                      }`}
+                      title={reminderInfo?.isToday ? "Reminder already sent today. Click to resend" : "Send WhatsApp Reminder"}
+                    >
+                      <MessageSquare className="w-3.5 h-3.5" />
+                      <span>{reminderInfo?.isToday ? 'Sent ✓' : 'Remind'}</span>
+                    </button>
+                  )}
                   <button
-                    onClick={() => handleSendReminder(item)}
-                    className="p-2 rounded-xl bg-emerald-500 hover:bg-emerald-600 active:scale-95 text-white transition-all shadow-xs cursor-pointer"
-                    title="Send WhatsApp Reminder"
+                    onClick={() => navigate('/fees')}
+                    className="px-2.5 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 active:scale-95 text-white text-xs font-bold transition-all shadow-xs cursor-pointer flex items-center gap-1"
                   >
-                    <MessageSquare className="w-3.5 h-3.5" />
+                    <span>Collect</span>
                   </button>
-                )}
-                <button
-                  onClick={() => navigate('/fees')}
-                  className="px-2.5 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 active:scale-95 text-white text-xs font-bold transition-all shadow-xs cursor-pointer flex items-center gap-1"
-                >
-                  <span>Collect</span>
-                </button>
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       ) : (
         <div className="text-center py-8 flex-1 flex flex-col items-center justify-center">

@@ -217,3 +217,29 @@ export const getCurrentMonthRange = () => {
   const end = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
   return { start, end };
 };
+
+export const formatReminderTime = (timestamp) => {
+  if (!timestamp) return null;
+  const d = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
+  if (isNaN(d.getTime())) return null;
+
+  const now = new Date();
+  const isToday = d.toDateString() === now.toDateString();
+
+  const yesterday = new Date();
+  yesterday.setDate(yesterday.getDate() - 1);
+  const isYesterday = d.toDateString() === yesterday.toDateString();
+
+  const timeStr = d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true });
+
+  if (isToday) {
+    return { text: `Sent Today at ${timeStr}`, isToday: true, date: d };
+  } else if (isYesterday) {
+    return { text: `Sent Yesterday at ${timeStr}`, isToday: false, date: d };
+  } else {
+    const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const dateStr = `${d.getDate()} ${monthNames[d.getMonth()]}`;
+    return { text: `Sent on ${dateStr} (${timeStr})`, isToday: false, date: d };
+  }
+};
+

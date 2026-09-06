@@ -163,9 +163,11 @@ export default function Dashboard() {
           const seat = uniqueSeatsList.find((st) => st.id === stu?.seatId);
           return {
             ...fee,
+            studentId: stu?.id || fee.studentId,
             studentName: stu?.name || 'Student',
             phone: stu?.phone || '',
             seatNumber: seat?.seatNumber || '—',
+            lastFeeReminderAt: stu?.lastFeeReminderMonth === currentMonth ? stu?.lastFeeReminderAt : null,
           };
         });
 
