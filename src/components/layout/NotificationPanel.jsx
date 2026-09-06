@@ -521,22 +521,23 @@ export default function NotificationPanel({ isOpen, onClose }) {
                   {pendingFeeStudents.map(({ student, seatNumber }) => (
                     <div
                       key={student.id}
-                      className="p-3 bg-red-50/40 rounded-xl border border-red-200 flex items-center justify-between gap-2"
+                      className="p-3 bg-red-50/40 rounded-xl border border-red-200 flex flex-wrap sm:flex-nowrap items-center justify-between gap-2"
                     >
-                      <div>
-                        <p className="font-bold text-gray-900 text-xs">{student.name}</p>
+                      <div className="min-w-0">
+                        <p className="font-bold text-gray-900 text-xs truncate">{student.name}</p>
                         <p className="text-[11px] text-gray-500">
                           Seat #{seatNumber} • {student.phone}
                         </p>
                       </div>
 
-                      <div className="flex items-center gap-1.5">
+                      <div className="flex items-center gap-1.5 shrink-0">
                         <button
                           onClick={() => handleWhatsAppReminder(student, 'fee')}
-                          className="p-1.5 bg-green-50 text-green-700 border border-green-200 hover:bg-green-100 rounded-lg text-xs font-bold transition-colors cursor-pointer"
-                          title="WhatsApp Fee Reminder"
+                          className="px-2.5 py-1 bg-green-600 hover:bg-green-700 text-white rounded-lg text-xs font-bold transition-all flex items-center gap-1 shadow-2xs cursor-pointer"
+                          title="Send WhatsApp Fee Reminder"
                         >
                           <MessageSquare className="w-3.5 h-3.5" />
+                          <span>WhatsApp Reminder</span>
                         </button>
 
                         <button
