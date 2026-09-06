@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import Layout from '../components/layout/Layout';
 import Button from '../components/common/Button';
 import ConfirmDialog from '../components/common/ConfirmDialog';
@@ -19,6 +19,7 @@ import {
 
 export default function Students() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { hasPermission } = useAuth();
   const [students, setStudents] = useState([]);
   const [sections, setSections] = useState([]);
@@ -65,6 +66,23 @@ export default function Students() {
   useEffect(() => {
     fetchData();
   }, []);
+
+  // Auto-open Add Student modal if redirected from Visit & Demo conversion
+  useEffect(() => {
+    if (location.state?.convertVisitor) {
+      const v = location.state.convertVisitor;
+      setEditData({
+        name: v.name || '',
+        phone: v.phone || '',
+        sectionId: v.sectionId || '',
+        seatId: v.seatId || '',
+        shift: v.shift || 'full_day',
+        notes: v.notes || '',
+      });
+      setShowForm(true);
+      window.history.replaceState({}, document.title);
+    }
+  }, [location.state]);
 
   const updateSeatStatusAfterChange = async (seatId, extraStudentData = null, removeStudentId = null) => {
     if (!seatId) return;
@@ -355,7 +373,7 @@ export default function Students() {
           setShowForm(false);
           setEditData(null);
         }}
-        onSubmit={editData ? handleEditStudent : handleAddStudent}
+        onSubmit={editData && editData.id ? handleEditStudent : handleAddStudent}
         editData={editData}
         sections={sections}
         seats={seats}

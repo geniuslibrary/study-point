@@ -9,6 +9,7 @@ export const COLLECTIONS = {
   SETTINGS: 'settings',
   STAFF_USERS: 'staffUsers',
   ROLE_PRESETS: 'rolePresets',
+  VISITORS: 'visitors',
 };
 
 export const SHIFTS = [
@@ -91,6 +92,7 @@ export const EXPENSE_TYPES = [
 export const PERMISSION_MODULES = [
   { id: 'dashboard', label: 'Dashboard', actions: ['view'] },
   { id: 'sections', label: 'Sections & Seats', actions: ['view', 'create', 'edit', 'delete'] },
+  { id: 'visitors', label: 'Visit & Demo', actions: ['view', 'create', 'edit', 'delete'] },
   { id: 'students', label: 'Students', actions: ['view', 'create', 'edit', 'delete'] },
   { id: 'fees', label: 'Fees & Receipts', actions: ['view', 'create', 'edit', 'delete'] },
   { id: 'reports', label: 'Daily & Monthly Reports', actions: ['view'] },
@@ -107,6 +109,7 @@ export const ROLE_PRESETS = {
     permissions: {
       dashboard: { view: true },
       sections: { view: true, create: true, edit: true, delete: true },
+      visitors: { view: true, create: true, edit: true, delete: true },
       students: { view: true, create: true, edit: true, delete: true },
       fees: { view: true, create: true, edit: true, delete: true },
       reports: { view: true },
@@ -122,6 +125,7 @@ export const ROLE_PRESETS = {
     permissions: {
       dashboard: { view: true },
       sections: { view: true, create: false, edit: true, delete: false },
+      visitors: { view: true, create: true, edit: true, delete: false },
       students: { view: true, create: true, edit: true, delete: false },
       fees: { view: true, create: true, edit: true, delete: false },
       reports: { view: false },
@@ -137,6 +141,7 @@ export const ROLE_PRESETS = {
     permissions: {
       dashboard: { view: true },
       sections: { view: true, create: true, edit: true, delete: false },
+      visitors: { view: true, create: true, edit: true, delete: false },
       students: { view: true, create: true, edit: true, delete: false },
       fees: { view: true, create: true, edit: true, delete: false },
       reports: { view: true },
@@ -156,6 +161,7 @@ export const ROLE_PRESETS = {
 export const NAV_ITEMS = [
   { path: '/', label: 'Dashboard', icon: 'LayoutDashboard', module: 'dashboard' },
   { path: '/sections', label: 'Sections', icon: 'Building2', module: 'sections' },
+  { path: '/visitors', label: 'Visit & Demo', icon: 'UserCheck', module: 'visitors' },
   { path: '/students', label: 'Students', icon: 'Users', module: 'students' },
   { path: '/fees', label: 'Fees', icon: 'IndianRupee', module: 'fees' },
   { path: '/reports', label: 'Reports', icon: 'BarChart3', module: 'reports' },

@@ -14,6 +14,7 @@ import { useNavigate } from 'react-router-dom';
 import {
   Users,
   UserPlus,
+  UserCheck,
   IndianRupee,
   Armchair,
   Sparkles,
@@ -310,6 +311,14 @@ export default function Dashboard() {
             >
               <Users className="w-4 h-4 text-indigo-600 group-hover:scale-110 transition-transform" />
               <span>Students</span>
+            </button>
+
+            <button
+              onClick={() => navigate('/visitors')}
+              className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-slate-50 hover:bg-blue-50 text-slate-700 hover:text-blue-700 text-xs font-bold transition-all whitespace-nowrap flex-shrink-0 cursor-pointer group"
+            >
+              <UserCheck className="w-4 h-4 text-blue-600 group-hover:scale-110 transition-transform" />
+              <span>Visit & Demo</span>
             </button>
 
             <button

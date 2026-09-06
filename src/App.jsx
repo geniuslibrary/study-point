@@ -6,6 +6,7 @@ import { AuthProvider, useAuth } from './context/AuthContext';
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
 import Sections from './pages/Sections';
+import Visitors from './pages/Visitors';
 import Students from './pages/Students';
 import Fees from './pages/Fees';
 import Reports from './pages/Reports';
@@ -37,6 +38,7 @@ const ProtectedRoute = ({ children, requiredModule = null }) => {
     const fallbackRoutes = [
       { module: 'dashboard', path: '/' },
       { module: 'sections', path: '/sections' },
+      { module: 'visitors', path: '/visitors' },
       { module: 'students', path: '/students' },
       { module: 'fees', path: '/fees' },
       { module: 'reports', path: '/reports' },
@@ -85,6 +87,14 @@ function AppRoutes() {
         element={
           <ProtectedRoute requiredModule="sections">
             <Sections />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/visitors"
+        element={
+          <ProtectedRoute requiredModule="visitors">
+            <Visitors />
           </ProtectedRoute>
         }
       />

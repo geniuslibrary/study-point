@@ -4,6 +4,7 @@ import {
   LayoutDashboard,
   Building2,
   Users,
+  UserCheck,
   IndianRupee,
   BarChart3,
   CreditCard,
@@ -22,6 +23,7 @@ const Sidebar = ({ isOpen, setIsOpen, onLogout }) => {
   const allNavItems = [
     { name: 'Dashboard', path: '/', icon: LayoutDashboard, module: 'dashboard' },
     { name: 'Sections & Seats', path: '/sections', icon: Building2, module: 'sections' },
+    { name: 'Visit & Demo', path: '/visitors', icon: UserCheck, module: 'visitors' },
     { name: 'Students', path: '/students', icon: Users, module: 'students' },
     { name: 'Fees & Receipts', path: '/fees', icon: IndianRupee, module: 'fees' },
     { name: 'Reports (Daily/Monthly)', path: '/reports', icon: BarChart3, module: 'reports' },
