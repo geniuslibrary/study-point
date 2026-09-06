@@ -385,13 +385,29 @@ export default function Visitors() {
     );
 
     // 3. Other active demo visitors on trial seats (excluding current visitor if editing)
-    const activeDemos = visitors.filter(
-      (v) =>
-        v.status === 'demo_active' &&
-        v.sectionId === formData.sectionId &&
-        v.seatId &&
-        v.id !== editingVisitor?.id
-    );
+    // NOTE: When a demo trial expires (endDate < today), its seat is automatically FREE!
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const activeDemos = visitors.filter((v) => {
+      if (
+        v.status !== 'demo_active' ||
+        v.status === 'converted' ||
+        v.status === 'not_interested' ||
+        !v.seatId ||
+        v.id === editingVisitor?.id
+      ) {
+        return false;
+      }
+      if (v.sectionId !== formData.sectionId) return false;
+      // If demo endDate has passed, trial is expired -> seat is automatically free!
+      if (v.endDate) {
+        const endD = new Date(v.endDate);
+        endD.setHours(0, 0, 0, 0);
+        if (endD < today) return false;
+      }
+      return true;
+    });
 
     // 4. Evaluate availability per shift
     return sectionSeats.map((seat) => {
@@ -698,6 +714,11 @@ export default function Visitors() {
                               <p className="text-[11px] text-slate-500 capitalize mt-0.5">
                                 Shift: {item.shift?.replace('_', ' ') || 'Full Day'}
                               </p>
+                              {expiry.type === 'expired' && item.status !== 'converted' && item.status !== 'not_interested' && (
+                                <span className="inline-flex items-center gap-0.5 text-[10px] font-extrabold text-emerald-700 bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 rounded mt-0.5">
+                                  🟢 Seat Free Now
+                                </span>
+                              )}
                             </div>
                           ) : (
                             <span className="text-xs text-slate-400 italic font-medium">No seat assigned</span>
