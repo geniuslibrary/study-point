@@ -333,11 +333,82 @@ export default function Visitors() {
     };
   }, [visitors]);
 
-  // Available Seats in selected Section for form
+  // Available Seats in selected Section for form (Naturally sorted: 1, 2, 3... & filtered by availability)
   const availableSeatsForForm = useMemo(() => {
     if (!formData.sectionId) return [];
-    return seats.filter((s) => s.sectionId === formData.sectionId);
-  }, [seats, formData.sectionId]);
+
+    // 1. All seats in this section, sorted in natural numeric order (1, 2, 3... 9, 10, 11...)
+    const sectionSeats = seats
+      .filter((s) => s.sectionId === formData.sectionId)
+      .sort((a, b) => {
+        const numA = parseInt(String(a.seatNumber).replace(/\D/g, ''), 10);
+        const numB = parseInt(String(b.seatNumber).replace(/\D/g, ''), 10);
+        if (!isNaN(numA) && !isNaN(numB)) {
+          if (numA !== numB) return numA - numB;
+        }
+        return String(a.seatNumber).localeCompare(String(b.seatNumber), undefined, { numeric: true });
+      });
+
+    // 2. Active regular students in this section
+    const activeStudents = students.filter(
+      (s) => s.status === 'active' && s.sectionId === formData.sectionId && s.seatId
+    );
+
+    // 3. Other active demo visitors on trial seats (excluding current visitor if editing)
+    const activeDemos = visitors.filter(
+      (v) =>
+        v.status === 'demo_active' &&
+        v.sectionId === formData.sectionId &&
+        v.seatId &&
+        v.id !== editingVisitor?.id
+    );
+
+    // 4. Evaluate availability per shift
+    return sectionSeats.map((seat) => {
+      const seatStudents = activeStudents.filter((s) => s.seatId === seat.id);
+      const demoOccupant = activeDemos.find((v) => v.seatId === seat.id);
+
+      const hasFullDay = seatStudents.some((s) => !s.shift || s.shift === 'full_day');
+      const hasFirstHalf = seatStudents.some((s) => s.shift === 'first_half');
+      const hasSecondHalf = seatStudents.some((s) => s.shift === 'second_half');
+
+      let isAvailable = true;
+      let reason = 'Available';
+
+      if (demoOccupant) {
+        isAvailable = false;
+        reason = `Demo trial by ${demoOccupant.name}`;
+      } else if (hasFullDay) {
+        isAvailable = false;
+        const stName = seatStudents.find((s) => !s.shift || s.shift === 'full_day')?.name || 'Student';
+        reason = `Occupied Full Day (${stName})`;
+      } else if (formData.shift === 'full_day' && seatStudents.length > 0) {
+        isAvailable = false;
+        reason = 'Occupied in Shift';
+      } else if (formData.shift === 'first_half' && hasFirstHalf) {
+        isAvailable = false;
+        reason = '1st Half Booked';
+      } else if (formData.shift === 'second_half' && hasSecondHalf) {
+        isAvailable = false;
+        reason = '2nd Half Booked';
+      } else if (seat.status === 'reserved') {
+        isAvailable = false;
+        reason = 'Reserved';
+      }
+
+      // If currently editing this visitor and this seat was already assigned to them, allow keeping it
+      if (editingVisitor && editingVisitor.seatId === seat.id) {
+        isAvailable = true;
+        reason = 'Current Trial Seat';
+      }
+
+      return {
+        ...seat,
+        isAvailable,
+        reason,
+      };
+    });
+  }, [seats, formData.sectionId, formData.shift, students, visitors, editingVisitor]);
 
   const getSectionName = (secId) => sections.find((s) => s.id === secId)?.name || '—';
   const getSeatNumber = (seatId) => {
@@ -819,12 +890,18 @@ export default function Visitors() {
                       disabled={!formData.sectionId}
                       className="w-full px-3 py-1.5 border border-slate-300 rounded-xl text-xs font-semibold bg-white disabled:opacity-50"
                     >
-                      <option value="">-- Choose Seat --</option>
-                      {availableSeatsForForm.map((st) => (
-                        <option key={st.id} value={st.id}>
-                          Seat #{st.seatNumber}
-                        </option>
-                      ))}
+                      <option value="">
+                        {availableSeatsForForm.filter((st) => st.isAvailable).length > 0
+                          ? `-- Choose Available Seat (${availableSeatsForForm.filter((st) => st.isAvailable).length} Available) --`
+                          : '-- No Seats Available in this Shift --'}
+                      </option>
+                      {availableSeatsForForm
+                        .filter((st) => st.isAvailable)
+                        .map((st) => (
+                          <option key={st.id} value={st.id}>
+                            Seat #{st.seatNumber}
+                          </option>
+                        ))}
                     </select>
                   </div>
                 </div>
