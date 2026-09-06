@@ -737,15 +737,6 @@ export default function Visitors() {
                         {/* Actions */}
                         <td className="px-4 py-3.5 text-right">
                           <div className="flex items-center justify-end gap-1.5">
-                            
-                            {/* WhatsApp Follow-up */}
-                            <button
-                              onClick={() => handleWhatsAppReminder(item)}
-                              className="p-2 rounded-xl bg-emerald-500 hover:bg-emerald-600 active:scale-95 text-white transition-all shadow-2xs cursor-pointer"
-                              title="Send WhatsApp Follow-up / Offer"
-                            >
-                              <MessageSquare className="w-4 h-4" />
-                            </button>
 
                             {/* Convert to Regular Student */}
                             {item.status !== 'converted' && (

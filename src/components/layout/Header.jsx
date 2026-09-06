@@ -23,9 +23,10 @@ const Header = ({ title, onMenuClick }) => {
   useEffect(() => {
     const checkNotifications = async () => {
       try {
-        const [students, fees] = await Promise.all([
+        const [students, fees, visitors] = await Promise.all([
           fetchCollectionData(COLLECTIONS.STUDENTS),
           fetchCollectionData(COLLECTIONS.FEES),
+          fetchCollectionData(COLLECTIONS.VISITORS),
         ]);
 
         const now = new Date();
@@ -51,7 +52,18 @@ const Header = ({ title, onMenuClick }) => {
           (s) => s.status === 'active' && !currentMonthPaidStudentIds.has(s.id)
         ).length;
 
-        setUnreadCount(expiringCount + pendingFeesCount);
+        // 3. Demo Alerts (Last Day of Demo + Demo Expired)
+        const demoAlertsCount = (visitors || []).filter((v) => {
+          if (v.status === 'converted' || v.status === 'not_interested' || v.purpose === 'inquiry') {
+            return false;
+          }
+          const endD = new Date(v.endDate || v.startDate || now);
+          endD.setHours(0, 0, 0, 0);
+          const diffDays = Math.ceil((endD.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+          return diffDays <= 0; // 0 = last day, < 0 = expired
+        }).length;
+
+        setUnreadCount(expiringCount + pendingFeesCount + demoAlertsCount);
       } catch (e) {
         console.error(e);
       }

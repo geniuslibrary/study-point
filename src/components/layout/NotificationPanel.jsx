@@ -11,10 +11,13 @@ import {
   X,
   ExternalLink,
   ChevronRight,
+  UserCheck,
+  UserPlus,
+  UserX,
 } from 'lucide-react';
 import { COLLECTIONS } from '../../utils/constants';
 import { formatDate, formatCurrency } from '../../utils/helpers';
-import { fetchCollectionData } from '../../firebase/storageService';
+import { fetchCollectionData, updateDocument } from '../../firebase/storageService';
 import { doc, getDoc } from 'firebase/firestore';
 import { db } from '../../firebase/config';
 
@@ -24,9 +27,10 @@ export default function NotificationPanel({ isOpen, onClose }) {
   const [fees, setFees] = useState([]);
   const [sections, setSections] = useState([]);
   const [seats, setSeats] = useState([]);
+  const [visitors, setVisitors] = useState([]);
   const [libraryName, setLibraryName] = useState('Study Point Library');
   const [loading, setLoading] = useState(true);
-  const [filterTab, setFilterTab] = useState('all'); // 'all' | 'expiring' | 'fees'
+  const [filterTab, setFilterTab] = useState('all'); // 'all' | 'demos' | 'expiring' | 'fees'
 
   useEffect(() => {
     if (!isOpen) return;
@@ -43,16 +47,18 @@ export default function NotificationPanel({ isOpen, onClose }) {
     const loadData = async () => {
       setLoading(true);
       try {
-        const [stuDocs, feeDocs, secDocs, seatDocs] = await Promise.all([
+        const [stuDocs, feeDocs, secDocs, seatDocs, visitorDocs] = await Promise.all([
           fetchCollectionData(COLLECTIONS.STUDENTS),
           fetchCollectionData(COLLECTIONS.FEES),
           fetchCollectionData(COLLECTIONS.SECTIONS),
           fetchCollectionData(COLLECTIONS.SEATS),
+          fetchCollectionData(COLLECTIONS.VISITORS),
         ]);
-        setStudents(stuDocs);
-        setFees(feeDocs);
-        setSections(secDocs);
-        setSeats(seatDocs);
+        setStudents(stuDocs || []);
+        setFees(feeDocs || []);
+        setSections(secDocs || []);
+        setSeats(seatDocs || []);
+        setVisitors(visitorDocs || []);
 
         try {
           const settingsSnap = await getDoc(doc(db, COLLECTIONS.SETTINGS, 'ownerProfile'));
@@ -118,7 +124,37 @@ export default function NotificationPanel({ isOpen, onClose }) {
     })
     .filter((item) => !item.isPaid);
 
-  const totalAlertsCount = expiringStudents.length + pendingFeeStudents.length;
+  // 3. Demo Alerts: (1) Last Day of Demo (Ending Today) and (2) Demo Expired
+  const demoAlerts = visitors
+    .filter((v) => {
+      if (v.status === 'converted' || v.status === 'not_interested' || v.purpose === 'inquiry') {
+        return false;
+      }
+      return true;
+    })
+    .map((v) => {
+      const endD = new Date(v.endDate || v.startDate || now);
+      endD.setHours(0, 0, 0, 0);
+      const diffTime = endD.getTime() - now.getTime();
+      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+      const seat = seats.find((st) => st.id === v.seatId);
+      const section = sections.find((sec) => sec.id === v.sectionId);
+
+      return {
+        ...v,
+        diffDays,
+        endDateFormatted: formatDate(endD),
+        seatNumber: seat ? seat.seatNumber : '—',
+        sectionName: section ? section.name : '—',
+        isToday: diffDays === 0,
+        isExpired: diffDays < 0,
+      };
+    })
+    .filter((v) => v.isToday || v.isExpired)
+    .sort((a, b) => a.diffDays - b.diffDays);
+
+  const totalAlertsCount = expiringStudents.length + pendingFeeStudents.length + demoAlerts.length;
 
   const handleWhatsAppReminder = (student, type = 'expiry') => {
     const cleanPhone = (student.phone || '').replace(/\D/g, '');
@@ -142,6 +178,54 @@ export default function NotificationPanel({ isOpen, onClose }) {
 
     const waUrl = `https://api.whatsapp.com/send?phone=${phoneWithCountry}&text=${encodeURIComponent(message)}`;
     window.open(waUrl, '_blank', 'noopener,noreferrer');
+  };
+
+  const handleDemoWhatsApp = (demo) => {
+    const cleanPhone = (demo.phone || '').replace(/\D/g, '');
+    const phoneWithCountry = cleanPhone.length === 10 ? `91${cleanPhone}` : cleanPhone;
+
+    let message = '';
+    if (demo.isToday) {
+      message = `नमस्ते ${demo.name} जी 🙏\n\n${libraryName} में आज आपके Free Demo Trial का आखिरी दिन है।\n\nआशा है आपको हमारी लाइब्रेरी का माहौल, शांत वातावरण और AC सीट पसंद आई होगी। अपनी सीट नियमित रूप से कन्फर्म करवाने के लिए संपर्क करें।\n\nधन्यवाद! ✨\n${libraryName}`;
+    } else {
+      message = `नमस्ते ${demo.name} जी 🙏\n\n${libraryName} में आपका Free Demo Trial समाप्त हो चुका है।\n\nयदि आप अपनी सीट जारी रखना चाहते हैं तो कृपया जल्द संपर्क करें क्योंकि सीटें सीमित हैं।\n\nधन्यवाद! ✨\n${libraryName}`;
+    }
+
+    const waUrl = `https://api.whatsapp.com/send?phone=${phoneWithCountry}&text=${encodeURIComponent(message)}`;
+    window.open(waUrl, '_blank', 'noopener,noreferrer');
+  };
+
+  const handleAdmitDemoStudent = (demo) => {
+    onClose();
+    navigate('/students', {
+      state: {
+        convertVisitor: {
+          visitorId: demo.id,
+          name: demo.name || '',
+          phone: demo.phone || '',
+          sectionId: demo.sectionId || '',
+          seatId: demo.seatId || '',
+          shift: demo.shift || 'full_day',
+          notes: demo.notes ? `Converted from Demo. Notes: ${demo.notes}` : 'Converted from Demo',
+        },
+      },
+    });
+  };
+
+  const handleMarkDemoNotInterested = async (demo) => {
+    if (!window.confirm(`Mark "${demo.name}" as Not Interested? Their trial seat will be freed up.`)) return;
+    try {
+      await updateDocument(COLLECTIONS.VISITORS, demo.id, {
+        status: 'not_interested',
+        seatId: '',
+        notInterestedAt: new Date().toISOString(),
+      });
+      setVisitors((prev) =>
+        prev.map((v) => (v.id === demo.id ? { ...v, status: 'not_interested', seatId: '' } : v))
+      );
+    } catch (err) {
+      console.error('Error marking demo not interested:', err);
+    }
   };
 
   if (!isOpen) return null;
@@ -176,10 +260,10 @@ export default function NotificationPanel({ isOpen, onClose }) {
         </div>
 
         {/* Tab Filters */}
-        <div className="flex items-center border-b border-gray-100 bg-gray-50/80 px-3 py-2 gap-1.5 shrink-0 text-xs font-bold">
+        <div className="flex items-center border-b border-gray-100 bg-gray-50/80 px-3 py-2 gap-1.5 shrink-0 text-xs font-bold overflow-x-auto scrollbar-hide">
           <button
             onClick={() => setFilterTab('all')}
-            className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer ${
+            className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer whitespace-nowrap ${
               filterTab === 'all'
                 ? 'bg-white text-indigo-700 shadow-xs'
                 : 'text-gray-600 hover:text-gray-900'
@@ -189,8 +273,20 @@ export default function NotificationPanel({ isOpen, onClose }) {
           </button>
 
           <button
+            onClick={() => setFilterTab('demos')}
+            className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer flex items-center gap-1 whitespace-nowrap ${
+              filterTab === 'demos'
+                ? 'bg-indigo-600 text-white shadow-xs'
+                : 'text-indigo-700 hover:text-indigo-900 bg-indigo-50'
+            }`}
+          >
+            <UserCheck className="w-3 h-3" />
+            <span>Demo Alerts ({demoAlerts.length})</span>
+          </button>
+
+          <button
             onClick={() => setFilterTab('expiring')}
-            className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer flex items-center gap-1 ${
+            className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer flex items-center gap-1 whitespace-nowrap ${
               filterTab === 'expiring'
                 ? 'bg-amber-500 text-white shadow-xs'
                 : 'text-amber-800 hover:text-amber-900 bg-amber-50'
@@ -202,7 +298,7 @@ export default function NotificationPanel({ isOpen, onClose }) {
 
           <button
             onClick={() => setFilterTab('fees')}
-            className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer flex items-center gap-1 ${
+            className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer flex items-center gap-1 whitespace-nowrap ${
               filterTab === 'fees'
                 ? 'bg-red-600 text-white shadow-xs'
                 : 'text-red-700 hover:text-red-900 bg-red-50'
@@ -217,7 +313,7 @@ export default function NotificationPanel({ isOpen, onClose }) {
         <div className="flex-1 overflow-y-auto p-3 space-y-3 divide-y divide-gray-50">
           {loading ? (
             <div className="p-8 text-center text-gray-400 text-xs font-medium">
-              Checking expiring subscriptions...
+              Checking notifications & demo alerts...
             </div>
           ) : totalAlertsCount === 0 ? (
             <div className="p-8 text-center">
@@ -226,11 +322,98 @@ export default function NotificationPanel({ isOpen, onClose }) {
               </div>
               <p className="text-sm font-bold text-gray-800">Everything is up to date!</p>
               <p className="text-xs text-gray-500 mt-0.5">
-                No memberships expiring in next 3 days & no overdue fees.
+                No demo alerts, expiring memberships, or pending fees.
               </p>
             </div>
           ) : (
             <>
+              {/* 1. DEMO ALERTS (LAST DAY & EXPIRED DEMOS) */}
+              {(filterTab === 'all' || filterTab === 'demos') && demoAlerts.length > 0 && (
+                <div className="space-y-2 pt-2 first:pt-0">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[11px] font-extrabold text-indigo-900 uppercase tracking-wider flex items-center gap-1">
+                      <UserCheck className="w-3.5 h-3.5 text-indigo-600" />
+                      Free Demo Trial Alerts ({demoAlerts.length})
+                    </span>
+                    <span className="text-[10px] bg-indigo-100 text-indigo-800 font-bold px-2 py-0.5 rounded-full">
+                      Action Required
+                    </span>
+                  </div>
+
+                  {demoAlerts.map((demo) => {
+                    const isToday = demo.isToday;
+
+                    return (
+                      <div
+                        key={demo.id}
+                        className={`p-3 rounded-xl border transition-all ${
+                          isToday
+                            ? 'bg-amber-50/70 border-amber-200'
+                            : 'bg-rose-50/70 border-rose-200'
+                        }`}
+                      >
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="min-w-0">
+                            <div className="flex items-center gap-2">
+                              <p className="font-bold text-gray-900 text-sm leading-tight truncate">
+                                {demo.name}
+                              </p>
+                              <span
+                                className={`text-[10px] font-extrabold px-2 py-0.5 rounded-md ${
+                                  isToday
+                                    ? 'bg-amber-500 text-white animate-pulse'
+                                    : 'bg-rose-600 text-white'
+                                }`}
+                              >
+                                {isToday ? '⏳ Last Day of Demo (Ending Today)' : `🔴 Demo Expired (${Math.abs(demo.diffDays)}d ago)`}
+                              </span>
+                            </div>
+
+                            <p className="text-xs text-gray-600 mt-1 flex flex-wrap items-center gap-2">
+                              <span>📍 {demo.sectionName} • <strong>Seat #{demo.seatNumber}</strong></span>
+                              <span>•</span>
+                              <span className="capitalize">⏰ {demo.shift?.replace('_', ' ') || 'Full Day'}</span>
+                            </p>
+
+                            <p className="text-[11px] text-gray-500 mt-0.5">
+                              Trial Date: <strong>{demo.endDateFormatted}</strong> • Phone: {demo.phone}
+                            </p>
+                          </div>
+                        </div>
+
+                        {/* Action Buttons */}
+                        <div className="mt-2.5 pt-2 border-t border-gray-200/60 flex items-center justify-end gap-1.5">
+                          <button
+                            onClick={() => handleDemoWhatsApp(demo)}
+                            className="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold transition-all flex items-center gap-1 shadow-2xs cursor-pointer"
+                            title="Send WhatsApp Follow-up / Offer"
+                          >
+                            <MessageSquare className="w-3.5 h-3.5" />
+                            <span>WhatsApp Follow-up</span>
+                          </button>
+
+                          <button
+                            onClick={() => handleAdmitDemoStudent(demo)}
+                            className="px-2.5 py-1 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-bold transition-all flex items-center gap-1 shadow-2xs cursor-pointer"
+                            title="Admit as Regular Student"
+                          >
+                            <UserPlus className="w-3.5 h-3.5" />
+                            <span>Admit Student</span>
+                          </button>
+
+                          <button
+                            onClick={() => handleMarkDemoNotInterested(demo)}
+                            className="p-1.5 bg-slate-100 hover:bg-amber-100 text-slate-500 hover:text-amber-700 rounded-lg transition-all cursor-pointer"
+                            title="Mark Not Interested (Frees seat)"
+                          >
+                            <UserX className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
               {/* 1. EXPIRING SUBSCRIPTIONS (3 DAYS ADVANCE ALERT) */}
               {(filterTab === 'all' || filterTab === 'expiring') && expiringStudents.length > 0 && (
                 <div className="space-y-2 pt-2 first:pt-0">
