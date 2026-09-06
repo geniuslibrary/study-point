@@ -284,9 +284,8 @@ export default function Visitors() {
       const q = searchQuery.toLowerCase().trim();
       const nameMatch = (v.name || '').toLowerCase().includes(q);
       const phoneMatch = (v.phone || '').includes(q);
-      const examMatch = (v.examTarget || '').toLowerCase().includes(q);
 
-      if (q && !nameMatch && !phoneMatch && !examMatch) return false;
+      if (q && !nameMatch && !phoneMatch) return false;
 
       // 2. Section Filter
       if (sectionFilter !== 'all' && v.sectionId !== sectionFilter) return false;
@@ -499,7 +498,7 @@ export default function Visitors() {
                 <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
                 <input
                   type="text"
-                  placeholder="Search by name, phone, exam..."
+                  placeholder="Search by name, phone..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className="w-full pl-9 pr-3.5 py-2 border border-slate-200 rounded-xl text-xs font-medium focus:ring-2 focus:ring-indigo-500 bg-slate-50/50"
@@ -530,7 +529,7 @@ export default function Visitors() {
                 <thead className="bg-slate-50 text-[11px] font-black text-slate-400 uppercase tracking-wider border-y border-slate-100">
                   <tr>
                     <th className="px-4 py-3">Visitor / Candidate</th>
-                    <th className="px-4 py-3">Purpose & Target Exam</th>
+                    <th className="px-4 py-3">Purpose</th>
                     <th className="px-4 py-3">Assigned Seat & Shift</th>
                     <th className="px-4 py-3">Demo Timeline</th>
                     <th className="px-4 py-3">Status / Expiry</th>
@@ -563,22 +562,17 @@ export default function Visitors() {
                           </div>
                         </td>
 
-                        {/* Purpose & Exam */}
+                        {/* Purpose */}
                         <td className="px-4 py-3.5">
-                          <div>
-                            <span
-                              className={`inline-flex items-center gap-1 text-[11px] font-bold px-2 py-0.5 rounded-md ${
-                                item.purpose === 'demo'
-                                  ? 'bg-indigo-50 text-indigo-700'
-                                  : 'bg-slate-100 text-slate-700'
-                              }`}
-                            >
-                              {item.purpose === 'demo' ? '🎯 Free Demo Seat' : '📋 General Inquiry'}
-                            </span>
-                            <p className="text-xs text-slate-600 font-medium mt-1">
-                              {item.examTarget ? `Prep: ${item.examTarget}` : 'Self Study'}
-                            </p>
-                          </div>
+                          <span
+                            className={`inline-flex items-center gap-1 text-[11px] font-bold px-2 py-1 rounded-md ${
+                              item.purpose === 'demo'
+                                ? 'bg-indigo-50 text-indigo-700'
+                                : 'bg-slate-100 text-slate-700'
+                            }`}
+                          >
+                            {item.purpose === 'demo' ? '🎯 Free Demo Seat' : '📋 General Inquiry'}
+                          </span>
                         </td>
 
                         {/* Seat & Shift */}
@@ -771,36 +765,21 @@ export default function Visitors() {
               </div>
             </div>
 
-            {/* Target Exam & Shift */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div>
-                <label className="text-xs font-bold text-slate-700 mb-1 block">
-                  Preparing For / Target Exam
-                </label>
-                <input
-                  type="text"
-                  placeholder="e.g. UPSC, SSC CGL, NEET, CA"
-                  value={formData.examTarget}
-                  onChange={(e) => setFormData({ ...formData, examTarget: e.target.value })}
-                  className="w-full px-3.5 py-2 border border-slate-300 rounded-xl text-xs font-semibold focus:ring-2 focus:ring-indigo-500 bg-white"
-                />
-              </div>
-
-              <div>
-                <label className="text-xs font-bold text-slate-700 mb-1 block">
-                  Preferred Shift
-                </label>
-                <select
-                  value={formData.shift}
-                  onChange={(e) => setFormData({ ...formData, shift: e.target.value })}
-                  className="w-full px-3.5 py-2 border border-slate-300 rounded-xl text-xs font-semibold focus:ring-2 focus:ring-indigo-500 bg-white"
-                >
-                  <option value="full_day">Full Day (6 AM - 11 PM)</option>
-                  <option value="first_half">1st Half / Morning (6 AM - 2 PM)</option>
-                  <option value="second_half">2nd Half / Evening (2 PM - 11 PM)</option>
-                  <option value="custom">Custom Timing</option>
-                </select>
-              </div>
+            {/* Preferred Shift */}
+            <div>
+              <label className="text-xs font-bold text-slate-700 mb-1 block">
+                Preferred Shift Slot
+              </label>
+              <select
+                value={formData.shift}
+                onChange={(e) => setFormData({ ...formData, shift: e.target.value })}
+                className="w-full px-3.5 py-2 border border-slate-300 rounded-xl text-xs font-semibold focus:ring-2 focus:ring-indigo-500 bg-white"
+              >
+                <option value="full_day">Full Day (6 AM - 11 PM)</option>
+                <option value="first_half">1st Half / Morning (6 AM - 2 PM)</option>
+                <option value="second_half">2nd Half / Evening (2 PM - 11 PM)</option>
+                <option value="custom">Custom Timing</option>
+              </select>
             </div>
 
             {/* Seat Allocation (If Demo) */}
