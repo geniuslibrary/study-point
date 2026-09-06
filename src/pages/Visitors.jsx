@@ -775,11 +775,10 @@ export default function Visitors() {
                             {item.status !== 'converted' && item.status !== 'not_interested' && (
                               <button
                                 onClick={() => handleMarkNotInterested(item)}
-                                className="px-2.5 py-1.5 rounded-xl bg-slate-100 hover:bg-rose-50 text-slate-600 hover:text-rose-700 border border-slate-200/80 hover:border-rose-200 text-xs font-bold transition-all cursor-pointer flex items-center gap-1"
+                                className="px-2.5 py-1.5 rounded-xl bg-slate-100 hover:bg-rose-50 text-slate-700 hover:text-rose-700 border border-slate-200 hover:border-rose-300 text-xs font-bold transition-all cursor-pointer whitespace-nowrap"
                                 title="Mark Not Interested (Frees trial seat immediately, keeps data saved)"
                               >
-                                <UserX className="w-3.5 h-3.5 text-rose-500" />
-                                <span>Not Interested</span>
+                                Not Interested
                               </button>
                             )}
 

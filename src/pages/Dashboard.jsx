@@ -7,6 +7,7 @@ import RecentActivity from '../components/dashboard/RecentActivity';
 import TodayPulse from '../components/dashboard/TodayPulse';
 import ShiftDistribution from '../components/dashboard/ShiftDistribution';
 import PendingDuesAlert from '../components/dashboard/PendingDuesAlert';
+import LiveDemoTracker from '../components/dashboard/LiveDemoTracker';
 import { COLLECTIONS } from '../utils/constants';
 import { fetchCollectionData } from '../firebase/storageService';
 import { useAuth } from '../context/AuthContext';
@@ -61,6 +62,9 @@ export default function Dashboard() {
   const [chartData, setChartData] = useState([]);
   const [recentFees, setRecentFees] = useState([]);
   const [occupancyData, setOccupancyData] = useState([]);
+  const [visitors, setVisitors] = useState([]);
+  const [allSeatsList, setAllSeatsList] = useState([]);
+  const [allSectionsList, setAllSectionsList] = useState([]);
 
   // Date matcher helper
   const matchesDate = (dateVal, targetDateStr) => {
@@ -84,12 +88,13 @@ export default function Dashboard() {
 
   const fetchAll = async () => {
     try {
-      const [students, allSeats, allFees, allExpenses, allSections] = await Promise.all([
+      const [students, allSeats, allFees, allExpenses, allSections, allVisitors] = await Promise.all([
         fetchCollectionData(COLLECTIONS.STUDENTS),
         fetchCollectionData(COLLECTIONS.SEATS),
         fetchCollectionData(COLLECTIONS.FEES),
         fetchCollectionData(COLLECTIONS.EXPENSES),
         fetchCollectionData(COLLECTIONS.SECTIONS),
+        fetchCollectionData(COLLECTIONS.VISITORS),
       ]);
 
       const activeStudents = students.filter((s) => s.status === 'active');
@@ -221,6 +226,9 @@ export default function Dashboard() {
         };
       });
       setOccupancyData(occData);
+      setVisitors(allVisitors || []);
+      setAllSeatsList(uniqueSeatsList || []);
+      setAllSectionsList(allSections || []);
     } catch (err) {
       console.error('Error fetching dashboard metrics:', err);
     } finally {
@@ -379,7 +387,22 @@ export default function Dashboard() {
           </div>
         </div>
 
-        {/* Row 2: Shift Wise Distribution & Section Occupancy */}
+        {/* Row 2: Visit & Demo Tracker + Section Occupancy */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 sm:gap-6">
+          <div className="flex flex-col">
+            <LiveDemoTracker
+              visitors={visitors}
+              seats={allSeatsList}
+              sections={allSectionsList}
+              onUpdate={fetchAll}
+            />
+          </div>
+          <div className="bg-white rounded-3xl p-5 sm:p-6 border border-slate-200/80 shadow-xs flex flex-col">
+            <OccupancyOverview sections={occupancyData} />
+          </div>
+        </div>
+
+        {/* Row 3: Shift Distribution & Recent Fee Collections */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 sm:gap-6">
           <div className="flex flex-col">
             <ShiftDistribution
@@ -389,14 +412,9 @@ export default function Dashboard() {
               totalStudents={stats.totalStudents}
             />
           </div>
-          <div className="bg-white rounded-3xl p-5 sm:p-6 border border-slate-200/80 shadow-xs flex flex-col">
-            <OccupancyOverview sections={occupancyData} />
+          <div className="bg-white rounded-3xl border border-slate-200/80 shadow-xs overflow-hidden flex flex-col">
+            <RecentActivity fees={recentFees} />
           </div>
-        </div>
-
-        {/* Row 3: Recent Activity Table */}
-        <div className="bg-white rounded-3xl border border-slate-200/80 shadow-xs overflow-hidden">
-          <RecentActivity fees={recentFees} />
         </div>
 
       </div>
