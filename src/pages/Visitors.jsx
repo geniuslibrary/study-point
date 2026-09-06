@@ -30,6 +30,8 @@ import {
   Building2,
   X,
   ExternalLink,
+  UserX,
+  RotateCcw,
 } from 'lucide-react';
 import { formatDate } from '../utils/helpers';
 
@@ -215,25 +217,13 @@ export default function Visitors() {
     window.open(waUrl, '_blank', 'noopener,noreferrer');
   };
 
-  // 1-Click Convert to Regular Student
-  const handleConvertToStudent = async (visitor) => {
-    // Update visitor status to converted
-    try {
-      await updateDocument(COLLECTIONS.VISITORS, visitor.id, {
-        status: 'converted',
-        convertedAt: new Date().toISOString(),
-      });
-      setVisitors((prev) =>
-        prev.map((v) => (v.id === visitor.id ? { ...v, status: 'converted' } : v))
-      );
-    } catch (e) {
-      console.warn('Error marking converted:', e);
-    }
-
-    // Navigate to Students directory with prefilled details
+  // 1-Click Convert to Regular Student: redirects to /students with prefilled details.
+  // Note: Visitor status is ONLY marked 'converted' after student is actually saved in Students.jsx!
+  const handleConvertToStudent = (visitor) => {
     navigate('/students', {
       state: {
         convertVisitor: {
+          visitorId: visitor.id,
           name: visitor.name || '',
           phone: visitor.phone || '',
           sectionId: visitor.sectionId || '',
@@ -245,6 +235,40 @@ export default function Visitors() {
     });
   };
 
+  // Mark Not Interested (frees trial seat immediately, archives candidate details)
+  const handleMarkNotInterested = async (visitor) => {
+    if (!window.confirm(`Mark "${visitor.name}" as Not Interested? Their trial seat will be freed up, but candidate details will remain safely saved.`)) return;
+    try {
+      await updateDocument(COLLECTIONS.VISITORS, visitor.id, {
+        status: 'not_interested',
+        seatId: '', // frees trial seat immediately
+        notInterestedAt: new Date().toISOString(),
+      });
+      setVisitors((prev) =>
+        prev.map((v) =>
+          v.id === visitor.id ? { ...v, status: 'not_interested', seatId: '' } : v
+        )
+      );
+    } catch (err) {
+      console.error('Error marking not interested:', err);
+    }
+  };
+
+  // Re-activate a Not Interested or completed demo entry
+  const handleReactivate = async (visitor) => {
+    try {
+      const newStatus = visitor.purpose === 'demo' ? 'demo_active' : 'inquiry';
+      await updateDocument(COLLECTIONS.VISITORS, visitor.id, {
+        status: newStatus,
+      });
+      setVisitors((prev) =>
+        prev.map((v) => (v.id === visitor.id ? { ...v, status: newStatus } : v))
+      );
+    } catch (err) {
+      console.error('Error re-activating visitor:', err);
+    }
+  };
+
   // Calculate Expiry Status & Remaining Days
   const getDemoExpiryInfo = (visitor) => {
     if (visitor.status === 'converted') {
@@ -254,7 +278,7 @@ export default function Visitors() {
       return { label: 'Inquiry / Visit Only', color: 'bg-slate-100 text-slate-700 border-slate-200', type: 'inquiry' };
     }
     if (visitor.status === 'not_interested') {
-      return { label: 'Not Interested', color: 'bg-gray-100 text-gray-500 border-gray-200', type: 'closed' };
+      return { label: '⚪ Not Interested', color: 'bg-slate-100 text-slate-500 border-slate-200', type: 'not_interested' };
     }
 
     const today = new Date();
@@ -293,16 +317,19 @@ export default function Visitors() {
       // 3. Tab Filter
       const info = getDemoExpiryInfo(v);
       if (activeTab === 'demo_active') {
-        return info.type === 'active' || info.type === 'expiring';
+        return (info.type === 'active' || info.type === 'expiring') && v.status !== 'not_interested';
       }
       if (activeTab === 'demo_expiring') {
-        return info.type === 'expiring' || info.type === 'expired';
+        return (info.type === 'expiring' || info.type === 'expired') && v.status !== 'not_interested';
       }
       if (activeTab === 'converted') {
         return v.status === 'converted';
       }
       if (activeTab === 'inquiry') {
-        return v.purpose === 'inquiry' || v.status === 'inquiry';
+        return (v.purpose === 'inquiry' || v.status === 'inquiry') && v.status !== 'not_interested';
+      }
+      if (activeTab === 'not_interested') {
+        return v.status === 'not_interested';
       }
 
       return true;
@@ -315,10 +342,12 @@ export default function Visitors() {
     let expiringCount = 0;
     let convertedCount = 0;
     let inquiryCount = 0;
+    let notInterestedCount = 0;
 
     visitors.forEach((v) => {
       const info = getDemoExpiryInfo(v);
-      if (v.status === 'converted') convertedCount++;
+      if (v.status === 'not_interested') notInterestedCount++;
+      else if (v.status === 'converted') convertedCount++;
       else if (v.purpose === 'inquiry' || v.status === 'inquiry') inquiryCount++;
       else if (info.type === 'active') activeDemoCount++;
       else if (info.type === 'expiring' || info.type === 'expired') expiringCount++;
@@ -330,6 +359,7 @@ export default function Visitors() {
       expiringCount,
       convertedCount,
       inquiryCount,
+      notInterestedCount,
     };
   }, [visitors]);
 
@@ -560,6 +590,16 @@ export default function Visitors() {
                 >
                   Inquiry Only ({stats.inquiryCount})
                 </button>
+                <button
+                  onClick={() => setActiveTab('not_interested')}
+                  className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                    activeTab === 'not_interested'
+                      ? 'bg-white text-slate-700 shadow-xs font-black'
+                      : 'text-slate-500 hover:text-slate-800'
+                  }`}
+                >
+                  ⚪ Not Interested ({stats.notInterestedCount})
+                </button>
               </div>
             </div>
 
@@ -716,6 +756,29 @@ export default function Visitors() {
                               >
                                 <UserPlus className="w-3.5 h-3.5" />
                                 <span className="hidden sm:inline">Admit Student</span>
+                              </button>
+                            )}
+
+                            {/* Mark Not Interested (Frees seat, keeps data) */}
+                            {item.status !== 'converted' && item.status !== 'not_interested' && (
+                              <button
+                                onClick={() => handleMarkNotInterested(item)}
+                                className="p-2 rounded-xl bg-slate-100 hover:bg-amber-50 text-slate-400 hover:text-amber-700 transition-all cursor-pointer"
+                                title="Mark Not Interested (Frees seat, archives details)"
+                              >
+                                <UserX className="w-4 h-4" />
+                              </button>
+                            )}
+
+                            {/* Re-activate if Not Interested */}
+                            {item.status === 'not_interested' && (
+                              <button
+                                onClick={() => handleReactivate(item)}
+                                className="px-2.5 py-1.5 rounded-xl bg-slate-100 hover:bg-emerald-50 text-slate-600 hover:text-emerald-700 text-xs font-bold transition-all cursor-pointer flex items-center gap-1"
+                                title="Re-open Demo / Inquiry"
+                              >
+                                <RotateCcw className="w-3.5 h-3.5" />
+                                <span className="hidden sm:inline">Re-open</span>
                               </button>
                             )}
 

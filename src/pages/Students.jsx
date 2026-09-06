@@ -67,10 +67,13 @@ export default function Students() {
     fetchData();
   }, []);
 
+  const [convertingVisitorId, setConvertingVisitorId] = useState(null);
+
   // Auto-open Add Student modal if redirected from Visit & Demo conversion
   useEffect(() => {
     if (location.state?.convertVisitor) {
       const v = location.state.convertVisitor;
+      setConvertingVisitorId(v.visitorId || null);
       setEditData({
         name: v.name || '',
         phone: v.phone || '',
@@ -196,6 +199,21 @@ export default function Students() {
     if (newStudentData.seatId) {
       await updateSeatStatusAfterChange(newStudentData.seatId, { id: docRecord.id, ...newStudentData });
     }
+
+    // If converted from Visitor/Demo, mark visitor record as converted in database
+    if (convertingVisitorId) {
+      try {
+        await updateDocument(COLLECTIONS.VISITORS, convertingVisitorId, {
+          status: 'converted',
+          convertedAt: new Date().toISOString(),
+          studentId: docRecord.id,
+        });
+      } catch (err) {
+        console.warn('Error marking visitor converted:', err);
+      }
+      setConvertingVisitorId(null);
+    }
+
     await fetchData();
   };
 
@@ -372,6 +390,7 @@ export default function Students() {
         onClose={() => {
           setShowForm(false);
           setEditData(null);
+          setConvertingVisitorId(null);
         }}
         onSubmit={editData && editData.id ? handleEditStudent : handleAddStudent}
         editData={editData}
