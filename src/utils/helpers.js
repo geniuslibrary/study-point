@@ -243,3 +243,80 @@ export const formatReminderTime = (timestamp) => {
   }
 };
 
+/**
+ * High-fidelity, lightweight image compressor
+ * - Crops center-square for ID / passport photo
+ * - Smooth bicubic resampling at high quality
+ * - Uses URL.createObjectURL for instant decoding with minimal RAM
+ * - Returns a crisp JPEG data URL (~35-55 KB)
+ */
+export const compressImageFile = (fileOrBlob, targetDim = 480, quality = 0.86) => {
+  return new Promise((resolve, reject) => {
+    if (!fileOrBlob) {
+      reject(new Error('No image provided'));
+      return;
+    }
+
+    let objectUrl = null;
+    try {
+      objectUrl = URL.createObjectURL(fileOrBlob);
+    } catch (e) {
+      objectUrl = null;
+    }
+
+    const processImg = (img) => {
+      try {
+        const width = img.naturalWidth || img.width;
+        const height = img.naturalHeight || img.height;
+
+        const minDim = Math.min(width, height);
+        const startX = Math.round((width - minDim) / 2);
+        const startY = Math.round((height - minDim) / 2);
+
+        const canvas = document.createElement('canvas');
+        canvas.width = targetDim;
+        canvas.height = targetDim;
+        const ctx = canvas.getContext('2d');
+
+        ctx.imageSmoothingEnabled = true;
+        ctx.imageSmoothingQuality = 'high';
+
+        ctx.drawImage(img, startX, startY, minDim, minDim, 0, 0, targetDim, targetDim);
+
+        const dataUrl = canvas.toDataURL('image/jpeg', quality);
+        resolve(dataUrl);
+      } catch (err) {
+        reject(err);
+      } finally {
+        if (objectUrl) {
+          try { URL.revokeObjectURL(objectUrl); } catch (_) {}
+        }
+      }
+    };
+
+    if (objectUrl) {
+      const img = new Image();
+      img.onload = () => processImg(img);
+      img.onerror = () => {
+        if (objectUrl) try { URL.revokeObjectURL(objectUrl); } catch (_) {}
+        fallbackFileReader();
+      };
+      img.src = objectUrl;
+    } else {
+      fallbackFileReader();
+    }
+
+    function fallbackFileReader() {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const img = new Image();
+        img.onload = () => processImg(img);
+        img.onerror = (err) => reject(new Error('Failed to load image.'));
+        img.src = e.target.result;
+      };
+      reader.onerror = (err) => reject(err);
+      reader.readAsDataURL(fileOrBlob);
+    }
+  });
+};
+

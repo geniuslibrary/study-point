@@ -3,44 +3,7 @@ import Modal from '../common/Modal';
 import Button from '../common/Button';
 import CameraCaptureModal from '../common/CameraCaptureModal';
 import { Sun, Sunrise, Sunset, Clock, Armchair, AlertCircle, Calendar, UserX, CheckCircle, Tag, IndianRupee, Lock, Camera, Upload, X, Trash2, User, Image, Check } from 'lucide-react';
-import { formatDate, formatCurrency, getStoredShifts, calculateSeatAddonCharges, getStoredAddons } from '../../utils/helpers';
-
-// Off-screen canvas image compressor (max 320x320 JPEG, ~25-35 KB)
-const compressImage = (file) => {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.readAsDataURL(file);
-    reader.onload = (event) => {
-      const img = new Image();
-      img.src = event.target.result;
-      img.onload = () => {
-        const canvas = document.createElement('canvas');
-        let width = img.width;
-        let height = img.height;
-        const maxDim = 320;
-        if (width > height) {
-          if (width > maxDim) {
-            height = Math.round((height * maxDim) / width);
-            width = maxDim;
-          }
-        } else {
-          if (height > maxDim) {
-            width = Math.round((width * maxDim) / height);
-            height = maxDim;
-          }
-        }
-        canvas.width = width;
-        canvas.height = height;
-        const ctx = canvas.getContext('2d');
-        ctx.drawImage(img, 0, 0, width, height);
-        const dataUrl = canvas.toDataURL('image/jpeg', 0.75);
-        resolve(dataUrl);
-      };
-      img.onerror = (err) => reject(err);
-    };
-    reader.onerror = (err) => reject(err);
-  });
-};
+import { formatDate, formatCurrency, getStoredShifts, calculateSeatAddonCharges, getStoredAddons, compressImageFile } from '../../utils/helpers';
 
 export default function StudentForm({
   isOpen,
@@ -78,6 +41,7 @@ export default function StudentForm({
   const [loading, setLoading] = useState(false);
   const [seatOptions, setSeatOptions] = useState([]);
   const [isCameraModalOpen, setIsCameraModalOpen] = useState(false);
+  const [isCompressing, setIsCompressing] = useState(false);
   const galleryInputRef = useRef(null);
 
   useEffect(() => {
@@ -323,11 +287,16 @@ export default function StudentForm({
   const handlePhotoChange = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    setIsCompressing(true);
     try {
-      const compressed = await compressImage(file);
+      const compressed = await compressImageFile(file, 480, 0.86);
       setFormData((prev) => ({ ...prev, photo: compressed }));
     } catch (err) {
       console.error('Error processing student photo:', err);
+      alert('फोटो लोड नहीं हो सकी। कृपया दोबारा प्रयास करें।');
+    } finally {
+      setIsCompressing(false);
+      try { e.target.value = ''; } catch (_) {}
     }
   };
 
@@ -365,6 +334,14 @@ export default function StudentForm({
                   <span className="text-[10px] font-bold text-slate-400 mt-0.5">No Photo</span>
                 </div>
               )}
+
+              {/* Compression loading indicator */}
+              {isCompressing && (
+                <div className="absolute inset-0 bg-slate-900/75 rounded-2xl flex flex-col items-center justify-center text-white z-10 backdrop-blur-2xs">
+                  <div className="w-5 h-5 border-2 border-indigo-400 border-t-transparent rounded-full animate-spin" />
+                  <span className="text-[9px] font-bold mt-1">Compressing</span>
+                </div>
+              )}
             </div>
 
             {/* Photo Action Controls */}
@@ -375,29 +352,28 @@ export default function StudentForm({
                 </span>
                 {formData.photo ? (
                   <span className="inline-flex items-center gap-1 text-[11px] font-extrabold text-emerald-700 bg-emerald-100/70 px-2 py-0.5 rounded-full">
-                    <Check className="w-3 h-3 stroke-[2.5]" /> Photo Active
+                    <Check className="w-3 h-3 stroke-[2.5]" /> HD Compressed (~40KB)
                   </span>
                 ) : (
                   <span className="text-[11px] font-medium text-slate-400">
-                    (Optional)
+                    (Auto-compressed & Sharp)
                   </span>
                 )}
               </div>
               <p className="text-xs text-slate-500">
-                2 विकल्प: फोन/कंप्यूटर गैलरी से चुनें या सीधे लाइव कैमरे से फोटो खींचें।
+                2 आसान विकल्प: फोन/कंप्यूटर गैलरी से चुनें या सीधे लाइव कैमरे से फोटो खींचें।
               </p>
 
               {/* 2 Main Action Buttons: Gallery & Direct Camera */}
               <div className="pt-1 flex flex-wrap items-center gap-2">
-                {/* Option 1: Choose from Gallery */}
-                <button
-                  type="button"
-                  onClick={() => galleryInputRef.current?.click()}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white hover:bg-slate-100/80 border border-slate-300 hover:border-slate-400 text-slate-700 rounded-xl text-xs font-bold shadow-2xs transition cursor-pointer active:scale-95"
+                {/* Option 1: Choose from Gallery (Native Label Trigger) */}
+                <label
+                  htmlFor="student-gallery-file-input"
+                  className="cursor-pointer inline-flex items-center gap-1.5 px-3 py-1.5 bg-white hover:bg-slate-100/80 border border-slate-300 hover:border-slate-400 text-slate-700 rounded-xl text-xs font-bold shadow-2xs transition active:scale-95 select-none"
                 >
                   <Image className="w-3.5 h-3.5 text-indigo-600" />
                   <span>{formData.photo ? '📁 गैलरी से बदलें' : '📁 Gallery (गैलरी से चुनें)'}</span>
-                </button>
+                </label>
 
                 {/* Option 2: Live Direct Camera */}
                 <button
@@ -421,13 +397,15 @@ export default function StudentForm({
                 )}
               </div>
 
-              {/* Hidden file input for Gallery option */}
+              {/* Native file input for Gallery option */}
               <input
+                id="student-gallery-file-input"
                 ref={galleryInputRef}
                 type="file"
                 accept="image/*"
+                onClick={(e) => { e.target.value = ''; }}
                 onChange={handlePhotoChange}
-                className="hidden"
+                className="sr-only"
               />
             </div>
           </div>

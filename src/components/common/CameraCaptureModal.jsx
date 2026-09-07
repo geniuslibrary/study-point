@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Camera, X, RotateCcw, Check, RefreshCw, AlertCircle, Smartphone } from 'lucide-react';
+import { compressImageFile } from '../../utils/helpers';
 
 export default function CameraCaptureModal({
   isOpen,
@@ -98,14 +99,17 @@ export default function CameraCaptureModal({
 
     // Center square crop
     const size = Math.min(videoWidth, videoHeight);
-    const startX = (videoWidth - size) / 2;
-    const startY = (videoHeight - size) / 2;
+    const startX = Math.round((videoWidth - size) / 2);
+    const startY = Math.round((videoHeight - size) / 2);
 
     const canvas = document.createElement('canvas');
-    const targetDim = 360; // crisp square thumbnail
+    const targetDim = 480; // Sharp square photo
     canvas.width = targetDim;
     canvas.height = targetDim;
     const ctx = canvas.getContext('2d');
+
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = 'high';
 
     // Mirror user-facing camera for natural preview
     if (facingMode === 'user') {
@@ -114,7 +118,7 @@ export default function CameraCaptureModal({
     }
 
     ctx.drawImage(video, startX, startY, size, size, 0, 0, targetDim, targetDim);
-    const dataUrl = canvas.toDataURL('image/jpeg', 0.82);
+    const dataUrl = canvas.toDataURL('image/jpeg', 0.86);
     setCapturedImage(dataUrl);
   };
 
@@ -136,41 +140,18 @@ export default function CameraCaptureModal({
     onClose();
   };
 
-  // Fallback direct mobile camera input handler
-  const handleNativeCameraChange = (e) => {
+  // Fallback direct mobile camera input handler with compressImageFile
+  const handleNativeCameraChange = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
-
-    const reader = new FileReader();
-    reader.readAsDataURL(file);
-    reader.onload = (event) => {
-      const img = new Image();
-      img.src = event.target.result;
-      img.onload = () => {
-        const canvas = document.createElement('canvas');
-        let width = img.width;
-        let height = img.height;
-        const maxDim = 360;
-        if (width > height) {
-          if (width > maxDim) {
-            height = Math.round((height * maxDim) / width);
-            width = maxDim;
-          }
-        } else {
-          if (height > maxDim) {
-            width = Math.round((width * maxDim) / height);
-            height = maxDim;
-          }
-        }
-        canvas.width = width;
-        canvas.height = height;
-        const ctx = canvas.getContext('2d');
-        ctx.drawImage(img, 0, 0, width, height);
-        const dataUrl = canvas.toDataURL('image/jpeg', 0.82);
-        onCapture(dataUrl);
-        handleClose();
-      };
-    };
+    try {
+      const compressed = await compressImageFile(file, 480, 0.86);
+      onCapture(compressed);
+      handleClose();
+    } catch (err) {
+      console.error('Camera compression error:', err);
+      alert('फोटो प्रोसेस नहीं हो सकी। कृपया दोबारा कोशिश करें।');
+    }
   };
 
   if (!isOpen) return null;
