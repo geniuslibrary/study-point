@@ -242,13 +242,16 @@ export default function StudentList({
                         <img
                           src={student.photo}
                           alt={student.name}
-                          className="w-9 h-9 rounded-2xl object-cover border border-slate-200 shrink-0 shadow-2xs"
+                          onError={(e) => {
+                            e.currentTarget.style.display = 'none';
+                          }}
+                          className="w-10 h-10 rounded-full object-cover border-2 border-indigo-100/90 shrink-0 shadow-2xs ring-1 ring-slate-200/60"
                         />
                       ) : (
-                        <div className={`w-9 h-9 rounded-2xl flex items-center justify-center font-bold text-xs shrink-0 ${
-                          isLeft ? 'bg-rose-100 text-rose-700' : 'bg-indigo-100 text-indigo-700'
+                        <div className={`w-10 h-10 rounded-full flex items-center justify-center font-black text-xs shrink-0 shadow-2xs ${
+                          isLeft ? 'bg-rose-100 text-rose-700 border border-rose-200' : 'bg-indigo-100 text-indigo-700 border border-indigo-200'
                         }`}>
-                          {student.name?.charAt(0)?.toUpperCase()}
+                          {student.name?.charAt(0)?.toUpperCase() || '?'}
                         </div>
                       )}
                       <div>
@@ -374,13 +377,16 @@ export default function StudentList({
                     <img
                       src={student.photo}
                       alt={student.name}
-                      className="w-10 h-10 rounded-2xl object-cover border border-slate-200 shrink-0 shadow-2xs"
+                      onError={(e) => {
+                        e.currentTarget.style.display = 'none';
+                      }}
+                      className="w-11 h-11 rounded-full object-cover border-2 border-indigo-100/90 shrink-0 shadow-2xs ring-1 ring-slate-200/60"
                     />
                   ) : (
-                    <div className={`w-10 h-10 rounded-2xl flex items-center justify-center font-bold text-xs shrink-0 ${
-                      isLeft ? 'bg-rose-100 text-rose-700' : 'bg-indigo-100 text-indigo-700'
+                    <div className={`w-11 h-11 rounded-full flex items-center justify-center font-black text-xs shrink-0 shadow-2xs ${
+                      isLeft ? 'bg-rose-100 text-rose-700 border border-rose-200' : 'bg-indigo-100 text-indigo-700 border border-indigo-200'
                     }`}>
-                      {student.name?.charAt(0)?.toUpperCase()}
+                      {student.name?.charAt(0)?.toUpperCase() || '?'}
                     </div>
                   )}
                   <div>

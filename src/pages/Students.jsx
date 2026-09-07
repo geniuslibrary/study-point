@@ -139,6 +139,7 @@ export default function Students() {
       name: formData.name,
       phone: formData.phone,
       email: formData.email || '',
+      photo: formData.photo || '',
       sectionId: formData.sectionId || '',
       seatId: formData.status === 'left' ? '' : (formData.seatId || ''),
       addons: formData.addons || {},
@@ -152,6 +153,7 @@ export default function Students() {
       membershipStart: joinD.toISOString(),
       membershipEnd: membershipEnd.toISOString(),
       status: formData.status || 'active',
+      notes: formData.notes || '',
     };
 
     const docRecord = await createDocument(COLLECTIONS.STUDENTS, newStudentData);
@@ -237,6 +239,7 @@ export default function Students() {
       name: formData.name,
       phone: formData.phone,
       email: formData.email || '',
+      photo: formData.photo !== undefined ? formData.photo : (editData.photo || ''),
       sectionId: formData.status === 'left' ? '' : (formData.sectionId || ''),
       seatId: formData.status === 'left' ? '' : (formData.seatId || ''),
       addons: formData.addons || {},
@@ -250,6 +253,7 @@ export default function Students() {
       membershipStart: joinD.toISOString(),
       membershipEnd: membershipEnd.toISOString(),
       status: formData.status || 'active',
+      notes: formData.notes || '',
     };
 
     await updateDocument(COLLECTIONS.STUDENTS, editData.id, updatedData);
