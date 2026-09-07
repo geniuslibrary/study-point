@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Search,
   Edit,
@@ -63,7 +63,8 @@ export default function StudentList({
       s.email?.toLowerCase().includes(search.toLowerCase());
 
     const matchSection = !filterSection || s.sectionId === filterSection;
-    const matchShift = !filterShift || s.shift === filterShift;
+    const studentShift = s.shift || 'full_day';
+    const matchShift = !filterShift || studentShift === filterShift;
 
     return matchTab && matchSearch && matchSection && matchShift;
   });
