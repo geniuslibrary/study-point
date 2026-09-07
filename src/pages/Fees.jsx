@@ -27,6 +27,7 @@ export default function Fees() {
   const location = useLocation();
   const [searchParams] = useSearchParams();
   const targetStudentId = location.state?.collectStudentId || searchParams.get('studentId');
+  const targetStatusFilter = location.state?.statusFilter || searchParams.get('status') || 'all';
 
   const [fees, setFees] = useState([]);
   const [students, setStudents] = useState([]);
@@ -378,6 +379,7 @@ export default function Fees() {
           onViewReceipt={setReceiptFee}
           selectedMonth={selectedMonth}
           onMonthChange={setSelectedMonth}
+          initialStatusFilter={targetStatusFilter}
         />
       </div>
 

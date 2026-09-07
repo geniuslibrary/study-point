@@ -1,8 +1,11 @@
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
 import { IndianRupee, UserPlus, TrendingDown, Armchair, Zap } from 'lucide-react';
 import { formatCurrency } from '../../utils/helpers';
 
 export default function TodayPulse({ todayCollection = 0, todayFeesCount = 0, todayAdmissions = 0, todayExpense = 0, emptySeats = 0 }) {
+  const navigate = useNavigate();
+
   return (
     <div className="bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 text-white rounded-3xl p-5 sm:p-6 shadow-md border border-indigo-900/40 relative overflow-hidden">
       {/* Background glow */}
@@ -27,10 +30,14 @@ export default function TodayPulse({ todayCollection = 0, todayFeesCount = 0, to
       {/* 4 Micro Cards Grid */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 relative z-10">
         {/* Today's Fee Collection */}
-        <div className="bg-white/5 hover:bg-white/10 border border-white/10 rounded-2xl p-3.5 transition-all">
+        <div
+          onClick={() => navigate('/fees')}
+          className="bg-white/5 hover:bg-white/15 border border-white/10 hover:border-emerald-400/40 rounded-2xl p-3.5 transition-all cursor-pointer group active:scale-95 shadow-2xs"
+          title="Open Fee Tracker"
+        >
           <div className="flex items-center justify-between text-xs text-indigo-300 font-medium mb-1">
-            <span>Today Collected</span>
-            <div className="w-6 h-6 rounded-lg bg-emerald-500/20 text-emerald-400 flex items-center justify-center">
+            <span className="group-hover:text-white transition-colors">Today Collected</span>
+            <div className="w-6 h-6 rounded-lg bg-emerald-500/20 text-emerald-400 flex items-center justify-center group-hover:scale-110 transition-transform">
               <IndianRupee className="w-3.5 h-3.5" />
             </div>
           </div>
@@ -41,10 +48,14 @@ export default function TodayPulse({ todayCollection = 0, todayFeesCount = 0, to
         </div>
 
         {/* Today's Admissions */}
-        <div className="bg-white/5 hover:bg-white/10 border border-white/10 rounded-2xl p-3.5 transition-all">
+        <div
+          onClick={() => navigate('/students')}
+          className="bg-white/5 hover:bg-white/15 border border-white/10 hover:border-indigo-400/40 rounded-2xl p-3.5 transition-all cursor-pointer group active:scale-95 shadow-2xs"
+          title="Open Students Manager"
+        >
           <div className="flex items-center justify-between text-xs text-indigo-300 font-medium mb-1">
-            <span>New Admissions</span>
-            <div className="w-6 h-6 rounded-lg bg-indigo-500/20 text-indigo-400 flex items-center justify-center">
+            <span className="group-hover:text-white transition-colors">New Admissions</span>
+            <div className="w-6 h-6 rounded-lg bg-indigo-500/20 text-indigo-400 flex items-center justify-center group-hover:scale-110 transition-transform">
               <UserPlus className="w-3.5 h-3.5" />
             </div>
           </div>
@@ -55,10 +66,14 @@ export default function TodayPulse({ todayCollection = 0, todayFeesCount = 0, to
         </div>
 
         {/* Today's Expenses */}
-        <div className="bg-white/5 hover:bg-white/10 border border-white/10 rounded-2xl p-3.5 transition-all">
+        <div
+          onClick={() => navigate('/expenses')}
+          className="bg-white/5 hover:bg-white/15 border border-white/10 hover:border-rose-400/40 rounded-2xl p-3.5 transition-all cursor-pointer group active:scale-95 shadow-2xs"
+          title="Open Expenses"
+        >
           <div className="flex items-center justify-between text-xs text-indigo-300 font-medium mb-1">
-            <span>Today's Expenses</span>
-            <div className="w-6 h-6 rounded-lg bg-rose-500/20 text-rose-400 flex items-center justify-center">
+            <span className="group-hover:text-white transition-colors">Today's Expenses</span>
+            <div className="w-6 h-6 rounded-lg bg-rose-500/20 text-rose-400 flex items-center justify-center group-hover:scale-110 transition-transform">
               <TrendingDown className="w-3.5 h-3.5" />
             </div>
           </div>
@@ -69,10 +84,14 @@ export default function TodayPulse({ todayCollection = 0, todayFeesCount = 0, to
         </div>
 
         {/* Available Empty Seats */}
-        <div className="bg-white/5 hover:bg-white/10 border border-white/10 rounded-2xl p-3.5 transition-all">
+        <div
+          onClick={() => navigate('/sections')}
+          className="bg-white/5 hover:bg-white/15 border border-white/10 hover:border-amber-400/40 rounded-2xl p-3.5 transition-all cursor-pointer group active:scale-95 shadow-2xs"
+          title="Open Seat Matrix & Sections"
+        >
           <div className="flex items-center justify-between text-xs text-indigo-300 font-medium mb-1">
-            <span>Empty Seats</span>
-            <div className="w-6 h-6 rounded-lg bg-amber-500/20 text-amber-400 flex items-center justify-center">
+            <span className="group-hover:text-white transition-colors">Empty Seats</span>
+            <div className="w-6 h-6 rounded-lg bg-amber-500/20 text-amber-400 flex items-center justify-center group-hover:scale-110 transition-transform">
               <Armchair className="w-3.5 h-3.5" />
             </div>
           </div>

@@ -179,6 +179,7 @@ export default function Dashboard() {
             ...fee,
             studentId: stu?.id || fee.studentId,
             studentName: stu?.name || 'Student',
+            studentPhoto: stu?.photo || '',
             phone: stu?.phone || '',
             seatNumber: seat?.seatNumber || '—',
             lastFeeReminderAt: stu?.lastFeeReminderMonth === currentMonth ? stu?.lastFeeReminderAt : null,
@@ -218,7 +219,11 @@ export default function Dashboard() {
 
       const feesWithNames = feesSorted.map((f) => {
         const stu = students.find((s) => s.id === f.studentId);
-        return { ...f, studentName: stu?.name || 'Unknown Student' };
+        return {
+          ...f,
+          studentName: stu?.name || 'Unknown Student',
+          studentPhoto: stu?.photo || '',
+        };
       });
       setRecentFees(feesWithNames);
 

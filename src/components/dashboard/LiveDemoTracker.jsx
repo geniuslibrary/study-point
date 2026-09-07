@@ -172,12 +172,15 @@ export default function LiveDemoTracker({
       {/* Header */}
       <div>
         <div className="flex items-start justify-between mb-4">
-          <div>
+          <div
+            onClick={() => navigate('/visitors')}
+            className="cursor-pointer group"
+          >
             <div className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-xl bg-blue-50 flex items-center justify-center text-blue-600">
+              <div className="w-8 h-8 rounded-xl bg-blue-50 flex items-center justify-center text-blue-600 group-hover:scale-110 transition-transform">
                 <UserCheck className="w-4 h-4" />
               </div>
-              <h3 className="text-base font-bold text-gray-900">Visit & Demo Tracker</h3>
+              <h3 className="text-base font-bold text-gray-900 group-hover:text-blue-600 transition-colors">Visit & Demo Tracker</h3>
               <span className="flex h-2 w-2 relative">
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span>
                 <span className="relative inline-flex rounded-full h-2 w-2 bg-blue-500"></span>
@@ -197,20 +200,36 @@ export default function LiveDemoTracker({
 
         {/* Micro Pill Stats Row */}
         <div className="grid grid-cols-4 gap-2 mb-4">
-          <div className="p-2 rounded-xl bg-emerald-50/70 border border-emerald-100 text-center">
-            <p className="text-xs text-emerald-700 font-bold">Active</p>
+          <div
+            onClick={() => navigate('/visitors', { state: { initialTab: 'demos' } })}
+            className="p-2 rounded-xl bg-emerald-50/70 hover:bg-emerald-100/70 border border-emerald-100 text-center cursor-pointer transition-all hover:scale-[1.02] active:scale-95 group shadow-2xs"
+            title="Filter Active Demos in Visitors"
+          >
+            <p className="text-xs text-emerald-700 font-bold group-hover:underline">Active</p>
             <p className="text-sm sm:text-base font-black text-emerald-900">{metrics.active}</p>
           </div>
-          <div className="p-2 rounded-xl bg-amber-50/70 border border-amber-100 text-center">
-            <p className="text-xs text-amber-700 font-bold">Ending Today</p>
+          <div
+            onClick={() => navigate('/visitors', { state: { initialTab: 'demos' } })}
+            className="p-2 rounded-xl bg-amber-50/70 hover:bg-amber-100/70 border border-amber-100 text-center cursor-pointer transition-all hover:scale-[1.02] active:scale-95 group shadow-2xs"
+            title="Filter Ending Today Demos in Visitors"
+          >
+            <p className="text-xs text-amber-700 font-bold group-hover:underline">Ending Today</p>
             <p className="text-sm sm:text-base font-black text-amber-900">{metrics.endingToday}</p>
           </div>
-          <div className="p-2 rounded-xl bg-rose-50/70 border border-rose-100 text-center">
-            <p className="text-xs text-rose-700 font-bold">Expired</p>
+          <div
+            onClick={() => navigate('/visitors', { state: { initialTab: 'demos' } })}
+            className="p-2 rounded-xl bg-rose-50/70 hover:bg-rose-100/70 border border-rose-100 text-center cursor-pointer transition-all hover:scale-[1.02] active:scale-95 group shadow-2xs"
+            title="Filter Expired Demos in Visitors"
+          >
+            <p className="text-xs text-rose-700 font-bold group-hover:underline">Expired</p>
             <p className="text-sm sm:text-base font-black text-rose-900">{metrics.expired}</p>
           </div>
-          <div className="p-2 rounded-xl bg-indigo-50/70 border border-indigo-100 text-center">
-            <p className="text-xs text-indigo-700 font-bold">Converted</p>
+          <div
+            onClick={() => navigate('/visitors', { state: { initialTab: 'all' } })}
+            className="p-2 rounded-xl bg-indigo-50/70 hover:bg-indigo-100/70 border border-indigo-100 text-center cursor-pointer transition-all hover:scale-[1.02] active:scale-95 group shadow-2xs"
+            title="View Converted Students in Visitors"
+          >
+            <p className="text-xs text-indigo-700 font-bold group-hover:underline">Converted</p>
             <p className="text-sm sm:text-base font-black text-indigo-900">{metrics.converted}</p>
           </div>
         </div>

@@ -37,18 +37,21 @@ export default function OccupancyOverview({ sections = [] }) {
   return (
     <div className="flex flex-col h-full">
       {/* Header */}
-      <div className="flex items-start justify-between mb-4">
+      <div
+        onClick={() => navigate('/sections')}
+        className="flex items-start justify-between mb-4 cursor-pointer group"
+      >
         <div>
           <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-xl bg-indigo-50 flex items-center justify-center">
+            <div className="w-8 h-8 rounded-xl bg-indigo-50 flex items-center justify-center text-indigo-600 group-hover:scale-110 transition-transform">
               <Building2 className="w-4 h-4 text-indigo-600" />
             </div>
-            <h3 className="text-sm sm:text-base font-bold text-gray-900">Hall & Section Occupancy</h3>
+            <h3 className="text-sm sm:text-base font-bold text-gray-900 group-hover:text-indigo-600 transition-colors">Hall & Section Occupancy</h3>
           </div>
           <p className="text-xs text-gray-500 mt-1 ml-10">Live seat allocation breakdown</p>
         </div>
         <div className="text-right">
-          <span className="inline-flex items-center gap-1 text-xs font-bold px-2.5 py-1 rounded-full bg-slate-100 text-slate-700">
+          <span className="inline-flex items-center gap-1 text-xs font-bold px-2.5 py-1 rounded-full bg-slate-100 text-slate-700 group-hover:bg-indigo-50 group-hover:text-indigo-700 transition-colors">
             {overallPercentage}% Total
           </span>
         </div>
@@ -79,8 +82,8 @@ export default function OccupancyOverview({ sections = [] }) {
           return (
             <div
               key={section.id || index}
-              onClick={() => navigate('/seats')}
-              className="p-3 sm:p-3.5 rounded-2xl bg-slate-50/70 hover:bg-indigo-50/50 border border-slate-200/70 hover:border-indigo-200 transition-all cursor-pointer group"
+              onClick={() => navigate('/sections')}
+              className="p-3 sm:p-3.5 rounded-2xl bg-slate-50/70 hover:bg-indigo-50/50 border border-slate-200/70 hover:border-indigo-200 transition-all cursor-pointer group shadow-2xs hover:shadow-xs"
             >
               <div className="flex items-center justify-between mb-2">
                 <div className="flex items-center gap-2">
@@ -120,7 +123,7 @@ export default function OccupancyOverview({ sections = [] }) {
       <div className="pt-3 mt-2 border-t border-slate-100 flex items-center justify-between text-xs">
         <span className="text-slate-500 font-medium">Want to change seat arrangements?</span>
         <button
-          onClick={() => navigate('/seats')}
+          onClick={() => navigate('/sections')}
           className="font-bold text-indigo-600 hover:text-indigo-700 hover:underline inline-flex items-center gap-1 cursor-pointer"
         >
           <span>Open Seat Matrix</span>

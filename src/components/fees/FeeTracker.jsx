@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { formatCurrency, formatDate, formatMonthDisplay } from '../../utils/helpers';
 import StatusBadge from '../common/StatusBadge';
 import {
@@ -26,10 +26,17 @@ export default function FeeTracker({
   onViewReceipt,
   selectedMonth,
   onMonthChange,
+  initialStatusFilter = 'all',
 }) {
   const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState('all'); // all | paid | pending | overdue
+  const [statusFilter, setStatusFilter] = useState(initialStatusFilter); // all | paid | pending | overdue
   const [sectionFilter, setSectionFilter] = useState('all');
+
+  useEffect(() => {
+    if (initialStatusFilter && initialStatusFilter !== 'all') {
+      setStatusFilter(initialStatusFilter);
+    }
+  }, [initialStatusFilter]);
 
   const months = useMemo(() => {
     return [...new Set(fees.map((f) => f.month))].filter(Boolean).sort().reverse();
@@ -231,8 +238,23 @@ export default function FeeTracker({
               return (
                 <tr key={fee.id} className="hover:bg-slate-50/80 transition-colors">
                   <td className="px-5 py-3.5">
-                    <p className="font-extrabold text-slate-900 leading-tight">{student?.name || 'Unknown'}</p>
-                    <p className="text-[11px] text-slate-500 mt-0.5 font-medium">{student?.phone || '—'}</p>
+                    <div className="flex items-center gap-2.5">
+                      {student?.photo ? (
+                        <img
+                          src={student.photo}
+                          alt={student.name}
+                          className="w-8 h-8 rounded-xl object-cover border border-slate-200 shrink-0 shadow-2xs"
+                        />
+                      ) : (
+                        <div className="w-8 h-8 rounded-xl bg-indigo-100 text-indigo-700 font-bold text-xs flex items-center justify-center shrink-0">
+                          {student?.name?.charAt(0)?.toUpperCase() || '?'}
+                        </div>
+                      )}
+                      <div>
+                        <p className="font-extrabold text-slate-900 leading-tight">{student?.name || 'Unknown'}</p>
+                        <p className="text-[11px] text-slate-500 mt-0.5 font-medium">{student?.phone || '—'}</p>
+                      </div>
+                    </div>
                   </td>
 
                   <td className="px-5 py-3.5">
@@ -332,13 +354,26 @@ export default function FeeTracker({
           return (
             <div key={fee.id} className="p-4 space-y-2.5">
               <div className="flex items-start justify-between gap-2">
-                <div>
-                  <p className="font-extrabold text-slate-900 text-sm leading-tight">
-                    {student?.name || 'Unknown'}
-                  </p>
-                  <p className="text-xs text-slate-500 mt-0.5">
-                    📞 {student?.phone || '—'} {seatNum ? `• Seat #${seatNum}` : ''}
-                  </p>
+                <div className="flex items-center gap-2.5">
+                  {student?.photo ? (
+                    <img
+                      src={student.photo}
+                      alt={student.name}
+                      className="w-9 h-9 rounded-xl object-cover border border-slate-200 shrink-0 shadow-2xs"
+                    />
+                  ) : (
+                    <div className="w-9 h-9 rounded-xl bg-indigo-100 text-indigo-700 font-bold text-xs flex items-center justify-center shrink-0">
+                      {student?.name?.charAt(0)?.toUpperCase() || '?'}
+                    </div>
+                  )}
+                  <div>
+                    <p className="font-extrabold text-slate-900 text-sm leading-tight">
+                      {student?.name || 'Unknown'}
+                    </p>
+                    <p className="text-xs text-slate-500 mt-0.5">
+                      📞 {student?.phone || '—'} {seatNum ? `• Seat #${seatNum}` : ''}
+                    </p>
+                  </div>
                 </div>
                 <StatusBadge status={fee.status} size="sm" />
               </div>

@@ -34,11 +34,18 @@ export default function StudentList({
   canEdit = true,
   canDelete = true,
   canCollectFee = true,
+  initialFilterShift = '',
 }) {
   const [activeTab, setActiveTab] = useState('active'); // 'active' | 'left' | 'all'
   const [search, setSearch] = useState('');
   const [filterSection, setFilterSection] = useState('');
-  const [filterShift, setFilterShift] = useState('');
+  const [filterShift, setFilterShift] = useState(initialFilterShift);
+
+  useEffect(() => {
+    if (initialFilterShift) {
+      setFilterShift(initialFilterShift);
+    }
+  }, [initialFilterShift]);
 
   const activeCount = students.filter((s) => s.status === 'active').length;
   const leftCount = students.filter((s) => s.status === 'left' || s.status === 'inactive').length;
@@ -230,11 +237,19 @@ export default function StudentList({
                 <tr key={student.id} className="hover:bg-slate-50/80 transition-colors">
                   <td className="px-5 py-3.5">
                     <div className="flex items-center gap-3">
-                      <div className={`w-9 h-9 rounded-2xl flex items-center justify-center font-bold text-xs shrink-0 ${
-                        isLeft ? 'bg-rose-100 text-rose-700' : 'bg-indigo-100 text-indigo-700'
-                      }`}>
-                        {student.name?.charAt(0)?.toUpperCase()}
-                      </div>
+                      {student.photo ? (
+                        <img
+                          src={student.photo}
+                          alt={student.name}
+                          className="w-9 h-9 rounded-2xl object-cover border border-slate-200 shrink-0 shadow-2xs"
+                        />
+                      ) : (
+                        <div className={`w-9 h-9 rounded-2xl flex items-center justify-center font-bold text-xs shrink-0 ${
+                          isLeft ? 'bg-rose-100 text-rose-700' : 'bg-indigo-100 text-indigo-700'
+                        }`}>
+                          {student.name?.charAt(0)?.toUpperCase()}
+                        </div>
+                      )}
                       <div>
                         <p className="font-bold text-slate-900 text-sm">{student.name}</p>
                         {student.email && <p className="text-xs text-slate-400">{student.email}</p>}
@@ -354,11 +369,19 @@ export default function StudentList({
             <div key={student.id} className="p-4 space-y-2.5">
               <div className="flex items-start justify-between gap-2">
                 <div className="flex items-center gap-2.5">
-                  <div className={`w-10 h-10 rounded-2xl flex items-center justify-center font-bold text-xs ${
-                    isLeft ? 'bg-rose-100 text-rose-700' : 'bg-indigo-100 text-indigo-700'
-                  }`}>
-                    {student.name?.charAt(0)?.toUpperCase()}
-                  </div>
+                  {student.photo ? (
+                    <img
+                      src={student.photo}
+                      alt={student.name}
+                      className="w-10 h-10 rounded-2xl object-cover border border-slate-200 shrink-0 shadow-2xs"
+                    />
+                  ) : (
+                    <div className={`w-10 h-10 rounded-2xl flex items-center justify-center font-bold text-xs shrink-0 ${
+                      isLeft ? 'bg-rose-100 text-rose-700' : 'bg-indigo-100 text-indigo-700'
+                    }`}>
+                      {student.name?.charAt(0)?.toUpperCase()}
+                    </div>
+                  )}
                   <div>
                     <h4 className="font-extrabold text-slate-900 text-sm leading-tight">{student.name}</h4>
                     <p className="text-xs text-slate-500 mt-0.5">📞 {student.phone}</p>

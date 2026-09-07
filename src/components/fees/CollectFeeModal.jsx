@@ -197,16 +197,29 @@ export default function CollectFeeModal({
         {/* Student & Seat Context Card */}
         {student && (
           <div className="bg-indigo-50/70 rounded-2xl p-4 border border-indigo-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-            <div>
-              <p className="font-extrabold text-slate-900 text-base leading-tight">{student.name}</p>
-              <div className="flex flex-wrap items-center gap-2 text-xs text-slate-600 mt-1">
-                <span className="flex items-center gap-1 font-bold text-indigo-700">
-                  <Armchair className="w-3.5 h-3.5" /> Seat #{seat?.seatNumber || '—'}
-                </span>
-                <span>•</span>
-                <span className="flex items-center gap-1 text-slate-700 font-medium">
-                  <Clock className="w-3.5 h-3.5 text-indigo-500" /> {student.shiftTiming || 'Full Day'}
-                </span>
+            <div className="flex items-center gap-3">
+              {student.photo ? (
+                <img
+                  src={student.photo}
+                  alt={student.name}
+                  className="w-12 h-12 rounded-2xl object-cover border border-indigo-200 shrink-0 shadow-2xs"
+                />
+              ) : (
+                <div className="w-12 h-12 rounded-2xl bg-indigo-600 text-white font-black text-lg flex items-center justify-center shrink-0 shadow-2xs">
+                  {student.name?.charAt(0)?.toUpperCase()}
+                </div>
+              )}
+              <div>
+                <p className="font-extrabold text-slate-900 text-base leading-tight">{student.name}</p>
+                <div className="flex flex-wrap items-center gap-2 text-xs text-slate-600 mt-1">
+                  <span className="flex items-center gap-1 font-bold text-indigo-700">
+                    <Armchair className="w-3.5 h-3.5" /> Seat #{seat?.seatNumber || '—'}
+                  </span>
+                  <span>•</span>
+                  <span className="flex items-center gap-1 text-slate-700 font-medium">
+                    <Clock className="w-3.5 h-3.5 text-indigo-500" /> {student.shiftTiming || 'Full Day'}
+                  </span>
+                </div>
               </div>
             </div>
 

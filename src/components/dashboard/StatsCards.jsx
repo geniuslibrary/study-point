@@ -1,18 +1,22 @@
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   Users, TrendingUp, Wallet, AlertCircle,
   ArrowUpRight, ArrowDownRight, Sparkles, Armchair
 } from 'lucide-react';
 import { formatCurrency } from '../../utils/helpers';
 
-const StatCard = ({ label, value, subLabel, subColor = 'text-gray-500', icon: Icon, iconBg, iconColor, accent, trend }) => (
-  <div className={`relative overflow-hidden bg-white rounded-2xl p-4 sm:p-5 border shadow-xs hover:shadow-md transition-all duration-200 group ${accent || 'border-slate-200/80'}`}>
+const StatCard = ({ label, value, subLabel, subColor = 'text-gray-500', icon: Icon, iconBg, iconColor, accent, trend, onClick }) => (
+  <div
+    onClick={onClick}
+    className={`relative overflow-hidden bg-white rounded-2xl p-4 sm:p-5 border shadow-xs hover:shadow-md hover:border-indigo-300 active:scale-[0.99] transition-all duration-200 group cursor-pointer ${accent || 'border-slate-200/80'}`}
+  >
     {/* Background decoration */}
     <div className="absolute -right-4 -top-4 w-20 h-20 rounded-full opacity-5 group-hover:opacity-10 transition-opacity" style={{ background: iconColor?.replace('text-', '') }} />
     
     <div className="flex items-start justify-between">
       <div className="flex-1 min-w-0">
-        <p className="text-[10px] sm:text-xs font-bold text-slate-400 uppercase tracking-wider truncate">{label}</p>
+        <p className="text-[10px] sm:text-xs font-bold text-slate-400 uppercase tracking-wider truncate group-hover:text-indigo-600 transition-colors">{label}</p>
         <h3 className="text-xl sm:text-2xl font-extrabold text-slate-800 mt-1 tracking-tight">{value}</h3>
       </div>
       <div className={`flex-shrink-0 w-10 h-10 sm:w-12 sm:h-12 rounded-2xl flex items-center justify-center shadow-xs group-hover:scale-110 transition-transform ${iconBg} ${iconColor}`}>
@@ -33,6 +37,7 @@ const StatCard = ({ label, value, subLabel, subColor = 'text-gray-500', icon: Ic
 );
 
 const StatsCards = ({ stats, hideRevenue = false }) => {
+  const navigate = useNavigate();
   const { totalStudents, seatsOccupied, totalSeats, revenue, pendingFees } = stats;
   const occupancyPct = totalSeats > 0 ? Math.round((seatsOccupied / totalSeats) * 100) : 0;
 
@@ -46,6 +51,7 @@ const StatsCards = ({ stats, hideRevenue = false }) => {
         icon={Users}
         iconBg="bg-indigo-50"
         iconColor="text-indigo-600"
+        onClick={() => navigate('/students')}
       />
       <StatCard
         label="Seat Occupancy"
@@ -55,6 +61,7 @@ const StatsCards = ({ stats, hideRevenue = false }) => {
         icon={TrendingUp}
         iconBg="bg-emerald-50"
         iconColor="text-emerald-600"
+        onClick={() => navigate('/sections')}
       />
       {!hideRevenue ? (
         <StatCard
@@ -65,6 +72,7 @@ const StatsCards = ({ stats, hideRevenue = false }) => {
           icon={Wallet}
           iconBg="bg-violet-50"
           iconColor="text-violet-600"
+          onClick={() => navigate('/reports')}
         />
       ) : (
         <StatCard
@@ -75,6 +83,7 @@ const StatsCards = ({ stats, hideRevenue = false }) => {
           icon={Armchair}
           iconBg="bg-emerald-50"
           iconColor="text-emerald-600"
+          onClick={() => navigate('/sections')}
         />
       )}
       <StatCard
@@ -85,6 +94,7 @@ const StatsCards = ({ stats, hideRevenue = false }) => {
         icon={AlertCircle}
         iconBg={pendingFees > 0 ? 'bg-rose-50' : 'bg-emerald-50'}
         iconColor={pendingFees > 0 ? 'text-rose-600' : 'text-emerald-600'}
+        onClick={() => navigate('/fees', { state: { statusFilter: 'pending' } })}
       />
     </div>
   );

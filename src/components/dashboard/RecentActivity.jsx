@@ -71,9 +71,17 @@ const RecentActivity = ({ fees = [] }) => {
               >
                 {/* Left: Avatar & Info */}
                 <div className="flex items-center gap-3 min-w-0">
-                  <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-indigo-500 to-indigo-600 text-white font-black text-xs flex items-center justify-center shadow-xs flex-shrink-0 group-hover:scale-105 transition-transform">
-                    {initials}
-                  </div>
+                  {fee.studentPhoto ? (
+                    <img
+                      src={fee.studentPhoto}
+                      alt={studentName}
+                      className="w-10 h-10 rounded-2xl object-cover border border-slate-200 shadow-xs flex-shrink-0 group-hover:scale-105 transition-transform"
+                    />
+                  ) : (
+                    <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-indigo-500 to-indigo-600 text-white font-black text-xs flex items-center justify-center shadow-xs flex-shrink-0 group-hover:scale-105 transition-transform">
+                      {initials}
+                    </div>
+                  )}
                   <div className="min-w-0">
                     <p className="font-bold text-slate-800 text-sm truncate group-hover:text-indigo-600 transition-colors">
                       {studentName}

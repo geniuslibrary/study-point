@@ -20,6 +20,7 @@ import {
 export default function Students() {
   const navigate = useNavigate();
   const location = useLocation();
+  const targetShift = location.state?.filterShift || '';
   const { hasPermission } = useAuth();
   const [students, setStudents] = useState([]);
   const [sections, setSections] = useState([]);
@@ -382,6 +383,7 @@ export default function Students() {
           canEdit={canEdit}
           canDelete={canDelete}
           canCollectFee={canCollectFee}
+          initialFilterShift={targetShift}
         />
       </div>
 

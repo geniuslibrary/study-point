@@ -46,18 +46,21 @@ export default function PendingDuesAlert({ pendingFees = [] }) {
   return (
     <div className="bg-white rounded-3xl p-5 sm:p-6 border border-slate-200/80 shadow-xs flex flex-col h-full justify-between">
       {/* Header */}
-      <div className="flex items-start justify-between mb-4">
+      <div
+        onClick={() => navigate('/fees', { state: { statusFilter: 'pending' } })}
+        className="flex items-start justify-between mb-4 cursor-pointer group"
+      >
         <div>
           <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-xl bg-rose-50 flex items-center justify-center text-rose-600">
+            <div className="w-8 h-8 rounded-xl bg-rose-50 flex items-center justify-center text-rose-600 group-hover:scale-110 transition-transform">
               <AlertCircle className="w-4 h-4" />
             </div>
-            <h3 className="text-base font-bold text-gray-900">Urgent Fee Follow-Ups</h3>
+            <h3 className="text-base font-bold text-gray-900 group-hover:text-indigo-600 transition-colors">Urgent Fee Follow-Ups</h3>
           </div>
           <p className="text-xs text-gray-500 mt-1 ml-10">Pending dues requiring recovery</p>
         </div>
         {pendingFees.length > 0 && (
-          <span className="text-xs font-black text-rose-700 bg-rose-50 border border-rose-100 px-2.5 py-1 rounded-full">
+          <span className="text-xs font-black text-rose-700 bg-rose-50 border border-rose-100 px-2.5 py-1 rounded-full group-hover:bg-rose-100 transition-colors">
             {pendingFees.length} Pending
           </span>
         )}
@@ -75,27 +78,40 @@ export default function PendingDuesAlert({ pendingFees = [] }) {
                 key={item.id}
                 className="p-3 rounded-2xl bg-slate-50 border border-slate-100 flex items-center justify-between gap-3 hover:bg-rose-50/30 transition-colors"
               >
-                <div className="min-w-0">
-                  <div className="flex items-center gap-2">
-                    <p className="font-bold text-slate-900 text-sm truncate">{item.studentName}</p>
-                    <span className="text-[10px] font-extrabold px-1.5 py-0.5 rounded bg-slate-200 text-slate-700">
-                      Seat {item.seatNumber || '—'}
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-2 mt-0.5">
-                    <p className="text-xs text-rose-600 font-extrabold">
-                      Due: {formatCurrency(item.amount || 0)}
-                    </p>
-                    {reminderInfo ? (
-                      <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded flex items-center gap-1 ${
-                        reminderInfo.isToday ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-200 text-slate-700'
-                      }`}>
-                        <CheckCircle2 className="w-3 h-3 text-emerald-600" />
-                        <span>{reminderInfo.isToday ? 'Sent Today' : reminderInfo.text}</span>
+                <div className="flex items-center gap-2.5 min-w-0">
+                  {item.studentPhoto ? (
+                    <img
+                      src={item.studentPhoto}
+                      alt={item.studentName}
+                      className="w-9 h-9 rounded-xl object-cover border border-slate-200 shrink-0 shadow-2xs"
+                    />
+                  ) : (
+                    <div className="w-9 h-9 rounded-xl bg-rose-100 text-rose-700 font-bold text-xs flex items-center justify-center shrink-0">
+                      {item.studentName?.charAt(0)?.toUpperCase() || '?'}
+                    </div>
+                  )}
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2">
+                      <p className="font-bold text-slate-900 text-sm truncate">{item.studentName}</p>
+                      <span className="text-[10px] font-extrabold px-1.5 py-0.5 rounded bg-slate-200 text-slate-700">
+                        Seat {item.seatNumber || '—'}
                       </span>
-                    ) : (
-                      <span className="text-[10px] text-slate-400">⏳ Not sent</span>
-                    )}
+                    </div>
+                    <div className="flex items-center gap-2 mt-0.5">
+                      <p className="text-xs text-rose-600 font-extrabold">
+                        Due: {formatCurrency(item.amount || 0)}
+                      </p>
+                      {reminderInfo ? (
+                        <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded flex items-center gap-1 ${
+                          reminderInfo.isToday ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-200 text-slate-700'
+                        }`}>
+                          <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+                          <span>{reminderInfo.isToday ? 'Sent Today' : reminderInfo.text}</span>
+                        </span>
+                      ) : (
+                        <span className="text-[10px] text-slate-400">⏳ Not sent</span>
+                      )}
+                    </div>
                   </div>
                 </div>
 
@@ -116,7 +132,7 @@ export default function PendingDuesAlert({ pendingFees = [] }) {
                     </button>
                   )}
                   <button
-                    onClick={() => navigate('/fees')}
+                    onClick={() => navigate('/fees', { state: { statusFilter: 'pending', collectStudentId: item.studentId } })}
                     className="px-2.5 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 active:scale-95 text-white text-xs font-bold transition-all shadow-xs cursor-pointer flex items-center gap-1"
                   >
                     <span>Collect</span>
@@ -140,7 +156,7 @@ export default function PendingDuesAlert({ pendingFees = [] }) {
       <div className="pt-3 mt-3 border-t border-slate-100 flex items-center justify-between text-xs">
         <span className="text-slate-500 font-medium">Auto dues synced monthly</span>
         <button
-          onClick={() => navigate('/fees')}
+          onClick={() => navigate('/fees', { state: { statusFilter: 'pending' } })}
           className="font-bold text-indigo-600 hover:text-indigo-700 hover:underline inline-flex items-center gap-1 cursor-pointer"
         >
           <span>Open Fee Tracker</span>

@@ -1,8 +1,45 @@
 import { useState, useEffect } from 'react';
 import Modal from '../common/Modal';
 import Button from '../common/Button';
-import { Sun, Sunrise, Sunset, Clock, Armchair, AlertCircle, Calendar, UserX, CheckCircle, Tag, IndianRupee, Lock } from 'lucide-react';
+import { Sun, Sunrise, Sunset, Clock, Armchair, AlertCircle, Calendar, UserX, CheckCircle, Tag, IndianRupee, Lock, Camera, Upload, X, Trash2, User } from 'lucide-react';
 import { formatDate, formatCurrency, getStoredShifts, calculateSeatAddonCharges, getStoredAddons } from '../../utils/helpers';
+
+// Off-screen canvas image compressor (max 320x320 JPEG, ~25-35 KB)
+const compressImage = (file) => {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.readAsDataURL(file);
+    reader.onload = (event) => {
+      const img = new Image();
+      img.src = event.target.result;
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        let width = img.width;
+        let height = img.height;
+        const maxDim = 320;
+        if (width > height) {
+          if (width > maxDim) {
+            height = Math.round((height * maxDim) / width);
+            width = maxDim;
+          }
+        } else {
+          if (height > maxDim) {
+            width = Math.round((width * maxDim) / height);
+            height = maxDim;
+          }
+        }
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, width, height);
+        const dataUrl = canvas.toDataURL('image/jpeg', 0.75);
+        resolve(dataUrl);
+      };
+      img.onerror = (err) => reject(err);
+    };
+    reader.onerror = (err) => reject(err);
+  });
+};
 
 export default function StudentForm({
   isOpen,
@@ -24,6 +61,7 @@ export default function StudentForm({
     name: '',
     phone: '',
     email: '',
+    photo: '',
     sectionId: '',
     seatId: '',
     membershipPlanId: '',
@@ -54,6 +92,7 @@ export default function StudentForm({
         name: editData.name || '',
         phone: editData.phone || '',
         email: editData.email || '',
+        photo: editData.photo || '',
         sectionId: editData.sectionId || '',
         seatId: editData.seatId || '',
         membershipPlanId: editData.membershipPlanId || '',
@@ -71,6 +110,7 @@ export default function StudentForm({
         name: '',
         phone: '',
         email: '',
+        photo: '',
         sectionId: sections[0]?.id || '',
         seatId: '',
         membershipPlanId: plans[0]?.id || '',
@@ -277,6 +317,21 @@ export default function StudentForm({
     }
   };
 
+  const handlePhotoChange = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      const compressed = await compressImage(file);
+      setFormData((prev) => ({ ...prev, photo: compressed }));
+    } catch (err) {
+      console.error('Error processing student photo:', err);
+    }
+  };
+
+  const handleRemovePhoto = () => {
+    setFormData((prev) => ({ ...prev, photo: '' }));
+  };
+
   return (
     <Modal
       isOpen={isOpen}
@@ -285,6 +340,69 @@ export default function StudentForm({
       size="lg"
     >
       <form onSubmit={handleSubmit} className="space-y-4">
+        {/* Student Photo Upload & Capture Card */}
+        <div className="flex items-center gap-4 p-3.5 bg-slate-50/80 rounded-2xl border border-slate-200/80">
+          <div className="relative group w-16 h-16 sm:w-20 sm:h-20 rounded-2xl overflow-hidden bg-slate-200 border-2 border-dashed border-slate-300 flex items-center justify-center shrink-0 shadow-2xs">
+            {formData.photo ? (
+              <>
+                <img
+                  src={formData.photo}
+                  alt="Student"
+                  className="w-full h-full object-cover rounded-2xl"
+                />
+                <button
+                  type="button"
+                  onClick={handleRemovePhoto}
+                  title="Remove Photo"
+                  className="absolute top-1 right-1 bg-rose-600 hover:bg-rose-700 text-white p-1 rounded-full shadow-xs cursor-pointer transition"
+                >
+                  <X className="w-3 h-3" />
+                </button>
+              </>
+            ) : (
+              <div className="flex flex-col items-center justify-center text-slate-400">
+                <User className="w-8 h-8 stroke-[1.5]" />
+              </div>
+            )}
+          </div>
+
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-bold uppercase tracking-wider text-slate-800">
+                Student Photo
+              </span>
+              <span className="text-[11px] font-medium text-slate-400 hidden sm:inline">
+                (Optional, auto-compressed)
+              </span>
+            </div>
+            <p className="text-xs text-slate-500 mt-0.5">
+              Take live photo with camera or choose from gallery
+            </p>
+
+            <div className="mt-2 flex items-center gap-2">
+              <label className="cursor-pointer inline-flex items-center gap-1.5 px-3 py-1.5 bg-white hover:bg-indigo-50/50 border border-slate-300 hover:border-indigo-300 text-slate-700 hover:text-indigo-600 rounded-xl text-xs font-bold shadow-2xs transition">
+                <Camera className="w-3.5 h-3.5 text-indigo-600" />
+                <span>{formData.photo ? 'Change Photo' : 'Upload / Capture'}</span>
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={handlePhotoChange}
+                  className="hidden"
+                />
+              </label>
+              {formData.photo && (
+                <button
+                  type="button"
+                  onClick={handleRemovePhoto}
+                  className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs text-rose-600 hover:bg-rose-50 rounded-xl font-bold cursor-pointer transition"
+                >
+                  <Trash2 className="w-3 h-3" /> Remove
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+
         {/* Basic Info */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
           <div>

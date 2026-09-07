@@ -81,9 +81,17 @@ export default function StudentProfile({
         {/* Header with Avatar & Actions */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-indigo-50/60 p-4 sm:p-5 rounded-2xl border border-indigo-100">
           <div className="flex items-center gap-3.5">
-            <div className="w-14 h-14 bg-indigo-600 rounded-2xl flex items-center justify-center text-white font-black text-xl shadow-md shadow-indigo-600/20">
-              {student.name?.charAt(0)?.toUpperCase()}
-            </div>
+            {student.photo ? (
+              <img
+                src={student.photo}
+                alt={student.name}
+                className="w-14 h-14 rounded-2xl object-cover shadow-md shadow-indigo-600/20 border-2 border-white shrink-0"
+              />
+            ) : (
+              <div className="w-14 h-14 bg-indigo-600 rounded-2xl flex items-center justify-center text-white font-black text-xl shadow-md shadow-indigo-600/20 shrink-0">
+                {student.name?.charAt(0)?.toUpperCase()}
+              </div>
+            )}
             <div>
               <div className="flex items-center gap-2">
                 <h3 className="text-xl font-extrabold text-slate-900 leading-tight">{student.name}</h3>

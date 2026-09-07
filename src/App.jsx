@@ -91,6 +91,7 @@ function AppRoutes() {
           </ProtectedRoute>
         }
       />
+      <Route path="/seats" element={<Navigate to="/sections" replace />} />
       <Route
         path="/visitors"
         element={
