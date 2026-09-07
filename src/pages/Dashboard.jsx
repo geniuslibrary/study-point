@@ -18,6 +18,9 @@ import {
   getActiveDashboardConfig,
   DASHBOARD_CONFIG_STORAGE_KEY,
   DEFAULT_STAFF_DASHBOARD_WIDGETS,
+  getActiveDashboardOrder,
+  DASHBOARD_ORDER_STORAGE_KEY,
+  DEFAULT_DASHBOARD_ORDER,
 } from '../utils/templateHelpers';
 import {
   ExpiringMembershipsWidget,
@@ -61,6 +64,7 @@ export default function Dashboard() {
 
   const [loading, setLoading] = useState(true);
   const [dashConfig, setDashConfig] = useState(getActiveDashboardConfig());
+  const [widgetOrder, setWidgetOrder] = useState(getActiveDashboardOrder());
 
   const [stats, setStats] = useState({
     totalStudents: 0,
@@ -316,6 +320,10 @@ export default function Dashboard() {
             setDashConfig(data.dashboardConfig);
             localStorage.setItem(DASHBOARD_CONFIG_STORAGE_KEY, JSON.stringify(data.dashboardConfig));
           }
+          if (data.dashboardWidgetOrder && Array.isArray(data.dashboardWidgetOrder)) {
+            setWidgetOrder(data.dashboardWidgetOrder);
+            localStorage.setItem(DASHBOARD_ORDER_STORAGE_KEY, JSON.stringify(data.dashboardWidgetOrder));
+          }
         }
       } catch (err) {
         console.warn('Could not load cloud customization settings, using local:', err);
@@ -332,6 +340,7 @@ export default function Dashboard() {
 
     const handleSync = () => {
       setDashConfig(getActiveDashboardConfig());
+      setWidgetOrder(getActiveDashboardOrder());
     };
     window.addEventListener('storage', handleSync);
     window.addEventListener('focus', handleSync);
@@ -439,6 +448,292 @@ export default function Dashboard() {
     showStaffActivity ||
     showRecentActivity;
 
+  const widgetVisibilityMap = {
+    quickActions: showQuickActions,
+    todayPulse: showTodayPulse,
+    coreStats: showCoreStats,
+    quickSeatSearch: showQuickSeatSearch,
+    occupancyOverview: showOccupancy,
+    revenueChart: showRevenueChart,
+    monthlyTarget: showMonthlyTarget,
+    cashRegister: showCashRegister,
+    paymentModesPie: showPaymentModes,
+    expenseCategories: showExpenseCategories,
+    feeCalculator: showFeeCalculator,
+    pendingDuesAlert: showPendingDues,
+    expiringMemberships: showExpiringMemberships,
+    demoTracker: showDemoTracker,
+    newInquiries: showNewInquiries,
+    admissionsVsExits: showAdmissionsVsExits,
+    remindersCounter: showRemindersCounter,
+    shiftDistribution: showShiftDist,
+    addonUtilization: showAddonUtilization,
+    topMembers: showTopMembers,
+    leftStudentsAudit: showLeftStudentsAudit,
+    noticeBoard: showNoticeBoard,
+    staffActivity: showStaffActivity,
+    recentActivity: showRecentActivity,
+  };
+
+  const renderWidgetById = (id) => {
+    switch (id) {
+      case 'quickActions':
+        return (
+          <div key={id} className="col-span-1 lg:col-span-2">
+            <div className="bg-white rounded-2xl p-3 sm:p-4 border border-slate-200/80 shadow-xs">
+              <div className="flex items-center justify-between gap-2 overflow-x-auto scrollbar-hide py-1">
+                <button
+                  onClick={() => navigate('/students')}
+                  className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-slate-50 hover:bg-indigo-50 text-slate-700 hover:text-indigo-700 text-xs font-bold transition-all whitespace-nowrap flex-shrink-0 cursor-pointer group"
+                >
+                  <Users className="w-4 h-4 text-indigo-600 group-hover:scale-110 transition-transform" />
+                  <span>Students</span>
+                </button>
+                <button
+                  onClick={() => navigate('/visitors')}
+                  className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-slate-50 hover:bg-blue-50 text-slate-700 hover:text-blue-700 text-xs font-bold transition-all whitespace-nowrap flex-shrink-0 cursor-pointer group"
+                >
+                  <UserCheck className="w-4 h-4 text-blue-600 group-hover:scale-110 transition-transform" />
+                  <span>Visit & Demo</span>
+                </button>
+                <button
+                  onClick={() => navigate('/seats')}
+                  className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-slate-50 hover:bg-emerald-50 text-slate-700 hover:text-emerald-700 text-xs font-bold transition-all whitespace-nowrap flex-shrink-0 cursor-pointer group"
+                >
+                  <Armchair className="w-4 h-4 text-emerald-600 group-hover:scale-110 transition-transform" />
+                  <span>Seat Matrix</span>
+                </button>
+                <button
+                  onClick={() => navigate('/fees')}
+                  className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-slate-50 hover:bg-purple-50 text-slate-700 hover:text-purple-700 text-xs font-bold transition-all whitespace-nowrap flex-shrink-0 cursor-pointer group"
+                >
+                  <CreditCard className="w-4 h-4 text-purple-600 group-hover:scale-110 transition-transform" />
+                  <span>Fee Manager</span>
+                </button>
+                <button
+                  onClick={() => navigate('/expenses')}
+                  className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-slate-50 hover:bg-rose-50 text-slate-700 hover:text-rose-700 text-xs font-bold transition-all whitespace-nowrap flex-shrink-0 cursor-pointer group"
+                >
+                  <Receipt className="w-4 h-4 text-rose-600 group-hover:scale-110 transition-transform" />
+                  <span>Expenses</span>
+                </button>
+                <button
+                  onClick={() => navigate('/reports')}
+                  className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-slate-50 hover:bg-amber-50 text-slate-700 hover:text-amber-700 text-xs font-bold transition-all whitespace-nowrap flex-shrink-0 cursor-pointer group"
+                >
+                  <FileSpreadsheet className="w-4 h-4 text-amber-600 group-hover:scale-110 transition-transform" />
+                  <span>Reports & Statement</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+
+      case 'todayPulse':
+        return (
+          <div key={id} className="col-span-1 lg:col-span-2">
+            <TodayPulse
+              todayCollection={todayPulse.todayCollection}
+              todayFeesCount={todayPulse.todayFeesCount}
+              todayAdmissions={todayPulse.todayAdmissions}
+              todayExpense={todayPulse.todayExpense}
+              emptySeats={todayPulse.emptySeats}
+            />
+          </div>
+        );
+
+      case 'coreStats':
+        return (
+          <div key={id} className="col-span-1 lg:col-span-2">
+            <StatsCards stats={stats} hideRevenue={hideRevenueCard} />
+          </div>
+        );
+
+      case 'quickSeatSearch':
+        return (
+          <div key={id} className="col-span-1">
+            <QuickSeatSearchWidget
+              seats={allSeatsList}
+              students={allStudentsList}
+              sections={allSectionsList}
+            />
+          </div>
+        );
+
+      case 'occupancyOverview':
+        return (
+          <div key={id} className="col-span-1 bg-white rounded-3xl p-5 sm:p-6 border border-slate-200/80 shadow-xs flex flex-col">
+            <OccupancyOverview sections={occupancyData} />
+          </div>
+        );
+
+      case 'revenueChart':
+        return (
+          <div key={id} className="col-span-1 bg-white rounded-3xl p-5 sm:p-6 border border-slate-200/80 shadow-xs flex flex-col">
+            <RevenueChart data={chartData} />
+          </div>
+        );
+
+      case 'monthlyTarget':
+        return (
+          <div key={id} className="col-span-1">
+            <MonthlyTargetWidget currentRevenue={stats.revenue} />
+          </div>
+        );
+
+      case 'cashRegister':
+        return (
+          <div key={id} className="col-span-1">
+            <CashRegisterWidget
+              todayCashFees={cashStats.cashFees}
+              todayCashExpenses={cashStats.cashExpenses}
+            />
+          </div>
+        );
+
+      case 'paymentModesPie':
+        return (
+          <div key={id} className="col-span-1">
+            <PaymentModesWidget
+              upiTotal={paymentModeStats.upi}
+              cashTotal={paymentModeStats.cash}
+              bankTotal={paymentModeStats.bank}
+            />
+          </div>
+        );
+
+      case 'expenseCategories':
+        return (
+          <div key={id} className="col-span-1">
+            <ExpenseCategoriesWidget expenses={monthExpensesList} />
+          </div>
+        );
+
+      case 'feeCalculator':
+        return (
+          <div key={id} className="col-span-1">
+            <FeeCalculatorWidget plans={allPlansList} />
+          </div>
+        );
+
+      case 'pendingDuesAlert':
+        return (
+          <div key={id} className="col-span-1 flex flex-col">
+            <PendingDuesAlert pendingFees={urgentPendingList} />
+          </div>
+        );
+
+      case 'expiringMemberships':
+        return (
+          <div key={id} className="col-span-1">
+            <ExpiringMembershipsWidget
+              students={allStudentsList}
+              seats={allSeatsList}
+            />
+          </div>
+        );
+
+      case 'demoTracker':
+        return (
+          <div key={id} className="col-span-1 flex flex-col">
+            <LiveDemoTracker
+              visitors={visitors}
+              seats={allSeatsList}
+              sections={allSectionsList}
+              onUpdate={fetchAll}
+            />
+          </div>
+        );
+
+      case 'newInquiries':
+        return (
+          <div key={id} className="col-span-1">
+            <NewInquiriesWidget visitors={visitors} />
+          </div>
+        );
+
+      case 'admissionsVsExits':
+        return (
+          <div key={id} className="col-span-1">
+            <AdmissionsVsExitsWidget
+              admissionsCount={admissionsVsLeft.admissions}
+              leftCount={admissionsVsLeft.left}
+            />
+          </div>
+        );
+
+      case 'remindersCounter':
+        return (
+          <div key={id} className="col-span-1">
+            <RemindersCounterWidget urgentPendingCount={urgentPendingList.length} />
+          </div>
+        );
+
+      case 'shiftDistribution':
+        return (
+          <div key={id} className="col-span-1 flex flex-col">
+            <ShiftDistribution
+              fullDayCount={shiftStats.fullDayCount}
+              morningCount={shiftStats.morningCount}
+              eveningCount={shiftStats.eveningCount}
+              totalStudents={stats.totalStudents}
+            />
+          </div>
+        );
+
+      case 'addonUtilization':
+        return (
+          <div key={id} className="col-span-1">
+            <AddonUtilizationWidget
+              seats={allSeatsList}
+              students={allStudentsList}
+            />
+          </div>
+        );
+
+      case 'topMembers':
+        return (
+          <div key={id} className="col-span-1">
+            <TopMembersWidget
+              students={allStudentsList}
+              plans={allPlansList}
+            />
+          </div>
+        );
+
+      case 'leftStudentsAudit':
+        return (
+          <div key={id} className="col-span-1">
+            <LeftStudentsAuditWidget students={allStudentsList} />
+          </div>
+        );
+
+      case 'noticeBoard':
+        return (
+          <div key={id} className="col-span-1">
+            <NoticeBoardWidget />
+          </div>
+        );
+
+      case 'staffActivity':
+        return (
+          <div key={id} className="col-span-1">
+            <StaffActivityWidget staffUsers={allStaffList} />
+          </div>
+        );
+
+      case 'recentActivity':
+        return (
+          <div key={id} className="col-span-1 lg:col-span-2 bg-white rounded-3xl border border-slate-200/80 shadow-xs overflow-hidden flex flex-col">
+            <RecentActivity fees={recentFees} />
+          </div>
+        );
+
+      default:
+        return null;
+    }
+  };
+
   return (
     <Layout title="Dashboard">
       <div className="space-y-5 sm:space-y-6">
@@ -516,242 +811,13 @@ export default function Dashboard() {
           </div>
         )}
 
-        {/* Quick Workflow Action Strip */}
-        {showQuickActions && (
-          <div className="bg-white rounded-2xl p-3 sm:p-4 border border-slate-200/80 shadow-xs">
-            <div className="flex items-center justify-between gap-2 overflow-x-auto scrollbar-hide py-1">
-              <button
-                onClick={() => navigate('/students')}
-                className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-slate-50 hover:bg-indigo-50 text-slate-700 hover:text-indigo-700 text-xs font-bold transition-all whitespace-nowrap flex-shrink-0 cursor-pointer group"
-              >
-                <Users className="w-4 h-4 text-indigo-600 group-hover:scale-110 transition-transform" />
-                <span>Students</span>
-              </button>
-
-              <button
-                onClick={() => navigate('/visitors')}
-                className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-slate-50 hover:bg-blue-50 text-slate-700 hover:text-blue-700 text-xs font-bold transition-all whitespace-nowrap flex-shrink-0 cursor-pointer group"
-              >
-                <UserCheck className="w-4 h-4 text-blue-600 group-hover:scale-110 transition-transform" />
-                <span>Visit & Demo</span>
-              </button>
-
-              <button
-                onClick={() => navigate('/seats')}
-                className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-slate-50 hover:bg-emerald-50 text-slate-700 hover:text-emerald-700 text-xs font-bold transition-all whitespace-nowrap flex-shrink-0 cursor-pointer group"
-              >
-                <Armchair className="w-4 h-4 text-emerald-600 group-hover:scale-110 transition-transform" />
-                <span>Seat Matrix</span>
-              </button>
-
-              <button
-                onClick={() => navigate('/fees')}
-                className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-slate-50 hover:bg-purple-50 text-slate-700 hover:text-purple-700 text-xs font-bold transition-all whitespace-nowrap flex-shrink-0 cursor-pointer group"
-              >
-                <CreditCard className="w-4 h-4 text-purple-600 group-hover:scale-110 transition-transform" />
-                <span>Fee Manager</span>
-              </button>
-
-              <button
-                onClick={() => navigate('/expenses')}
-                className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-slate-50 hover:bg-rose-50 text-slate-700 hover:text-rose-700 text-xs font-bold transition-all whitespace-nowrap flex-shrink-0 cursor-pointer group"
-              >
-                <Receipt className="w-4 h-4 text-rose-600 group-hover:scale-110 transition-transform" />
-                <span>Expenses</span>
-              </button>
-
-              <button
-                onClick={() => navigate('/reports')}
-                className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-slate-50 hover:bg-amber-50 text-slate-700 hover:text-amber-700 text-xs font-bold transition-all whitespace-nowrap flex-shrink-0 cursor-pointer group"
-              >
-                <FileSpreadsheet className="w-4 h-4 text-amber-600 group-hover:scale-110 transition-transform" />
-                <span>Reports & Statement</span>
-              </button>
-            </div>
-          </div>
-        )}
-
-        {/* ⚡ NEW: Today's Live Pulse (Aaj Ka Hisaab) */}
-        {showTodayPulse && (
-          <TodayPulse
-            todayCollection={todayPulse.todayCollection}
-            todayFeesCount={todayPulse.todayFeesCount}
-            todayAdmissions={todayPulse.todayAdmissions}
-            todayExpense={todayPulse.todayExpense}
-            emptySeats={todayPulse.emptySeats}
-          />
-        )}
-
-        {/* 4 Core Monthly Stat Cards */}
-        {showCoreStats && (
-          <StatsCards stats={stats} hideRevenue={hideRevenueCard} />
-        )}
-
-        {/* Core Operations: Quick Seat Finder & Hall Occupancy */}
-        {(showQuickSeatSearch || showOccupancy) && (
-          <div className={`grid grid-cols-1 ${showQuickSeatSearch && showOccupancy ? 'lg:grid-cols-2' : ''} gap-5 sm:gap-6`}>
-            {showQuickSeatSearch && (
-              <QuickSeatSearchWidget
-                seats={allSeatsList}
-                students={allStudentsList}
-                sections={allSectionsList}
-              />
-            )}
-            {showOccupancy && (
-              <div className="bg-white rounded-3xl p-5 sm:p-6 border border-slate-200/80 shadow-xs flex flex-col">
-                <OccupancyOverview sections={occupancyData} />
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* Financial Row 1: Revenue vs Expense Chart & Monthly Target */}
-        {(showRevenueChart || showMonthlyTarget) && (
-          <div className={`grid grid-cols-1 ${showRevenueChart && showMonthlyTarget ? 'lg:grid-cols-2' : ''} gap-5 sm:gap-6`}>
-            {showRevenueChart && (
-              <div className="bg-white rounded-3xl p-5 sm:p-6 border border-slate-200/80 shadow-xs flex flex-col">
-                <RevenueChart data={chartData} />
-              </div>
-            )}
-            {showMonthlyTarget && (
-              <MonthlyTargetWidget currentRevenue={stats.revenue} />
-            )}
-          </div>
-        )}
-
-        {/* Financial Row 2: Counter Cash Register & Payment Modes (UPI/Cash/Bank) */}
-        {(showCashRegister || showPaymentModes) && (
-          <div className={`grid grid-cols-1 ${showCashRegister && showPaymentModes ? 'lg:grid-cols-2' : ''} gap-5 sm:gap-6`}>
-            {showCashRegister && (
-              <CashRegisterWidget
-                todayCashFees={cashStats.cashFees}
-                todayCashExpenses={cashStats.cashExpenses}
-              />
-            )}
-            {showPaymentModes && (
-              <PaymentModesWidget
-                upiTotal={paymentModeStats.upi}
-                cashTotal={paymentModeStats.cash}
-                bankTotal={paymentModeStats.bank}
-              />
-            )}
-          </div>
-        )}
-
-        {/* Financial Row 3: Expense Categories & Reception Fee Calculator */}
-        {(showExpenseCategories || showFeeCalculator) && (
-          <div className={`grid grid-cols-1 ${showExpenseCategories && showFeeCalculator ? 'lg:grid-cols-2' : ''} gap-5 sm:gap-6`}>
-            {showExpenseCategories && (
-              <ExpenseCategoriesWidget expenses={monthExpensesList} />
-            )}
-            {showFeeCalculator && (
-              <FeeCalculatorWidget plans={allPlansList} />
-            )}
-          </div>
-        )}
-
-        {/* Students Row 1: Urgent Pending Dues & Expiring in 7 Days */}
-        {(showPendingDues || showExpiringMemberships) && (
-          <div className={`grid grid-cols-1 ${showPendingDues && showExpiringMemberships ? 'lg:grid-cols-2' : ''} gap-5 sm:gap-6`}>
-            {showPendingDues && (
-              <div className="flex flex-col">
-                <PendingDuesAlert pendingFees={urgentPendingList} />
-              </div>
-            )}
-            {showExpiringMemberships && (
-              <ExpiringMembershipsWidget
-                students={allStudentsList}
-                seats={allSeatsList}
-              />
-            )}
-          </div>
-        )}
-
-        {/* Students Row 2: Live Demo Tracker & New Inquiries Leads */}
-        {(showDemoTracker || showNewInquiries) && (
-          <div className={`grid grid-cols-1 ${showDemoTracker && showNewInquiries ? 'lg:grid-cols-2' : ''} gap-5 sm:gap-6`}>
-            {showDemoTracker && (
-              <div className="flex flex-col">
-                <LiveDemoTracker
-                  visitors={visitors}
-                  seats={allSeatsList}
-                  sections={allSectionsList}
-                  onUpdate={fetchAll}
-                />
-              </div>
-            )}
-            {showNewInquiries && (
-              <NewInquiriesWidget visitors={visitors} />
-            )}
-          </div>
-        )}
-
-        {/* Growth & Recoveries: Net Growth & WhatsApp Reminders Today */}
-        {(showAdmissionsVsExits || showRemindersCounter) && (
-          <div className={`grid grid-cols-1 ${showAdmissionsVsExits && showRemindersCounter ? 'lg:grid-cols-2' : ''} gap-5 sm:gap-6`}>
-            {showAdmissionsVsExits && (
-              <AdmissionsVsExitsWidget
-                admissionsCount={admissionsVsLeft.admissions}
-                leftCount={admissionsVsLeft.left}
-              />
-            )}
-            {showRemindersCounter && (
-              <RemindersCounterWidget urgentPendingCount={urgentPendingList.length} />
-            )}
-          </div>
-        )}
-
-        {/* Shift Distribution & Facilities/Lockers */}
-        {(showShiftDist || showAddonUtilization) && (
-          <div className={`grid grid-cols-1 ${showShiftDist && showAddonUtilization ? 'lg:grid-cols-2' : ''} gap-5 sm:gap-6`}>
-            {showShiftDist && (
-              <div className="flex flex-col">
-                <ShiftDistribution
-                  fullDayCount={shiftStats.fullDayCount}
-                  morningCount={shiftStats.morningCount}
-                  eveningCount={shiftStats.eveningCount}
-                  totalStudents={stats.totalStudents}
-                />
-              </div>
-            )}
-            {showAddonUtilization && (
-              <AddonUtilizationWidget
-                seats={allSeatsList}
-                students={allStudentsList}
-              />
-            )}
-          </div>
-        )}
-
-        {/* Students Retention: Top Multi-Month Members & Left Students Log */}
-        {(showTopMembers || showLeftStudentsAudit) && (
-          <div className={`grid grid-cols-1 ${showTopMembers && showLeftStudentsAudit ? 'lg:grid-cols-2' : ''} gap-5 sm:gap-6`}>
-            {showTopMembers && (
-              <TopMembersWidget
-                students={allStudentsList}
-                plans={allPlansList}
-              />
-            )}
-            {showLeftStudentsAudit && (
-              <LeftStudentsAuditWidget students={allStudentsList} />
-            )}
-          </div>
-        )}
-
-        {/* Operations & Management: Digital Notice Board & Staff On-Duty */}
-        {(showNoticeBoard || showStaffActivity) && (
-          <div className={`grid grid-cols-1 ${showNoticeBoard && showStaffActivity ? 'lg:grid-cols-2' : ''} gap-5 sm:gap-6`}>
-            {showNoticeBoard && <NoticeBoardWidget />}
-            {showStaffActivity && (
-              <StaffActivityWidget staffUsers={allStaffList} />
-            )}
-          </div>
-        )}
-
-        {/* Recent Collections Stream */}
-        {showRecentActivity && (
-          <div className="bg-white rounded-3xl border border-slate-200/80 shadow-xs overflow-hidden flex flex-col">
-            <RecentActivity fees={recentFees} />
+        {/* Dynamic Ordered Widgets Grid */}
+        {anyWidgetVisible && (
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 sm:gap-6">
+            {widgetOrder.map((widgetId) => {
+              if (!widgetVisibilityMap[widgetId]) return null;
+              return renderWidgetById(widgetId);
+            })}
           </div>
         )}
 

@@ -22,16 +22,25 @@ import {
   Lock,
   ChevronRight,
   Send,
+  ArrowUp,
+  ArrowDown,
+  ChevronsUp,
+  ChevronsDown,
+  GripVertical,
+  ListOrdered,
 } from 'lucide-react';
 import {
   DEFAULT_WHATSAPP_TEMPLATES,
   DEFAULT_DASHBOARD_CONFIG,
   DEFAULT_STAFF_DASHBOARD_CONFIG,
   DASHBOARD_WIDGET_OPTIONS,
+  DEFAULT_DASHBOARD_ORDER,
   WHATSAPP_TEMPLATES_STORAGE_KEY,
   DASHBOARD_CONFIG_STORAGE_KEY,
+  DASHBOARD_ORDER_STORAGE_KEY,
   STAFF_DASHBOARD_CONFIG_STORAGE_KEY,
   renderTemplate,
+  getActiveDashboardOrder,
 } from '../utils/templateHelpers';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { db } from '../firebase/config';
@@ -40,11 +49,13 @@ import { COLLECTIONS } from '../utils/constants';
 export default function Customization() {
   const [activeTab, setActiveTab] = useState('dashboard'); // 'dashboard' | 'whatsapp' | 'staff'
   const [widgetCategory, setWidgetCategory] = useState('all');
+  const [widgetViewMode, setWidgetViewMode] = useState('grid'); // 'grid' | 'order'
   const [isSaving, setIsSaving] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
 
-  // 1. Dashboard Widgets Configuration
+  // 1. Dashboard Widgets Configuration & Order
   const [dashConfig, setDashConfig] = useState(DEFAULT_DASHBOARD_CONFIG);
+  const [widgetOrder, setWidgetOrder] = useState(getActiveDashboardOrder());
 
   // 2. WhatsApp Templates Configuration
   const [templates, setTemplates] = useState(DEFAULT_WHATSAPP_TEMPLATES);
@@ -58,6 +69,14 @@ export default function Customization() {
       try {
         const localDash = localStorage.getItem(DASHBOARD_CONFIG_STORAGE_KEY);
         if (localDash) setDashConfig({ ...DEFAULT_DASHBOARD_CONFIG, ...JSON.parse(localDash) });
+
+        const localOrder = localStorage.getItem(DASHBOARD_ORDER_STORAGE_KEY);
+        if (localOrder) {
+          const parsed = JSON.parse(localOrder);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            setWidgetOrder(parsed);
+          }
+        }
 
         const localWA = localStorage.getItem(WHATSAPP_TEMPLATES_STORAGE_KEY);
         if (localWA) setTemplates({ ...DEFAULT_WHATSAPP_TEMPLATES, ...JSON.parse(localWA) });
@@ -73,6 +92,10 @@ export default function Customization() {
           if (data.dashboardConfig) {
             setDashConfig({ ...DEFAULT_DASHBOARD_CONFIG, ...data.dashboardConfig });
             localStorage.setItem(DASHBOARD_CONFIG_STORAGE_KEY, JSON.stringify(data.dashboardConfig));
+          }
+          if (data.dashboardWidgetOrder && Array.isArray(data.dashboardWidgetOrder)) {
+            setWidgetOrder(data.dashboardWidgetOrder);
+            localStorage.setItem(DASHBOARD_ORDER_STORAGE_KEY, JSON.stringify(data.dashboardWidgetOrder));
           }
           if (data.whatsappTemplates) {
             setTemplates({ ...DEFAULT_WHATSAPP_TEMPLATES, ...data.whatsappTemplates });
@@ -113,10 +136,74 @@ export default function Customization() {
     }
   };
 
+  // Save and sync Dashboard Widget Sequence Order
+  const updateAndSaveWidgetOrder = async (newOrder, showToastMsg = false) => {
+    setWidgetOrder(newOrder);
+    try {
+      localStorage.setItem(DASHBOARD_ORDER_STORAGE_KEY, JSON.stringify(newOrder));
+      await setDoc(
+        doc(db, COLLECTIONS.SETTINGS, 'customization'),
+        { dashboardWidgetOrder: newOrder },
+        { merge: true }
+      );
+      if (showToastMsg) {
+        showToast('Widgets sequence order updated! ✨');
+      }
+    } catch (e) {
+      console.warn('Order sync error:', e);
+      if (showToastMsg) {
+        showToast('Order saved locally!');
+      }
+    }
+  };
+
+  // Move single step up (-1) or down (+1)
+  const moveWidget = (index, direction) => {
+    const targetIndex = index + direction;
+    if (targetIndex < 0 || targetIndex >= widgetOrder.length) return;
+    const newOrder = [...widgetOrder];
+    const temp = newOrder[index];
+    newOrder[index] = newOrder[targetIndex];
+    newOrder[targetIndex] = temp;
+    updateAndSaveWidgetOrder(newOrder, false);
+  };
+
+  // Move directly to top (#1) or bottom (#end)
+  const moveToEdge = (index, toTop = true) => {
+    const newOrder = [...widgetOrder];
+    const [movedItem] = newOrder.splice(index, 1);
+    if (toTop) {
+      newOrder.unshift(movedItem);
+    } else {
+      newOrder.push(movedItem);
+    }
+    updateAndSaveWidgetOrder(newOrder, false);
+  };
+
+  // Desktop Drag-and-drop
+  const handleDragStart = (e, index) => {
+    e.dataTransfer.setData('text/plain', String(index));
+  };
+
+  const handleDrop = (e, targetIndex) => {
+    e.preventDefault();
+    const sourceIndex = parseInt(e.dataTransfer.getData('text/plain'), 10);
+    if (isNaN(sourceIndex) || sourceIndex === targetIndex) return;
+    const newOrder = [...widgetOrder];
+    const [movedItem] = newOrder.splice(sourceIndex, 1);
+    newOrder.splice(targetIndex, 0, movedItem);
+    updateAndSaveWidgetOrder(newOrder, false);
+  };
+
+  const handleDragOver = (e) => {
+    e.preventDefault();
+  };
+
   // Explicit Save Button
   const handleSaveDashboardConfig = async () => {
     setIsSaving(true);
-    await updateAndSaveDashConfig(dashConfig, true);
+    await updateAndSaveDashConfig(dashConfig, false);
+    await updateAndSaveWidgetOrder(widgetOrder, true);
     setIsSaving(false);
   };
 
@@ -324,90 +411,287 @@ export default function Customization() {
               </div>
             </div>
 
-            {/* Category Filter Pills */}
-            <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-hide">
-              {[
-                { id: 'all', label: 'All Widgets (24)' },
-                { id: 'operations', label: '⚡ Core Operations (6)' },
-                { id: 'financials', label: '💰 Financials & Target (7)' },
-                { id: 'students', label: '👥 Students & Retention (7)' },
-                { id: 'facilities', label: '🏢 Facilities & Team (4)' },
-              ].map((cat) => (
+            {/* View Mode Switcher */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-1.5 bg-slate-100/90 rounded-2xl border border-slate-200/80">
+              <div className="flex items-center gap-1.5">
                 <button
-                  key={cat.id}
                   type="button"
-                  onClick={() => setWidgetCategory(cat.id)}
-                  className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all cursor-pointer ${
-                    widgetCategory === cat.id
-                      ? 'bg-slate-900 text-white shadow-xs'
-                      : 'bg-slate-100 text-slate-600 hover:bg-slate-200 hover:text-slate-900'
+                  onClick={() => setWidgetViewMode('grid')}
+                  className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                    widgetViewMode === 'grid'
+                      ? 'bg-white text-indigo-700 shadow-xs ring-1 ring-indigo-500/20'
+                      : 'text-slate-600 hover:text-slate-900'
                   }`}
                 >
-                  {cat.label}
+                  <LayoutDashboard className="w-3.5 h-3.5" />
+                  <span>🎛️ Visibility Toggles (चालू / बंद)</span>
                 </button>
-              ))}
+                <button
+                  type="button"
+                  onClick={() => setWidgetViewMode('order')}
+                  className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                    widgetViewMode === 'order'
+                      ? 'bg-white text-indigo-700 shadow-xs ring-1 ring-indigo-500/20'
+                      : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                >
+                  <ListOrdered className="w-3.5 h-3.5 text-indigo-600" />
+                  <span>🔢 Arrange Order (क्रम बदलें / ऊपर-नीचे)</span>
+                </button>
+              </div>
+
+              {widgetViewMode === 'order' && (
+                <button
+                  type="button"
+                  onClick={() => updateAndSaveWidgetOrder(DEFAULT_DASHBOARD_ORDER, true)}
+                  className="px-3 py-1.5 rounded-xl bg-white hover:bg-slate-200 text-slate-700 text-xs font-bold border border-slate-200/80 cursor-pointer transition-colors flex items-center gap-1.5 self-end sm:self-auto shadow-2xs"
+                >
+                  <RotateCcw className="w-3.5 h-3.5 text-slate-500" />
+                  <span>Reset Default Order</span>
+                </button>
+              )}
             </div>
 
-            {/* 24 Widget Toggles Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {DASHBOARD_WIDGET_OPTIONS.filter(
-                (w) => w.id !== 'hideFinancials' && (widgetCategory === 'all' || w.category === widgetCategory)
-              ).map((item) => {
-                const isEnabled = dashConfig[item.id] !== false;
-                const categoryBadgeColors = {
-                  operations: 'bg-blue-50 text-blue-700 border-blue-100',
-                  financials: 'bg-emerald-50 text-emerald-700 border-emerald-100',
-                  students: 'bg-purple-50 text-purple-700 border-purple-100',
-                  facilities: 'bg-amber-50 text-amber-700 border-amber-100',
-                };
-                return (
-                  <div
-                    key={item.id}
-                    onClick={() => updateAndSaveDashConfig({ ...dashConfig, [item.id]: !isEnabled }, false)}
-                    className={`p-4 rounded-2xl border transition-all cursor-pointer select-none flex flex-col justify-between group ${
-                      isEnabled
-                        ? 'bg-indigo-50/30 border-indigo-200 ring-1 ring-indigo-500/20 shadow-xs'
-                        : 'bg-slate-50/60 border-slate-200 opacity-60 hover:opacity-85'
-                    }`}
-                  >
-                    <div>
-                      <div className="flex items-start justify-between gap-2 mb-2">
+            {/* VIEW 1: GRID TOGGLES VIEW */}
+            {widgetViewMode === 'grid' && (
+              <div className="space-y-4">
+                {/* Category Filter Pills */}
+                <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-hide">
+                  {[
+                    { id: 'all', label: 'All Widgets (24)' },
+                    { id: 'operations', label: '⚡ Core Operations (6)' },
+                    { id: 'financials', label: '💰 Financials & Target (7)' },
+                    { id: 'students', label: '👥 Students & Retention (7)' },
+                    { id: 'facilities', label: '🏢 Facilities & Team (4)' },
+                  ].map((cat) => (
+                    <button
+                      key={cat.id}
+                      type="button"
+                      onClick={() => setWidgetCategory(cat.id)}
+                      className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all cursor-pointer ${
+                        widgetCategory === cat.id
+                          ? 'bg-slate-900 text-white shadow-xs'
+                          : 'bg-slate-100 text-slate-600 hover:bg-slate-200 hover:text-slate-900'
+                      }`}
+                    >
+                      {cat.label}
+                    </button>
+                  ))}
+                </div>
+
+                {/* 24 Widget Toggles Grid */}
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {DASHBOARD_WIDGET_OPTIONS.filter(
+                    (w) => w.id !== 'hideFinancials' && (widgetCategory === 'all' || w.category === widgetCategory)
+                  ).map((item) => {
+                    const isEnabled = dashConfig[item.id] !== false;
+                    const categoryBadgeColors = {
+                      operations: 'bg-blue-50 text-blue-700 border-blue-100',
+                      financials: 'bg-emerald-50 text-emerald-700 border-emerald-100',
+                      students: 'bg-purple-50 text-purple-700 border-purple-100',
+                      facilities: 'bg-amber-50 text-amber-700 border-amber-100',
+                    };
+                    return (
+                      <div
+                        key={item.id}
+                        onClick={() => updateAndSaveDashConfig({ ...dashConfig, [item.id]: !isEnabled }, false)}
+                        className={`p-4 rounded-2xl border transition-all cursor-pointer select-none flex flex-col justify-between group ${
+                          isEnabled
+                            ? 'bg-indigo-50/30 border-indigo-200 ring-1 ring-indigo-500/20 shadow-xs'
+                            : 'bg-slate-50/60 border-slate-200 opacity-60 hover:opacity-85'
+                        }`}
+                      >
                         <div>
-                          <span className="font-bold text-slate-900 text-sm group-hover:text-indigo-600 transition-colors block">
-                            {item.label}
-                          </span>
-                          <span
-                            className={`inline-block mt-1 text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-md border ${
-                              categoryBadgeColors[item.category] || 'bg-slate-100 text-slate-600 border-slate-200'
-                            }`}
-                          >
-                            {item.category}
-                          </span>
+                          <div className="flex items-start justify-between gap-2 mb-2">
+                            <div>
+                              <span className="font-bold text-slate-900 text-sm group-hover:text-indigo-600 transition-colors block">
+                                {item.label}
+                              </span>
+                              <div className="flex items-center gap-1.5 mt-1">
+                                <span
+                                  className={`inline-block text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-md border ${
+                                    categoryBadgeColors[item.category] || 'bg-slate-100 text-slate-600 border-slate-200'
+                                  }`}
+                                >
+                                  {item.category}
+                                </span>
+                                {item.span === 'full' && (
+                                  <span className="text-[10px] font-extrabold text-indigo-700 bg-indigo-50 border border-indigo-100 px-1.5 py-0.5 rounded">
+                                    Full Width
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                            <div
+                              className={`w-11 h-6 rounded-full transition-colors flex items-center p-0.5 shrink-0 mt-0.5 ${
+                                isEnabled ? 'bg-indigo-600' : 'bg-slate-300'
+                              }`}
+                            >
+                              <div
+                                className={`w-5 h-5 rounded-full bg-white shadow-xs transform transition-transform ${
+                                  isEnabled ? 'translate-x-5' : 'translate-x-0'
+                                }`}
+                              />
+                            </div>
+                          </div>
+                          <p className="text-xs text-slate-500 leading-relaxed mt-1.5">{item.desc}</p>
                         </div>
-                        <div
-                          className={`w-11 h-6 rounded-full transition-colors flex items-center p-0.5 shrink-0 mt-0.5 ${
-                            isEnabled ? 'bg-indigo-600' : 'bg-slate-300'
-                          }`}
-                        >
-                          <div
-                            className={`w-5 h-5 rounded-full bg-white shadow-xs transform transition-transform ${
-                              isEnabled ? 'translate-x-5' : 'translate-x-0'
-                            }`}
-                          />
+
+                        <div className="mt-3 pt-2.5 border-t border-slate-200/50 flex items-center justify-between text-[11px] font-bold">
+                          <span className={isEnabled ? 'text-indigo-600' : 'text-slate-400'}>
+                            {isEnabled ? '✓ Visible on Main Dashboard' : '✕ Hidden from Dashboard'}
+                          </span>
                         </div>
                       </div>
-                      <p className="text-xs text-slate-500 leading-relaxed mt-1.5">{item.desc}</p>
-                    </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
 
-                    <div className="mt-3 pt-2.5 border-t border-slate-200/50 flex items-center justify-between text-[11px] font-bold">
-                      <span className={isEnabled ? 'text-indigo-600' : 'text-slate-400'}>
-                        {isEnabled ? '✓ Visible on Main Dashboard' : '✕ Hidden from Dashboard'}
-                      </span>
-                    </div>
+            {/* VIEW 2: ARRANGE ORDER VIEW */}
+            {widgetViewMode === 'order' && (
+              <div className="space-y-3">
+                <div className="p-3.5 rounded-2xl bg-indigo-50/70 border border-indigo-100 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs">
+                  <div className="text-indigo-900 font-medium">
+                    💡 <span className="font-bold">Tips:</span> Jo widget sabse upar (#1, #2) hoga wo Dashboard par sabse pehle dikhega. Buttons (⬆️ / ⬇️) se order badal sakte hain ya direct Top (🔝) par bhej sakte hain.
                   </div>
-                );
-              })}
-            </div>
+                  <span className="text-[11px] font-black text-indigo-700 bg-white px-2.5 py-1 rounded-full border border-indigo-200 shrink-0 self-start sm:self-auto">
+                    {widgetOrder.filter((id) => dashConfig[id] === true).length} Active / 24 Total
+                  </span>
+                </div>
+
+                <div className="space-y-2">
+                  {widgetOrder.map((widgetId, index) => {
+                    const item = DASHBOARD_WIDGET_OPTIONS.find((o) => o.id === widgetId);
+                    if (!item || item.id === 'hideFinancials') return null;
+                    const isEnabled = dashConfig[item.id] === true;
+                    const categoryBadgeColors = {
+                      operations: 'bg-blue-50 text-blue-700 border-blue-100',
+                      financials: 'bg-emerald-50 text-emerald-700 border-emerald-100',
+                      students: 'bg-purple-50 text-purple-700 border-purple-100',
+                      facilities: 'bg-amber-50 text-amber-700 border-amber-100',
+                    };
+
+                    return (
+                      <div
+                        key={item.id}
+                        draggable
+                        onDragStart={(e) => handleDragStart(e, index)}
+                        onDragOver={handleDragOver}
+                        onDrop={(e) => handleDrop(e, index)}
+                        className={`p-3 sm:p-4 rounded-2xl border transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-3 select-none ${
+                          isEnabled
+                            ? 'bg-white border-slate-200/90 shadow-2xs hover:border-indigo-300'
+                            : 'bg-slate-50/70 border-slate-200 opacity-60'
+                        }`}
+                      >
+                        {/* Left: Drag handle, Rank position #, Label & Category */}
+                        <div className="flex items-center gap-3">
+                          <div className="cursor-grab active:cursor-grabbing text-slate-400 hover:text-indigo-600 p-1 rounded-lg hover:bg-slate-100 shrink-0">
+                            <GripVertical className="w-5 h-5" />
+                          </div>
+
+                          <div className="w-8 h-8 rounded-xl bg-slate-900 text-white font-black text-xs flex items-center justify-center shrink-0 shadow-2xs">
+                            #{index + 1}
+                          </div>
+
+                          <div>
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className="font-bold text-slate-900 text-sm">{item.label}</span>
+                              <span
+                                className={`text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-md border ${
+                                  categoryBadgeColors[item.category] || 'bg-slate-100 text-slate-600 border-slate-200'
+                                }`}
+                              >
+                                {item.category}
+                              </span>
+                              {item.span === 'full' && (
+                                <span className="text-[10px] font-extrabold text-indigo-700 bg-indigo-50 border border-indigo-100 px-1.5 py-0.5 rounded">
+                                  Full Width
+                                </span>
+                              )}
+                            </div>
+                            <p className="text-xs text-slate-500 line-clamp-1 mt-0.5">{item.desc}</p>
+                          </div>
+                        </div>
+
+                        {/* Right: Re-order controls and toggle switch */}
+                        <div className="flex items-center justify-between sm:justify-end gap-2 shrink-0 pt-2 sm:pt-0 border-t sm:border-t-0 border-slate-100">
+                          {/* Priority Action Buttons */}
+                          <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl">
+                            {/* Move to Top */}
+                            <button
+                              type="button"
+                              title="Send to Top (#1)"
+                              disabled={index === 0}
+                              onClick={() => moveToEdge(index, true)}
+                              className="p-1.5 rounded-lg hover:bg-white text-slate-700 hover:text-indigo-600 disabled:opacity-30 disabled:hover:bg-transparent cursor-pointer transition-all"
+                            >
+                              <ChevronsUp className="w-4 h-4" />
+                            </button>
+
+                            {/* Move Up */}
+                            <button
+                              type="button"
+                              title="Move Up 1 step"
+                              disabled={index === 0}
+                              onClick={() => moveWidget(index, -1)}
+                              className="p-1.5 rounded-lg hover:bg-white text-slate-700 hover:text-indigo-600 disabled:opacity-30 disabled:hover:bg-transparent cursor-pointer transition-all"
+                            >
+                              <ArrowUp className="w-4 h-4" />
+                            </button>
+
+                            {/* Move Down */}
+                            <button
+                              type="button"
+                              title="Move Down 1 step"
+                              disabled={index === widgetOrder.length - 1}
+                              onClick={() => moveWidget(index, 1)}
+                              className="p-1.5 rounded-lg hover:bg-white text-slate-700 hover:text-indigo-600 disabled:opacity-30 disabled:hover:bg-transparent cursor-pointer transition-all"
+                            >
+                              <ArrowDown className="w-4 h-4" />
+                            </button>
+
+                            {/* Move to Bottom */}
+                            <button
+                              type="button"
+                              title="Send to Bottom"
+                              disabled={index === widgetOrder.length - 1}
+                              onClick={() => moveToEdge(index, false)}
+                              className="p-1.5 rounded-lg hover:bg-white text-slate-700 hover:text-indigo-600 disabled:opacity-30 disabled:hover:bg-transparent cursor-pointer transition-all"
+                            >
+                              <ChevronsDown className="w-4 h-4" />
+                            </button>
+                          </div>
+
+                          {/* Quick Enable/Disable toggle */}
+                          <div
+                            onClick={() => updateAndSaveDashConfig({ ...dashConfig, [item.id]: !isEnabled }, false)}
+                            className="flex items-center gap-2 cursor-pointer ml-1"
+                          >
+                            <span className="text-[11px] font-bold text-slate-500 hidden sm:inline">
+                              {isEnabled ? 'Active' : 'Off'}
+                            </span>
+                            <div
+                              className={`w-10 h-5 rounded-full transition-colors flex items-center p-0.5 ${
+                                isEnabled ? 'bg-indigo-600' : 'bg-slate-300'
+                              }`}
+                            >
+                              <div
+                                className={`w-4 h-4 rounded-full bg-white shadow-xs transform transition-transform ${
+                                  isEnabled ? 'translate-x-5' : 'translate-x-0'
+                                }`}
+                              />
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
 
             {/* Save Button Bar */}
             <div className="pt-4 border-t border-slate-100 flex items-center justify-end">
