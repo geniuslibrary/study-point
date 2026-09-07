@@ -153,9 +153,18 @@ export const fetchCollectionData = async (collectionName) => {
     if (snap && snap.docs) {
       const cloudItems = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
 
-      // Always update local cache with source of truth, even if empty (wiped database)
-      setLocalCollection(collectionName, cloudItems);
-      return cloudItems;
+      if (cloudItems.length > 0) {
+        setLocalCollection(collectionName, cloudItems);
+        return cloudItems;
+      } else {
+        // If cloud is empty but local cache already has items (e.g. freshly seeded), preserve local data
+        const localData = getLocalCollection(collectionName);
+        if (localData && localData.length > 0) {
+          return localData;
+        }
+        setLocalCollection(collectionName, []);
+        return [];
+      }
     }
   } catch (err) {
     // Graceful fallback to local cache on timeout/offline

@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import Layout from '../components/layout/Layout';
 import Card from '../components/common/Card';
 import Button from '../components/common/Button';
+import Modal from '../components/common/Modal';
 import { COLLECTIONS, DEFAULT_ADDONS, SHIFTS } from '../utils/constants';
 import { getStoredShifts } from '../utils/helpers';
 import {
@@ -23,6 +24,9 @@ import {
   Sparkles,
   Database,
   Calendar,
+  Loader2,
+  AlertCircle,
+  ArrowRight,
 } from 'lucide-react';
 import { doc, getDoc, setDoc, collection, getDocs, deleteDoc, addDoc, updateDoc } from 'firebase/firestore';
 import { db } from '../firebase/config';
@@ -433,34 +437,36 @@ export default function Settings() {
     }
   };
 
-  // --- 1 YEAR DUMMY DATA GENERATOR ---
-  const [isLoadingDummy, setIsLoadingDummy] = useState(false);
+  // --- 1 YEAR DUMMY DATA GENERATOR MODAL STATE ---
+  const [showDummyModal, setShowDummyModal] = useState(false);
+  const [dummyStatus, setDummyStatus] = useState('idle'); // 'idle' | 'loading' | 'success' | 'error'
+  const [dummyErrorMsg, setDummyErrorMsg] = useState('');
+  const [dummyStats, setDummyStats] = useState(null);
 
-  const handleLoadOneYearDummyData = async () => {
-    const isConfirmed = window.confirm(
-      '⚡ Kya aap 1 saal (12 months) ka realistic dummy test data load karna chahte hain?\n\n' +
-      '• 3 Study Halls (50 Total Seats)\n' +
-      '• 36 Students (24 Active + 12 Past Left)\n' +
-      '• 12 Months Continuous Fee Records (₹2.5L+ Revenue)\n' +
-      '• 12 Months Expenses (Rent, Bills, WiFi, RO, Cleaning)\n' +
-      '• 7 Membership Plans & 3 Add-on Facilities\n' +
-      '• Inquiries / Demo Leads\n\n' +
-      'Yeh data sirf aapki active logged-in ID me load hoga.'
-    );
-    if (!isConfirmed) return;
+  const handleOpenDummyModal = () => {
+    setDummyStatus('idle');
+    setDummyErrorMsg('');
+    setShowDummyModal(true);
+  };
 
-    setIsLoadingDummy(true);
+  const handleStartLoadingDummyData = async () => {
+    setDummyStatus('loading');
+    setDummyErrorMsg('');
     try {
       const res = await seedOneYearDummyData();
-      showToast('🎉 1 saal (12 mahine) ka dummy data successfully load ho gaya! Dashboard update ho raha hai...');
-      setTimeout(() => {
-        window.location.reload();
-      }, 1500);
+      setDummyStats(res);
+      setDummyStatus('success');
+      showToast('🎉 1 saal (12 mahine) ka dummy data successfully load ho gaya!');
     } catch (err) {
       console.error('Error loading 1 year dummy data:', err);
-      showToast('Error: ' + err.message);
-      setIsLoadingDummy(false);
+      setDummyErrorMsg(err.message || 'Data load karne me samasya aayi.');
+      setDummyStatus('error');
     }
+  };
+
+  const handleGoToDashboard = () => {
+    setShowDummyModal(false);
+    window.location.href = '/';
   };
 
   return (
@@ -955,9 +961,8 @@ export default function Settings() {
 
                 <div className="pt-1">
                   <Button
-                    onClick={handleLoadOneYearDummyData}
-                    loading={isLoadingDummy}
-                    className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold shadow-lg shadow-indigo-200 px-6 py-2.5 rounded-xl text-sm"
+                    onClick={handleOpenDummyModal}
+                    className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold shadow-lg shadow-indigo-200 px-6 py-2.5 rounded-xl text-sm cursor-pointer"
                   >
                     <Database className="w-4 h-4 mr-2" />
                     Load 1 Year Dummy Data (1 साल का डेटा लोड करें)
@@ -1022,6 +1027,165 @@ export default function Settings() {
           </div>
         </div>
       </div>
+
+      {/* --- 1 YEAR DUMMY DATA MODAL --- */}
+      <Modal
+        isOpen={showDummyModal}
+        onClose={() => {
+          if (dummyStatus !== 'loading') setShowDummyModal(false);
+        }}
+        title={
+          dummyStatus === 'success'
+            ? '🎉 1 Year Dummy Data Loaded!'
+            : '⚡ Load 1 Year Dummy Data (12 Months)'
+        }
+        size="lg"
+      >
+        {dummyStatus === 'idle' && (
+          <div className="space-y-4">
+            <div className="p-3.5 bg-indigo-50/80 border border-indigo-200 rounded-2xl">
+              <p className="text-xs text-indigo-900 leading-relaxed font-medium">
+                Yeh feature aapki active ID me pure <strong>1 saal (12 mahine)</strong> ka realistic test data create karega, taaki aap sabhi <strong>Revenue Graphs, Reports, Shift Analytics, Fees Receipts</strong> aur <strong>Seat Grid</strong> ko check kar sakein.
+              </p>
+            </div>
+
+            <div className="grid grid-cols-2 gap-2.5 text-xs font-semibold text-slate-700">
+              <div className="p-2.5 bg-slate-50 border border-slate-200 rounded-xl flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full bg-indigo-600"></span>
+                <span><strong>3 Study Halls</strong> (50 Seats)</span>
+              </div>
+              <div className="p-2.5 bg-slate-50 border border-slate-200 rounded-xl flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full bg-emerald-600"></span>
+                <span><strong>36 Students</strong> (24 Active + 12 Left)</span>
+              </div>
+              <div className="p-2.5 bg-slate-50 border border-slate-200 rounded-xl flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full bg-blue-600"></span>
+                <span><strong>200+ Fee Records</strong> (12 Months)</span>
+              </div>
+              <div className="p-2.5 bg-slate-50 border border-slate-200 rounded-xl flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full bg-purple-600"></span>
+                <span><strong>80+ Expenses</strong> (Rent, Bills, WiFi)</span>
+              </div>
+              <div className="p-2.5 bg-slate-50 border border-slate-200 rounded-xl flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full bg-amber-600"></span>
+                <span><strong>7 Membership Plans</strong> (Days & Mo)</span>
+              </div>
+              <div className="p-2.5 bg-slate-50 border border-slate-200 rounded-xl flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full bg-rose-600"></span>
+                <span><strong>Inquiries / Demo Leads</strong></span>
+              </div>
+            </div>
+
+            <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl text-xs text-emerald-800 flex items-start gap-2 font-medium">
+              <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+              <span>
+                <strong>100% Multi-Tenant Safe:</strong> Yeh data sirf aapki current logged-in library me save hoga. Genius Library ya kisi aur library ka data bilkul safe rahega.
+              </span>
+            </div>
+
+            <div className="pt-2 flex items-center justify-end gap-2.5">
+              <Button
+                variant="outline"
+                onClick={() => setShowDummyModal(false)}
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={handleStartLoadingDummyData}
+                className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold shadow-md shadow-indigo-200 cursor-pointer"
+              >
+                <Database className="w-4 h-4 mr-1.5" />
+                Load 1 Year Data Now (डेटा लोड करें)
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {dummyStatus === 'loading' && (
+          <div className="py-8 px-4 text-center space-y-4">
+            <div className="relative w-16 h-16 mx-auto">
+              <div className="w-16 h-16 rounded-full border-4 border-indigo-100 border-t-indigo-600 animate-spin"></div>
+              <Database className="w-6 h-6 text-indigo-600 absolute inset-0 m-auto" />
+            </div>
+            <div className="space-y-1">
+              <h4 className="text-base font-bold text-slate-900">1 Saal Ka Dummy Data Load Ho Raha Hai...</h4>
+              <p className="text-xs text-slate-500 max-w-sm mx-auto leading-relaxed">
+                350+ records (Halls, Seats, Students, 12 Months Fees & Expenses) ko Cloud Firestore aur Local Storage me batch-commit kiya ja raha hai. Kripya thoda intezar karein...
+              </p>
+            </div>
+          </div>
+        )}
+
+        {dummyStatus === 'success' && (
+          <div className="space-y-4">
+            <div className="text-center py-2 space-y-2">
+              <div className="w-14 h-14 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto shadow-sm">
+                <CheckCircle2 className="w-8 h-8" />
+              </div>
+              <h4 className="text-lg font-black text-slate-900">Dummy Data Successfully Load Ho Gaya!</h4>
+              <p className="text-xs text-slate-500 max-w-md mx-auto">
+                Pura 1 saal (12 mahine) ka continuous data cloud aur local storage dono me safely save ho chuka hai.
+              </p>
+            </div>
+
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-center">
+              <div className="p-2.5 bg-indigo-50 border border-indigo-100 rounded-xl">
+                <p className="text-[10px] uppercase font-bold text-indigo-500">Students</p>
+                <p className="text-base font-black text-indigo-900">{dummyStats?.totalStudents || 36}</p>
+              </div>
+              <div className="p-2.5 bg-emerald-50 border border-emerald-100 rounded-xl">
+                <p className="text-[10px] uppercase font-bold text-emerald-500">Seats</p>
+                <p className="text-base font-black text-emerald-900">{dummyStats?.totalSeats || 50}</p>
+              </div>
+              <div className="p-2.5 bg-blue-50 border border-blue-100 rounded-xl">
+                <p className="text-[10px] uppercase font-bold text-blue-500">Fee Records</p>
+                <p className="text-base font-black text-blue-900">{dummyStats?.totalFees || 200}+</p>
+              </div>
+              <div className="p-2.5 bg-purple-50 border border-purple-100 rounded-xl">
+                <p className="text-[10px] uppercase font-bold text-purple-500">Expenses</p>
+                <p className="text-base font-black text-purple-900">{dummyStats?.totalExpenses || 80}+</p>
+              </div>
+            </div>
+
+            <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-600 font-medium">
+              💡 Ab Dashboard par 12 mahine ke graphs, Students list me active/left students, aur Fees page par 12 mahine ke payment records live update ho chuke hain.
+            </div>
+
+            <div className="pt-2 flex justify-center">
+              <Button
+                onClick={handleGoToDashboard}
+                className="w-full sm:w-auto px-8 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm shadow-lg shadow-emerald-100 cursor-pointer"
+              >
+                <span className="flex items-center gap-2 justify-center">
+                  Dashboard Dekhein (Go to Dashboard)
+                  <ArrowRight className="w-4 h-4" />
+                </span>
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {dummyStatus === 'error' && (
+          <div className="space-y-4 py-2">
+            <div className="p-3.5 bg-rose-50 border border-rose-200 rounded-xl text-rose-800 text-xs flex items-start gap-2">
+              <AlertCircle className="w-5 h-5 text-rose-600 shrink-0 mt-0.5" />
+              <div>
+                <p className="font-bold">Error loading dummy data:</p>
+                <p className="mt-0.5">{dummyErrorMsg}</p>
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" onClick={() => setShowDummyModal(false)}>
+                Close
+              </Button>
+              <Button onClick={handleStartLoadingDummyData} className="bg-indigo-600 text-white">
+                Retry
+              </Button>
+            </div>
+          </div>
+        )}
+      </Modal>
     </Layout>
   );
 }

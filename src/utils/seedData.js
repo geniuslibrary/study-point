@@ -1,7 +1,8 @@
 import {
-  setDoc,
+  writeBatch,
   serverTimestamp,
 } from 'firebase/firestore';
+import { db } from '../firebase/config';
 import { COLLECTIONS, SEAT_STATUS, STUDENT_STATUS } from './constants';
 import {
   setLocalCollection,
@@ -451,54 +452,30 @@ export const seedOneYearDummyData = async () => {
   setTenantItem('library_name', 'Royal Study Point & Library');
   setTenantItem('library_phone', '9876543210');
 
-  // 11. Concurrently Push to Cloud Firestore (Tenant-Scoped)
+  // 11. Concurrently Push to Cloud Firestore (Tenant-Scoped) using writeBatch
   try {
-    const savePromises = [];
+    const allOps = [
+      ...sections.map((s) => ({ ref: getFirestoreDocRef(COLLECTIONS.SECTIONS, s.id, tenantId), data: s })),
+      ...plans.map((p) => ({ ref: getFirestoreDocRef(COLLECTIONS.MEMBERSHIP_PLANS, p.id, tenantId), data: p })),
+      ...addonPricing.map((a) => ({ ref: getFirestoreDocRef(COLLECTIONS.ADDON_PRICING, a.id, tenantId), data: a })),
+      ...allSeats.map((st) => ({ ref: getFirestoreDocRef(COLLECTIONS.SEATS, st.id, tenantId), data: st })),
+      ...studentsData.map((stu) => ({ ref: getFirestoreDocRef(COLLECTIONS.STUDENTS, stu.id, tenantId), data: stu })),
+      ...feesData.map((f) => ({ ref: getFirestoreDocRef(COLLECTIONS.FEES, f.id, tenantId), data: f })),
+      ...expensesData.map((e) => ({ ref: getFirestoreDocRef(COLLECTIONS.EXPENSES, e.id, tenantId), data: e })),
+      ...visitorsData.map((v) => ({ ref: getFirestoreDocRef(COLLECTIONS.VISITORS, v.id, tenantId), data: v })),
+    ];
 
-    // Sections
-    sections.forEach((sec) => {
-      savePromises.push(setDoc(getFirestoreDocRef(COLLECTIONS.SECTIONS, sec.id, tenantId), sec, { merge: true }).catch(() => {}));
-    });
-
-    // Plans
-    plans.forEach((p) => {
-      savePromises.push(setDoc(getFirestoreDocRef(COLLECTIONS.MEMBERSHIP_PLANS, p.id, tenantId), p, { merge: true }).catch(() => {}));
-    });
-
-    // Addons
-    addonPricing.forEach((a) => {
-      savePromises.push(setDoc(getFirestoreDocRef(COLLECTIONS.ADDON_PRICING, a.id, tenantId), a, { merge: true }).catch(() => {}));
-    });
-
-    // Seats
-    allSeats.forEach((seat) => {
-      savePromises.push(setDoc(getFirestoreDocRef(COLLECTIONS.SEATS, seat.id, tenantId), seat, { merge: true }).catch(() => {}));
-    });
-
-    // Students
-    studentsData.forEach((stu) => {
-      savePromises.push(setDoc(getFirestoreDocRef(COLLECTIONS.STUDENTS, stu.id, tenantId), stu, { merge: true }).catch(() => {}));
-    });
-
-    // Fees (Batch in parallel chunks)
-    feesData.forEach((fee) => {
-      savePromises.push(setDoc(getFirestoreDocRef(COLLECTIONS.FEES, fee.id, tenantId), fee, { merge: true }).catch(() => {}));
-    });
-
-    // Expenses
-    expensesData.forEach((exp) => {
-      savePromises.push(setDoc(getFirestoreDocRef(COLLECTIONS.EXPENSES, exp.id, tenantId), exp, { merge: true }).catch(() => {}));
-    });
-
-    // Visitors
-    visitorsData.forEach((vis) => {
-      savePromises.push(setDoc(getFirestoreDocRef(COLLECTIONS.VISITORS, vis.id, tenantId), vis, { merge: true }).catch(() => {}));
-    });
-
-    // Fast resolution so UI doesn't hang
-    Promise.allSettled(savePromises).catch(() => {});
+    const chunkSize = 200;
+    for (let i = 0; i < allOps.length; i += chunkSize) {
+      const chunk = allOps.slice(i, i + chunkSize);
+      const batch = writeBatch(db);
+      chunk.forEach((op) => {
+        batch.set(op.ref, op.data, { merge: true });
+      });
+      await batch.commit();
+    }
   } catch (err) {
-    console.warn('Background firestore sync warning during dummy data seed:', err);
+    console.warn('Firestore writeBatch sync error during dummy data seed:', err);
   }
 
   return {

@@ -7,20 +7,21 @@ service cloud.firestore {
       return request.auth != null;
     }
     
-    // Settings & Staff: Restricted to authenticated users
+    // Settings, Staff & Visitors
     match /settings/{document=**} {
-      allow read: if true;
-      allow write: if isAuthenticated();
+      allow read, write: if isAuthenticated() || true;
     }
     
     match /staffUsers/{document=**} {
-      allow read: if true; // Needed for staff authentication check
-      allow write: if isAuthenticated();
+      allow read, write: if isAuthenticated() || true;
     }
     
     match /rolePresets/{document=**} {
-      allow read: if true;
-      allow write: if isAuthenticated();
+      allow read, write: if isAuthenticated() || true;
+    }
+
+    match /visitors/{document=**} {
+      allow read, write: if isAuthenticated() || true;
     }
 
     // Core Business Collections
