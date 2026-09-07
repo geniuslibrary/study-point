@@ -51,6 +51,7 @@ import {
   ShieldCheck,
   Building2,
   TrendingUp,
+  Sliders,
 } from 'lucide-react';
 import { formatCurrency, formatDate } from '../utils/helpers';
 
@@ -328,6 +329,16 @@ export default function Dashboard() {
 
   useEffect(() => {
     fetchAll();
+
+    const handleSync = () => {
+      setDashConfig(getActiveDashboardConfig());
+    };
+    window.addEventListener('storage', handleSync);
+    window.addEventListener('focus', handleSync);
+    return () => {
+      window.removeEventListener('storage', handleSync);
+      window.removeEventListener('focus', handleSync);
+    };
   }, []);
 
   const today = new Date();
@@ -348,7 +359,8 @@ export default function Dashboard() {
   const occupancyRate = stats.totalSeats > 0 ? Math.round((stats.seatsOccupied / stats.totalSeats) * 100) : 0;
 
   // Customization & Role-based visibility flags
-  const isStaff = userRole !== 'owner';
+  const effectiveRole = user?.role || userRole || 'owner';
+  const isStaff = effectiveRole !== 'owner' && effectiveRole !== 'admin';
   const staffWidgets = isStaff
     ? user?.dashboardWidgets || user?.permissions?.dashboardWidgets || DEFAULT_STAFF_DASHBOARD_WIDGETS
     : null;
@@ -356,14 +368,15 @@ export default function Dashboard() {
   const isFinancialHidden = isStaff && !!staffWidgets?.hideFinancials;
 
   const isVisible = (key, defaultStaff = true, isFinancial = false) => {
-    if (isFinancial && isFinancialHidden) return false;
     if (isStaff) {
+      if (isFinancial && isFinancialHidden) return false;
       if (staffWidgets && staffWidgets[key] !== undefined) {
         return !!staffWidgets[key];
       }
       return defaultStaff;
     }
-    return dashConfig[key] !== false;
+    // Library Owner: strictly controlled by Customization dashConfig
+    return dashConfig[key] === true;
   };
 
   // Group 1: Core Operations
@@ -400,6 +413,32 @@ export default function Dashboard() {
 
   const hideRevenueCard = isStaff && (staffWidgets?.hideFinancials || !staffWidgets?.revenueChart);
 
+  const anyWidgetVisible =
+    showQuickActions ||
+    showTodayPulse ||
+    showCoreStats ||
+    showQuickSeatSearch ||
+    showOccupancy ||
+    showRevenueChart ||
+    showMonthlyTarget ||
+    showCashRegister ||
+    showPaymentModes ||
+    showExpenseCategories ||
+    showFeeCalculator ||
+    showPendingDues ||
+    showExpiringMemberships ||
+    showDemoTracker ||
+    showNewInquiries ||
+    showAdmissionsVsExits ||
+    showRemindersCounter ||
+    showShiftDist ||
+    showAddonUtilization ||
+    showTopMembers ||
+    showLeftStudentsAudit ||
+    showNoticeBoard ||
+    showStaffActivity ||
+    showRecentActivity;
+
   return (
     <Layout title="Dashboard">
       <div className="space-y-5 sm:space-y-6">
@@ -418,42 +457,64 @@ export default function Dashboard() {
                 </div>
                 <div className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-emerald-500/20 text-emerald-300 text-xs font-extrabold border border-emerald-400/30">
                   <ShieldCheck className="w-3 h-3" />
-                  <span>{userRole === 'owner' ? 'Library Owner' : 'Staff Admin'}</span>
+                  <span>{!isStaff ? 'Library Owner' : 'Staff Admin'}</span>
                 </div>
               </div>
 
               <h1 className="text-2xl sm:text-3xl lg:text-4xl font-black tracking-tight text-white">
-                Welcome back, {user?.displayName || user?.name || (userRole === 'owner' ? 'Admin' : 'Team Member')} 👋
+                Welcome back, {user?.displayName || user?.name || (!isStaff ? 'Owner' : 'Team Member')} 👋
               </h1>
               <p className="text-indigo-200/90 text-xs sm:text-sm mt-1.5 max-w-xl font-medium leading-relaxed">
                 Study Point Smart Hub • <span className="text-white font-bold">{stats.totalStudents} Active Students</span> enrolled across <span className="text-white font-bold">{stats.totalSeats} seats</span> ({occupancyRate}% occupancy).
               </p>
             </div>
 
-            {/* Quick Action Shortcuts inside Banner */}
-            <div className="flex flex-wrap items-center gap-2.5 pt-1 md:pt-0">
-              {hasPermission('students', 'create') && (
-                <button
-                  onClick={() => navigate('/students')}
-                  className="px-4 py-2.5 bg-white text-indigo-950 hover:bg-indigo-50 active:scale-95 rounded-2xl text-xs font-black transition-all shadow-md flex items-center gap-2 cursor-pointer"
-                >
-                  <UserPlus className="w-4 h-4 text-indigo-600" />
-                  <span>+ New Admission</span>
-                </button>
-              )}
+            {/* Quick Action Shortcuts inside Banner (only shown if quickActions enabled) */}
+            {showQuickActions && (
+              <div className="flex flex-wrap items-center gap-2.5 pt-1 md:pt-0">
+                {hasPermission('students', 'create') && (
+                  <button
+                    onClick={() => navigate('/students')}
+                    className="px-4 py-2.5 bg-white text-indigo-950 hover:bg-indigo-50 active:scale-95 rounded-2xl text-xs font-black transition-all shadow-md flex items-center gap-2 cursor-pointer"
+                  >
+                    <UserPlus className="w-4 h-4 text-indigo-600" />
+                    <span>+ New Admission</span>
+                  </button>
+                )}
 
-              {hasPermission('fees', 'create') && (
-                <button
-                  onClick={() => navigate('/fees')}
-                  className="px-4 py-2.5 bg-indigo-500/30 hover:bg-indigo-500/50 active:scale-95 text-white border border-white/20 rounded-2xl text-xs font-black transition-all shadow-md flex items-center gap-2 backdrop-blur-md cursor-pointer"
-                >
-                  <IndianRupee className="w-4 h-4 text-emerald-400" />
-                  <span>Collect Fee</span>
-                </button>
-              )}
-            </div>
+                {hasPermission('fees', 'create') && (
+                  <button
+                    onClick={() => navigate('/fees')}
+                    className="px-4 py-2.5 bg-indigo-500/30 hover:bg-indigo-500/50 active:scale-95 text-white border border-white/20 rounded-2xl text-xs font-black transition-all shadow-md flex items-center gap-2 backdrop-blur-md cursor-pointer"
+                  >
+                    <IndianRupee className="w-4 h-4 text-emerald-400" />
+                    <span>Collect Fee</span>
+                  </button>
+                )}
+              </div>
+            )}
           </div>
         </div>
+
+        {/* Empty State Banner if all 24 widgets are hidden */}
+        {!anyWidgetVisible && (
+          <div className="bg-white rounded-3xl p-8 sm:p-12 border border-slate-200/80 shadow-xs text-center flex flex-col items-center justify-center max-w-lg mx-auto my-6">
+            <div className="w-16 h-16 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center mb-4">
+              <Sliders className="w-8 h-8" />
+            </div>
+            <h3 className="text-lg font-bold text-gray-900 mb-1">Sabhi Widgets Disable Hain</h3>
+            <p className="text-xs sm:text-sm text-gray-500 mb-5 leading-relaxed">
+              Aapne Customization page se dashboard ke sabhi widgets ko disable kar rakha hai. Dashboard par widgets dekhne ke liye Customization me jaakar widgets ON karein.
+            </p>
+            <button
+              onClick={() => navigate('/customization')}
+              className="px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold shadow-md cursor-pointer transition-all flex items-center gap-2"
+            >
+              <Sliders className="w-4 h-4" />
+              <span>Customization Kholiye (Enable Widgets)</span>
+            </button>
+          </div>
+        )}
 
         {/* Quick Workflow Action Strip */}
         {showQuickActions && (

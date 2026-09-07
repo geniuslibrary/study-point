@@ -312,8 +312,11 @@ export const AuthProvider = ({ children }) => {
     setUser(null);
   };
 
+  const userRole = user?.role || 'owner';
+
   const value = {
     user,
+    userRole,
     loading,
     login,
     signup,

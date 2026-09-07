@@ -92,23 +92,32 @@ export default function Customization() {
     setTimeout(() => setToastMessage(''), 3500);
   };
 
-  // Save Dashboard Config
-  const handleSaveDashboardConfig = async () => {
-    setIsSaving(true);
+  // Save and sync Dashboard Config immediately
+  const updateAndSaveDashConfig = async (newConfig, showToastMsg = false) => {
+    setDashConfig(newConfig);
     try {
-      localStorage.setItem(DASHBOARD_CONFIG_STORAGE_KEY, JSON.stringify(dashConfig));
+      localStorage.setItem(DASHBOARD_CONFIG_STORAGE_KEY, JSON.stringify(newConfig));
       await setDoc(
         doc(db, COLLECTIONS.SETTINGS, 'customization'),
-        { dashboardConfig: dashConfig },
+        { dashboardConfig: newConfig },
         { merge: true }
       );
-      showToast('Dashboard widgets settings saved! ✨');
+      if (showToastMsg) {
+        showToast('Dashboard widgets settings saved! ✨');
+      }
     } catch (e) {
-      console.error(e);
-      showToast('Saved locally!');
-    } finally {
-      setIsSaving(false);
+      console.warn('Sync error:', e);
+      if (showToastMsg) {
+        showToast('Saved locally!');
+      }
     }
+  };
+
+  // Explicit Save Button
+  const handleSaveDashboardConfig = async () => {
+    setIsSaving(true);
+    await updateAndSaveDashConfig(dashConfig, true);
+    setIsSaving(false);
   };
 
   // Save WhatsApp Templates
@@ -284,7 +293,7 @@ export default function Customization() {
                       (acc, k) => ({ ...acc, [k.id]: true }),
                       {}
                     );
-                    setDashConfig(allOn);
+                    updateAndSaveDashConfig(allOn, true);
                   }}
                   className="px-3 py-1.5 rounded-xl bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-xs font-bold cursor-pointer transition-colors"
                 >
@@ -297,7 +306,7 @@ export default function Customization() {
                       (acc, k) => ({ ...acc, [k.id]: false }),
                       {}
                     );
-                    setDashConfig(allOff);
+                    updateAndSaveDashConfig(allOff, true);
                   }}
                   className="px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold cursor-pointer transition-colors"
                 >
@@ -306,7 +315,7 @@ export default function Customization() {
                 <button
                   type="button"
                   onClick={() => {
-                    setDashConfig(DEFAULT_DASHBOARD_CONFIG);
+                    updateAndSaveDashConfig(DEFAULT_DASHBOARD_CONFIG, true);
                   }}
                   className="px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold cursor-pointer transition-colors"
                 >
@@ -354,7 +363,7 @@ export default function Customization() {
                 return (
                   <div
                     key={item.id}
-                    onClick={() => setDashConfig((prev) => ({ ...prev, [item.id]: !isEnabled }))}
+                    onClick={() => updateAndSaveDashConfig({ ...dashConfig, [item.id]: !isEnabled }, false)}
                     className={`p-4 rounded-2xl border transition-all cursor-pointer select-none flex flex-col justify-between group ${
                       isEnabled
                         ? 'bg-indigo-50/30 border-indigo-200 ring-1 ring-indigo-500/20 shadow-xs'
