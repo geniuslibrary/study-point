@@ -46,6 +46,7 @@ export const DEFAULT_WHATSAPP_TEMPLATES = {
 };
 
 export const DEFAULT_DASHBOARD_CONFIG = {
+  // Group 1: Core Operations & Live Pulse
   quickActions: true,
   todayPulse: true,
   coreStats: true,
@@ -55,6 +56,27 @@ export const DEFAULT_DASHBOARD_CONFIG = {
   occupancyOverview: true,
   shiftDistribution: true,
   recentActivity: true,
+
+  // Group 2: Smart Financials & Audits
+  cashRegister: true,
+  paymentModesPie: true,
+  monthlyTarget: true,
+  expenseCategories: true,
+  feeCalculator: true,
+
+  // Group 3: Students, Retention & Leads
+  expiringMemberships: true,
+  newInquiries: true,
+  admissionsVsExits: true,
+  topMembers: true,
+  leftStudentsAudit: true,
+
+  // Group 4: Facilities, Automation & Team
+  addonUtilization: true,
+  quickSeatSearch: true,
+  remindersCounter: true,
+  noticeBoard: true,
+  staffActivity: true,
 };
 
 export const DEFAULT_STAFF_DASHBOARD_WIDGETS = {
@@ -67,20 +89,63 @@ export const DEFAULT_STAFF_DASHBOARD_WIDGETS = {
   occupancyOverview: true,
   shiftDistribution: true,
   recentActivity: false,
+  
+  cashRegister: false,
+  paymentModesPie: false,
+  monthlyTarget: false,
+  expenseCategories: false,
+  feeCalculator: true,
+
+  expiringMemberships: true,
+  newInquiries: true,
+  admissionsVsExits: true,
+  topMembers: false,
+  leftStudentsAudit: false,
+
+  addonUtilization: true,
+  quickSeatSearch: true,
+  remindersCounter: true,
+  noticeBoard: true,
+  staffActivity: true,
+
   hideFinancials: true,
 };
 
 export const DASHBOARD_WIDGET_OPTIONS = [
-  { id: 'quickActions', label: 'Quick Shortcuts Strip (शॉर्टकट स्ट्रिप)' },
-  { id: 'todayPulse', label: 'Today Pulse - Aaj Ka Hisaab (आज का हिसाब)' },
-  { id: 'coreStats', label: 'Core Stat Cards (स्टूडेंट्स, सीट्स आदि कार्ड्स)' },
-  { id: 'revenueChart', label: 'Revenue vs Expense Chart (कमाई ग्राफ)' },
-  { id: 'pendingDuesAlert', label: 'Pending Dues Alerts (बकाया फीस अलर्ट)' },
-  { id: 'demoTracker', label: 'Live Demo & Visit Tracker (डेमो ट्रैकर)' },
-  { id: 'occupancyOverview', label: 'Section Seat Occupancy (सीट ऑक्यूपेंसी)' },
-  { id: 'shiftDistribution', label: 'Shift Distribution (शिफ्ट विभाजन)' },
-  { id: 'recentActivity', label: 'Recent Fee Collections (हालिया फीस लिस्ट)' },
-  { id: 'hideFinancials', label: '🔒 Hide All Financial Numbers (कमाई/रुपये छिपाएं)' },
+  // 1. Core Operations
+  { id: 'quickActions', label: '⚡ Quick Shortcuts Strip (शॉर्टकट स्ट्रिप)', category: 'operations', desc: 'Top shortcut buttons for common daily tasks' },
+  { id: 'todayPulse', label: '🔴 Today Pulse - Aaj Ka Hisaab (आज का हिसाब)', category: 'operations', desc: 'Realtime daily counters of fee, admissions, and expenses' },
+  { id: 'coreStats', label: '📈 Core Monthly Stat Cards (मासिक आंकड़े)', category: 'operations', desc: 'Active students, occupancy, monthly revenue, pending dues' },
+  { id: 'occupancyOverview', label: '🪑 Hall & Section Occupancy (हॉल सीट ऑक्यूपेंसी)', category: 'operations', desc: 'Live seat matrix and progress percentage per section' },
+  { id: 'shiftDistribution', label: '⏰ Shift Wise Distribution (शिफ्ट विभाजन)', category: 'operations', desc: 'Student enrollment by Morning, Evening, and Full Day slots' },
+  { id: 'quickSeatSearch', label: '🔍 Instant Seat Finder (त्वरित सीट खोजक)', category: 'operations', desc: 'Quickly check if a seat is vacant or assigned to whom' },
+
+  // 2. Financials & Money
+  { id: 'revenueChart', label: '📊 Revenue vs Expense Trend (कमाई व खर्च ग्राफ)', category: 'financials', desc: '6-Month comparison between income and expenses' },
+  { id: 'cashRegister', label: '💵 Counter Cash Register (काउंटर कैश इन हैंड)', category: 'financials', desc: 'Today cash fees minus cash expenses in counter drawer' },
+  { id: 'paymentModesPie', label: '📱 Payment Mode Breakdown (पेमेंट माध्यम UPI/Cash/Bank)', category: 'financials', desc: 'Percentage & volume of UPI, Cash and Bank collections' },
+  { id: 'monthlyTarget', label: '🎯 Monthly Revenue Target (मासिक कमाई लक्ष्य)', category: 'financials', desc: 'Target collection progress bar and remaining amount' },
+  { id: 'expenseCategories', label: '🧾 Expense Categories Breakdown (खर्च श्रेणीवार)', category: 'financials', desc: 'Rent, electricity, wifi, salary and maintenance costs' },
+  { id: 'recentActivity', label: '📜 Recent Fee Collections Log (हालिया फीस लिस्ट)', category: 'financials', desc: 'Real-time payment audit stream of latest receipts' },
+  { id: 'feeCalculator', label: '🧮 Quick Fee & Discount Calculator (त्वरित फीस कैलकुलेटर)', category: 'financials', desc: 'Instant pricing quoting with plan, addons and discount' },
+
+  // 3. Students, Leads & Recoveries
+  { id: 'pendingDuesAlert', label: '🚨 Urgent Fee Follow-Ups (बकाया फीस अलर्ट)', category: 'students', desc: 'Unpaid dues list with 1-click WhatsApp payment reminders' },
+  { id: 'expiringMemberships', label: '⏳ Expiring in Next 7 Days (आगामी समाप्ति अलर्ट)', category: 'students', desc: 'Students whose memberships expire this week with WhatsApp reminder' },
+  { id: 'demoTracker', label: '🎯 Live Demo & Trial Tracker (डेमो ट्रैकर)', category: 'students', desc: 'Prospective students currently on trial seats' },
+  { id: 'newInquiries', label: '📋 New Inquiries & Leads (नई पूछताछ पाइपलाइन)', category: 'students', desc: 'Visitors who inquired but haven’t taken demo or admission' },
+  { id: 'admissionsVsExits', label: '🌱 Monthly Net Growth (विद्यार्थी वृद्धि दर)', category: 'students', desc: 'New admissions vs departed members comparison' },
+  { id: 'topMembers', label: '⭐ Long-Term Members (दीर्घकालिक सदस्य)', category: 'students', desc: 'Students enrolled in 3M, 6M, or 1Yr multi-month plans' },
+  { id: 'leftStudentsAudit', label: '🚪 Recently Departed Students (छोड़ चुके विद्यार्थी)', category: 'students', desc: 'Log of recently inactive/left students with exit dates' },
+
+  // 4. Facilities, Reminders & Team
+  { id: 'addonUtilization', label: '🔐 Lockers & Facilities (लॉकर व सुविधाएं)', category: 'facilities', desc: 'Assigned vs available lockers and addon revenue' },
+  { id: 'remindersCounter', label: '💬 WhatsApp Reminders Today (आज भेजे गए रिमाइंडर)', category: 'facilities', desc: 'Total automated WhatsApp reminders dispatched today' },
+  { id: 'noticeBoard', label: '📌 Digital Notice Board (लाइब्रेरी नोटिस बोर्ड)', category: 'facilities', desc: 'Daily announcement and broadcast notes for staff/students' },
+  { id: 'staffActivity', label: '👥 Staff On-Duty Overview (स्टाफ टीम स्थिति)', category: 'facilities', desc: 'Active team members, roles, contacts, and quick permissions' },
+
+  // Privacy Protection
+  { id: 'hideFinancials', label: '🔒 Hide All Financial Numbers (कमाई/रुपये छिपाएं)', category: 'security', desc: 'Hides all revenue, collections, and expense amounts from staff' },
 ];
 
 export const DEFAULT_STAFF_DASHBOARD_CONFIG = DEFAULT_STAFF_DASHBOARD_WIDGETS;

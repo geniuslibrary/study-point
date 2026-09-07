@@ -20,6 +20,23 @@ import {
   DEFAULT_STAFF_DASHBOARD_WIDGETS,
 } from '../utils/templateHelpers';
 import {
+  ExpiringMembershipsWidget,
+  CashRegisterWidget,
+  PaymentModesWidget,
+  MonthlyTargetWidget,
+  ExpenseCategoriesWidget,
+  FeeCalculatorWidget,
+  AddonUtilizationWidget,
+  QuickSeatSearchWidget,
+  NoticeBoardWidget,
+  StaffActivityWidget,
+  NewInquiriesWidget,
+  AdmissionsVsExitsWidget,
+  RemindersCounterWidget,
+  TopMembersWidget,
+  LeftStudentsAuditWidget,
+} from '../components/dashboard/DashboardExtraWidgets';
+import {
   Users,
   UserPlus,
   UserCheck,
@@ -74,6 +91,13 @@ export default function Dashboard() {
   const [visitors, setVisitors] = useState([]);
   const [allSeatsList, setAllSeatsList] = useState([]);
   const [allSectionsList, setAllSectionsList] = useState([]);
+  const [allStudentsList, setAllStudentsList] = useState([]);
+  const [allPlansList, setAllPlansList] = useState([]);
+  const [allStaffList, setAllStaffList] = useState([]);
+  const [cashStats, setCashStats] = useState({ cashFees: 0, cashExpenses: 0 });
+  const [paymentModeStats, setPaymentModeStats] = useState({ upi: 0, cash: 0, bank: 0 });
+  const [monthExpensesList, setMonthExpensesList] = useState([]);
+  const [admissionsVsLeft, setAdmissionsVsLeft] = useState({ admissions: 0, left: 0 });
 
   // Date matcher helper
   const matchesDate = (dateVal, targetDateStr) => {
@@ -97,14 +121,20 @@ export default function Dashboard() {
 
   const fetchAll = async () => {
     try {
-      const [students, allSeats, allFees, allExpenses, allSections, allVisitors] = await Promise.all([
+      const [students, allSeats, allFees, allExpenses, allSections, allVisitors, allPlans, allStaff] = await Promise.all([
         fetchCollectionData(COLLECTIONS.STUDENTS),
         fetchCollectionData(COLLECTIONS.SEATS),
         fetchCollectionData(COLLECTIONS.FEES),
         fetchCollectionData(COLLECTIONS.EXPENSES),
         fetchCollectionData(COLLECTIONS.SECTIONS),
         fetchCollectionData(COLLECTIONS.VISITORS),
+        fetchCollectionData(COLLECTIONS.MEMBERSHIP_PLANS),
+        fetchCollectionData(COLLECTIONS.STAFF_USERS),
       ]);
+
+      setAllStudentsList(students);
+      setAllPlansList(allPlans || []);
+      setAllStaffList(allStaff || []);
 
       const activeStudents = students.filter((s) => s.status === 'active');
       const occupiedSeatIds = new Set(activeStudents.map((s) => s.seatId).filter(Boolean));
@@ -244,7 +274,39 @@ export default function Dashboard() {
       setAllSeatsList(uniqueSeatsList || []);
       setAllSectionsList(allSections || []);
 
-      // 7. Cloud Customization Settings (Owner / Library Default)
+      // 7. Extra Smart Metrics Calculations
+      const todayCashFees = todayPaidFees
+        .filter((f) => !f.paymentMode || f.paymentMode === 'cash')
+        .reduce((sum, f) => sum + (Number(f.amount) || 0), 0);
+      const todayCashExpenses = todayExpenses
+        .filter((e) => !e.paymentMode || e.paymentMode === 'cash')
+        .reduce((sum, e) => sum + (Number(e.amount) || 0), 0);
+      setCashStats({ cashFees: todayCashFees, cashExpenses: todayCashExpenses });
+
+      const upiTotal = currentMonthFees
+        .filter((f) => f.status === 'paid' && f.paymentMode === 'upi')
+        .reduce((s, f) => s + (Number(f.amount) || 0), 0);
+      const cashTotal = currentMonthFees
+        .filter((f) => f.status === 'paid' && (!f.paymentMode || f.paymentMode === 'cash'))
+        .reduce((s, f) => s + (Number(f.amount) || 0), 0);
+      const bankTotal = currentMonthFees
+        .filter((f) => f.status === 'paid' && (f.paymentMode === 'bank' || f.paymentMode === 'online' || f.paymentMode === 'card'))
+        .reduce((s, f) => s + (Number(f.amount) || 0), 0);
+      setPaymentModeStats({ upi: upiTotal, cash: cashTotal, bank: bankTotal });
+
+      const mExpenses = allExpenses.filter((e) => {
+        const d = e.date?.toDate ? e.date.toDate() : new Date(e.date || 0);
+        return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}` === currentMonth;
+      });
+      setMonthExpensesList(mExpenses);
+
+      const mAdmissions = students.filter((s) =>
+        (s.joinDate || s.createdAt || '').toString().startsWith(currentMonth)
+      ).length;
+      const mLeft = students.filter((s) => s.status === 'left' || s.status === 'inactive').length;
+      setAdmissionsVsLeft({ admissions: mAdmissions, left: mLeft });
+
+      // 8. Cloud Customization Settings (Owner / Library Default)
       try {
         const custSnap = await getDoc(doc(db, COLLECTIONS.SETTINGS, 'customization'));
         if (custSnap.exists()) {
@@ -291,20 +353,52 @@ export default function Dashboard() {
     ? user?.dashboardWidgets || user?.permissions?.dashboardWidgets || DEFAULT_STAFF_DASHBOARD_WIDGETS
     : null;
 
-  const showQuickActions = isStaff ? staffWidgets.quickActions !== false : dashConfig.quickActions !== false;
-  const showTodayPulse = isStaff
-    ? staffWidgets.todayPulse !== false && !staffWidgets.hideFinancials
-    : dashConfig.todayPulse !== false;
-  const showCoreStats = isStaff ? staffWidgets.coreStats !== false : dashConfig.coreStats !== false;
-  const showRevenueChart = isStaff
-    ? staffWidgets.revenueChart === true && !staffWidgets.hideFinancials
-    : dashConfig.revenueChart !== false;
-  const showPendingDues = isStaff ? staffWidgets.pendingDuesAlert !== false : dashConfig.pendingDuesAlert !== false;
-  const showDemoTracker = isStaff ? staffWidgets.demoTracker !== false : dashConfig.demoTracker !== false;
-  const showOccupancy = isStaff ? staffWidgets.occupancyOverview !== false : dashConfig.occupancyOverview !== false;
-  const showShiftDist = isStaff ? staffWidgets.shiftDistribution !== false : dashConfig.shiftDistribution !== false;
-  const showRecentActivity = isStaff ? staffWidgets.recentActivity === true : dashConfig.recentActivity !== false;
-  const hideRevenueCard = isStaff && (staffWidgets.hideFinancials || !staffWidgets.revenueChart);
+  const isFinancialHidden = isStaff && !!staffWidgets?.hideFinancials;
+
+  const isVisible = (key, defaultStaff = true, isFinancial = false) => {
+    if (isFinancial && isFinancialHidden) return false;
+    if (isStaff) {
+      if (staffWidgets && staffWidgets[key] !== undefined) {
+        return !!staffWidgets[key];
+      }
+      return defaultStaff;
+    }
+    return dashConfig[key] !== false;
+  };
+
+  // Group 1: Core Operations
+  const showQuickActions = isVisible('quickActions', true);
+  const showTodayPulse = isVisible('todayPulse', true, true);
+  const showCoreStats = isVisible('coreStats', true);
+  const showOccupancy = isVisible('occupancyOverview', true);
+  const showShiftDist = isVisible('shiftDistribution', true);
+  const showQuickSeatSearch = isVisible('quickSeatSearch', true);
+
+  // Group 2: Financials & Money
+  const showRevenueChart = isVisible('revenueChart', false, true);
+  const showCashRegister = isVisible('cashRegister', false, true);
+  const showPaymentModes = isVisible('paymentModesPie', false, true);
+  const showMonthlyTarget = isVisible('monthlyTarget', false, true);
+  const showExpenseCategories = isVisible('expenseCategories', false, true);
+  const showRecentActivity = isVisible('recentActivity', false, true);
+  const showFeeCalculator = isVisible('feeCalculator', true);
+
+  // Group 3: Students, Inquiries & Retention
+  const showPendingDues = isVisible('pendingDuesAlert', true);
+  const showExpiringMemberships = isVisible('expiringMemberships', true);
+  const showDemoTracker = isVisible('demoTracker', true);
+  const showNewInquiries = isVisible('newInquiries', true);
+  const showAdmissionsVsExits = isVisible('admissionsVsExits', true);
+  const showTopMembers = isVisible('topMembers', false);
+  const showLeftStudentsAudit = isVisible('leftStudentsAudit', false);
+
+  // Group 4: Facilities, Automation & Team
+  const showAddonUtilization = isVisible('addonUtilization', true);
+  const showRemindersCounter = isVisible('remindersCounter', true);
+  const showNoticeBoard = isVisible('noticeBoard', true);
+  const showStaffActivity = isVisible('staffActivity', true);
+
+  const hideRevenueCard = isStaff && (staffWidgets?.hideFinancials || !staffWidgets?.revenueChart);
 
   return (
     <Layout title="Dashboard">
@@ -432,25 +526,89 @@ export default function Dashboard() {
           <StatsCards stats={stats} hideRevenue={hideRevenueCard} />
         )}
 
-        {/* Row 1: Revenue vs Expenses Chart & Urgent Dues Follow-ups */}
-        {(showRevenueChart || showPendingDues) && (
-          <div className={`grid grid-cols-1 ${showRevenueChart && showPendingDues ? 'lg:grid-cols-2' : ''} gap-5 sm:gap-6`}>
-            {showRevenueChart && (
-              <div className="bg-white rounded-3xl p-5 sm:p-6 border border-slate-200/80 shadow-xs flex flex-col">
-                <RevenueChart data={chartData} />
-              </div>
+        {/* Core Operations: Quick Seat Finder & Hall Occupancy */}
+        {(showQuickSeatSearch || showOccupancy) && (
+          <div className={`grid grid-cols-1 ${showQuickSeatSearch && showOccupancy ? 'lg:grid-cols-2' : ''} gap-5 sm:gap-6`}>
+            {showQuickSeatSearch && (
+              <QuickSeatSearchWidget
+                seats={allSeatsList}
+                students={allStudentsList}
+                sections={allSectionsList}
+              />
             )}
-            {showPendingDues && (
-              <div className="flex flex-col">
-                <PendingDuesAlert pendingFees={urgentPendingList} />
+            {showOccupancy && (
+              <div className="bg-white rounded-3xl p-5 sm:p-6 border border-slate-200/80 shadow-xs flex flex-col">
+                <OccupancyOverview sections={occupancyData} />
               </div>
             )}
           </div>
         )}
 
-        {/* Row 2: Visit & Demo Tracker + Section Occupancy */}
-        {(showDemoTracker || showOccupancy) && (
-          <div className={`grid grid-cols-1 ${showDemoTracker && showOccupancy ? 'lg:grid-cols-2' : ''} gap-5 sm:gap-6`}>
+        {/* Financial Row 1: Revenue vs Expense Chart & Monthly Target */}
+        {(showRevenueChart || showMonthlyTarget) && (
+          <div className={`grid grid-cols-1 ${showRevenueChart && showMonthlyTarget ? 'lg:grid-cols-2' : ''} gap-5 sm:gap-6`}>
+            {showRevenueChart && (
+              <div className="bg-white rounded-3xl p-5 sm:p-6 border border-slate-200/80 shadow-xs flex flex-col">
+                <RevenueChart data={chartData} />
+              </div>
+            )}
+            {showMonthlyTarget && (
+              <MonthlyTargetWidget currentRevenue={stats.revenue} />
+            )}
+          </div>
+        )}
+
+        {/* Financial Row 2: Counter Cash Register & Payment Modes (UPI/Cash/Bank) */}
+        {(showCashRegister || showPaymentModes) && (
+          <div className={`grid grid-cols-1 ${showCashRegister && showPaymentModes ? 'lg:grid-cols-2' : ''} gap-5 sm:gap-6`}>
+            {showCashRegister && (
+              <CashRegisterWidget
+                todayCashFees={cashStats.cashFees}
+                todayCashExpenses={cashStats.cashExpenses}
+              />
+            )}
+            {showPaymentModes && (
+              <PaymentModesWidget
+                upiTotal={paymentModeStats.upi}
+                cashTotal={paymentModeStats.cash}
+                bankTotal={paymentModeStats.bank}
+              />
+            )}
+          </div>
+        )}
+
+        {/* Financial Row 3: Expense Categories & Reception Fee Calculator */}
+        {(showExpenseCategories || showFeeCalculator) && (
+          <div className={`grid grid-cols-1 ${showExpenseCategories && showFeeCalculator ? 'lg:grid-cols-2' : ''} gap-5 sm:gap-6`}>
+            {showExpenseCategories && (
+              <ExpenseCategoriesWidget expenses={monthExpensesList} />
+            )}
+            {showFeeCalculator && (
+              <FeeCalculatorWidget plans={allPlansList} />
+            )}
+          </div>
+        )}
+
+        {/* Students Row 1: Urgent Pending Dues & Expiring in 7 Days */}
+        {(showPendingDues || showExpiringMemberships) && (
+          <div className={`grid grid-cols-1 ${showPendingDues && showExpiringMemberships ? 'lg:grid-cols-2' : ''} gap-5 sm:gap-6`}>
+            {showPendingDues && (
+              <div className="flex flex-col">
+                <PendingDuesAlert pendingFees={urgentPendingList} />
+              </div>
+            )}
+            {showExpiringMemberships && (
+              <ExpiringMembershipsWidget
+                students={allStudentsList}
+                seats={allSeatsList}
+              />
+            )}
+          </div>
+        )}
+
+        {/* Students Row 2: Live Demo Tracker & New Inquiries Leads */}
+        {(showDemoTracker || showNewInquiries) && (
+          <div className={`grid grid-cols-1 ${showDemoTracker && showNewInquiries ? 'lg:grid-cols-2' : ''} gap-5 sm:gap-6`}>
             {showDemoTracker && (
               <div className="flex flex-col">
                 <LiveDemoTracker
@@ -461,17 +619,30 @@ export default function Dashboard() {
                 />
               </div>
             )}
-            {showOccupancy && (
-              <div className="bg-white rounded-3xl p-5 sm:p-6 border border-slate-200/80 shadow-xs flex flex-col">
-                <OccupancyOverview sections={occupancyData} />
-              </div>
+            {showNewInquiries && (
+              <NewInquiriesWidget visitors={visitors} />
             )}
           </div>
         )}
 
-        {/* Row 3: Shift Distribution & Recent Fee Collections */}
-        {(showShiftDist || showRecentActivity) && (
-          <div className={`grid grid-cols-1 ${showShiftDist && showRecentActivity ? 'lg:grid-cols-2' : ''} gap-5 sm:gap-6`}>
+        {/* Growth & Recoveries: Net Growth & WhatsApp Reminders Today */}
+        {(showAdmissionsVsExits || showRemindersCounter) && (
+          <div className={`grid grid-cols-1 ${showAdmissionsVsExits && showRemindersCounter ? 'lg:grid-cols-2' : ''} gap-5 sm:gap-6`}>
+            {showAdmissionsVsExits && (
+              <AdmissionsVsExitsWidget
+                admissionsCount={admissionsVsLeft.admissions}
+                leftCount={admissionsVsLeft.left}
+              />
+            )}
+            {showRemindersCounter && (
+              <RemindersCounterWidget urgentPendingCount={urgentPendingList.length} />
+            )}
+          </div>
+        )}
+
+        {/* Shift Distribution & Facilities/Lockers */}
+        {(showShiftDist || showAddonUtilization) && (
+          <div className={`grid grid-cols-1 ${showShiftDist && showAddonUtilization ? 'lg:grid-cols-2' : ''} gap-5 sm:gap-6`}>
             {showShiftDist && (
               <div className="flex flex-col">
                 <ShiftDistribution
@@ -482,11 +653,44 @@ export default function Dashboard() {
                 />
               </div>
             )}
-            {showRecentActivity && (
-              <div className="bg-white rounded-3xl border border-slate-200/80 shadow-xs overflow-hidden flex flex-col">
-                <RecentActivity fees={recentFees} />
-              </div>
+            {showAddonUtilization && (
+              <AddonUtilizationWidget
+                seats={allSeatsList}
+                students={allStudentsList}
+              />
             )}
+          </div>
+        )}
+
+        {/* Students Retention: Top Multi-Month Members & Left Students Log */}
+        {(showTopMembers || showLeftStudentsAudit) && (
+          <div className={`grid grid-cols-1 ${showTopMembers && showLeftStudentsAudit ? 'lg:grid-cols-2' : ''} gap-5 sm:gap-6`}>
+            {showTopMembers && (
+              <TopMembersWidget
+                students={allStudentsList}
+                plans={allPlansList}
+              />
+            )}
+            {showLeftStudentsAudit && (
+              <LeftStudentsAuditWidget students={allStudentsList} />
+            )}
+          </div>
+        )}
+
+        {/* Operations & Management: Digital Notice Board & Staff On-Duty */}
+        {(showNoticeBoard || showStaffActivity) && (
+          <div className={`grid grid-cols-1 ${showNoticeBoard && showStaffActivity ? 'lg:grid-cols-2' : ''} gap-5 sm:gap-6`}>
+            {showNoticeBoard && <NoticeBoardWidget />}
+            {showStaffActivity && (
+              <StaffActivityWidget staffUsers={allStaffList} />
+            )}
+          </div>
+        )}
+
+        {/* Recent Collections Stream */}
+        {showRecentActivity && (
+          <div className="bg-white rounded-3xl border border-slate-200/80 shadow-xs overflow-hidden flex flex-col">
+            <RecentActivity fees={recentFees} />
           </div>
         )}
 

@@ -27,6 +27,7 @@ import {
   DEFAULT_WHATSAPP_TEMPLATES,
   DEFAULT_DASHBOARD_CONFIG,
   DEFAULT_STAFF_DASHBOARD_CONFIG,
+  DASHBOARD_WIDGET_OPTIONS,
   WHATSAPP_TEMPLATES_STORAGE_KEY,
   DASHBOARD_CONFIG_STORAGE_KEY,
   STAFF_DASHBOARD_CONFIG_STORAGE_KEY,
@@ -38,6 +39,7 @@ import { COLLECTIONS } from '../utils/constants';
 
 export default function Customization() {
   const [activeTab, setActiveTab] = useState('dashboard'); // 'dashboard' | 'whatsapp' | 'staff'
+  const [widgetCategory, setWidgetCategory] = useState('all');
   const [isSaving, setIsSaving] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
 
@@ -263,21 +265,43 @@ export default function Customization() {
           <div className="bg-white rounded-3xl p-5 sm:p-7 border border-slate-200/80 shadow-xs space-y-6">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-slate-100">
               <div>
-                <h3 className="text-base font-bold text-slate-900">Dashboard Widgets Visibility</h3>
+                <div className="flex items-center gap-2">
+                  <h3 className="text-base font-bold text-slate-900">Dashboard Widgets Visibility</h3>
+                  <span className="text-xs font-black px-2.5 py-0.5 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-100">
+                    {DASHBOARD_WIDGET_OPTIONS.filter((w) => w.id !== 'hideFinancials' && dashConfig[w.id] !== false).length} / 24 Active
+                  </span>
+                </div>
                 <p className="text-xs text-slate-500 mt-0.5">
-                  Tick to show or hide widgets on your main dashboard. Only chosen sections will appear.
+                  Choose which widgets and analytics appear on your main dashboard. Toggle any card on or off.
                 </p>
               </div>
-              <div className="flex items-center gap-2">
+
+              <div className="flex flex-wrap items-center gap-2">
                 <button
                   type="button"
                   onClick={() => {
-                    const allOn = Object.keys(DEFAULT_DASHBOARD_CONFIG).reduce((acc, k) => ({ ...acc, [k]: true }), {});
+                    const allOn = DASHBOARD_WIDGET_OPTIONS.filter((w) => w.id !== 'hideFinancials').reduce(
+                      (acc, k) => ({ ...acc, [k.id]: true }),
+                      {}
+                    );
                     setDashConfig(allOn);
+                  }}
+                  className="px-3 py-1.5 rounded-xl bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-xs font-bold cursor-pointer transition-colors"
+                >
+                  Enable All (24)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const allOff = DASHBOARD_WIDGET_OPTIONS.filter((w) => w.id !== 'hideFinancials').reduce(
+                      (acc, k) => ({ ...acc, [k.id]: false }),
+                      {}
+                    );
+                    setDashConfig(allOff);
                   }}
                   className="px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold cursor-pointer transition-colors"
                 >
-                  Show All
+                  Disable All
                 </button>
                 <button
                   type="button"
@@ -291,80 +315,68 @@ export default function Customization() {
               </div>
             </div>
 
-            {/* Widget Toggles Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {/* Category Filter Pills */}
+            <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-hide">
               {[
-                {
-                  id: 'quickActions',
-                  title: '⚡ Quick Action Shortcuts',
-                  desc: 'One-click buttons at the top for Admission, Visit & Demo, Seats, Fees, and Expenses.',
-                  color: 'indigo',
-                },
-                {
-                  id: 'todayPulse',
-                  title: '🔴 Aaj Ka Hisaab (Today Pulse)',
-                  desc: 'Daily realtime counters for Collection, Admissions, Out-flow expenses, and Empty seats.',
-                  color: 'emerald',
-                },
-                {
-                  id: 'coreStats',
-                  title: '📈 Monthly Core Stat Cards',
-                  desc: 'Total Active Students, Physical Seats Occupied, Monthly Revenue, and Pending Fee count.',
-                  color: 'blue',
-                },
-                {
-                  id: 'revenueChart',
-                  title: '📊 Revenue vs Expenses Chart',
-                  desc: '6-Month analytical trend comparing fee collections vs operational library expenditures.',
-                  color: 'purple',
-                },
-                {
-                  id: 'pendingDuesAlert',
-                  title: '🚨 Urgent Fee Follow-ups',
-                  desc: 'List of students with pending dues and 1-click WhatsApp recovery buttons.',
-                  color: 'rose',
-                },
-                {
-                  id: 'demoTracker',
-                  title: '🎯 Visit & Demo Live Tracker',
-                  desc: 'Trial students currently on seat, ending today, expired, and 1-click admit actions.',
-                  color: 'blue',
-                },
-                {
-                  id: 'occupancyOverview',
-                  title: '🪑 Section Seat Occupancy',
-                  desc: 'Visual progress bars showing occupancy percentages across Room/Floor sections.',
-                  color: 'amber',
-                },
-                {
-                  id: 'shiftDistribution',
-                  title: '⏰ Shift Wise Distribution',
-                  desc: 'Count and breakdown of students enrolled in Morning, Evening, and Full Day slots.',
-                  color: 'violet',
-                },
-                {
-                  id: 'recentActivity',
-                  title: '🧾 Recent Fee Collections Log',
-                  desc: 'Live audit log of recently collected receipts, amounts, and payment modes (Cash/UPI).',
-                  color: 'teal',
-                },
-              ].map((item) => {
+                { id: 'all', label: 'All Widgets (24)' },
+                { id: 'operations', label: '⚡ Core Operations (6)' },
+                { id: 'financials', label: '💰 Financials & Target (7)' },
+                { id: 'students', label: '👥 Students & Retention (7)' },
+                { id: 'facilities', label: '🏢 Facilities & Team (4)' },
+              ].map((cat) => (
+                <button
+                  key={cat.id}
+                  type="button"
+                  onClick={() => setWidgetCategory(cat.id)}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all cursor-pointer ${
+                    widgetCategory === cat.id
+                      ? 'bg-slate-900 text-white shadow-xs'
+                      : 'bg-slate-100 text-slate-600 hover:bg-slate-200 hover:text-slate-900'
+                  }`}
+                >
+                  {cat.label}
+                </button>
+              ))}
+            </div>
+
+            {/* 24 Widget Toggles Grid */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {DASHBOARD_WIDGET_OPTIONS.filter(
+                (w) => w.id !== 'hideFinancials' && (widgetCategory === 'all' || w.category === widgetCategory)
+              ).map((item) => {
                 const isEnabled = dashConfig[item.id] !== false;
+                const categoryBadgeColors = {
+                  operations: 'bg-blue-50 text-blue-700 border-blue-100',
+                  financials: 'bg-emerald-50 text-emerald-700 border-emerald-100',
+                  students: 'bg-purple-50 text-purple-700 border-purple-100',
+                  facilities: 'bg-amber-50 text-amber-700 border-amber-100',
+                };
                 return (
                   <div
                     key={item.id}
                     onClick={() => setDashConfig((prev) => ({ ...prev, [item.id]: !isEnabled }))}
-                    className={`p-4 rounded-2xl border transition-all cursor-pointer select-none flex flex-col justify-between ${
+                    className={`p-4 rounded-2xl border transition-all cursor-pointer select-none flex flex-col justify-between group ${
                       isEnabled
-                        ? 'bg-indigo-50/40 border-indigo-200 ring-1 ring-indigo-500/20'
-                        : 'bg-slate-50/60 border-slate-200 opacity-60 hover:opacity-80'
+                        ? 'bg-indigo-50/30 border-indigo-200 ring-1 ring-indigo-500/20 shadow-xs'
+                        : 'bg-slate-50/60 border-slate-200 opacity-60 hover:opacity-85'
                     }`}
                   >
                     <div>
-                      <div className="flex items-center justify-between gap-2 mb-1.5">
-                        <span className="font-bold text-slate-900 text-sm">{item.title}</span>
+                      <div className="flex items-start justify-between gap-2 mb-2">
+                        <div>
+                          <span className="font-bold text-slate-900 text-sm group-hover:text-indigo-600 transition-colors block">
+                            {item.label}
+                          </span>
+                          <span
+                            className={`inline-block mt-1 text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-md border ${
+                              categoryBadgeColors[item.category] || 'bg-slate-100 text-slate-600 border-slate-200'
+                            }`}
+                          >
+                            {item.category}
+                          </span>
+                        </div>
                         <div
-                          className={`w-11 h-6 rounded-full transition-colors flex items-center p-0.5 ${
+                          className={`w-11 h-6 rounded-full transition-colors flex items-center p-0.5 shrink-0 mt-0.5 ${
                             isEnabled ? 'bg-indigo-600' : 'bg-slate-300'
                           }`}
                         >
@@ -375,12 +387,12 @@ export default function Customization() {
                           />
                         </div>
                       </div>
-                      <p className="text-xs text-slate-500 leading-relaxed">{item.desc}</p>
+                      <p className="text-xs text-slate-500 leading-relaxed mt-1.5">{item.desc}</p>
                     </div>
 
-                    <div className="mt-3 pt-2 border-t border-slate-200/50 flex items-center justify-between text-[11px] font-bold">
+                    <div className="mt-3 pt-2.5 border-t border-slate-200/50 flex items-center justify-between text-[11px] font-bold">
                       <span className={isEnabled ? 'text-indigo-600' : 'text-slate-400'}>
-                        {isEnabled ? '✓ Visible on Dashboard' : '✕ Hidden from Dashboard'}
+                        {isEnabled ? '✓ Visible on Main Dashboard' : '✕ Hidden from Dashboard'}
                       </span>
                     </div>
                   </div>
