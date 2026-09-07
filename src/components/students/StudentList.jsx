@@ -237,25 +237,36 @@ export default function StudentList({
               return (
                 <tr key={student.id} className="hover:bg-slate-50/80 transition-colors">
                   <td className="px-5 py-3.5">
-                    <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-3.5">
                       {student.photo ? (
                         <img
                           src={student.photo}
                           alt={student.name}
+                          onClick={() => onViewProfile(student)}
                           onError={(e) => {
                             e.currentTarget.style.display = 'none';
                           }}
-                          className="w-10 h-10 rounded-full object-cover border-2 border-indigo-100/90 shrink-0 shadow-2xs ring-1 ring-slate-200/60"
+                          className="w-12 h-12 rounded-full object-cover border-2 border-indigo-100/90 shrink-0 shadow-xs ring-2 ring-slate-200/50 cursor-pointer hover:scale-105 transition-transform"
+                          title="Click to view profile"
                         />
                       ) : (
-                        <div className={`w-10 h-10 rounded-full flex items-center justify-center font-black text-xs shrink-0 shadow-2xs ${
-                          isLeft ? 'bg-rose-100 text-rose-700 border border-rose-200' : 'bg-indigo-100 text-indigo-700 border border-indigo-200'
-                        }`}>
+                        <div
+                          onClick={() => onViewProfile(student)}
+                          className={`w-12 h-12 rounded-full flex items-center justify-center font-black text-sm shrink-0 shadow-xs cursor-pointer hover:scale-105 transition-transform ${
+                            isLeft ? 'bg-rose-100 text-rose-700 border border-rose-200' : 'bg-indigo-100 text-indigo-700 border border-indigo-200'
+                          }`}
+                          title="Click to view profile"
+                        >
                           {student.name?.charAt(0)?.toUpperCase() || '?'}
                         </div>
                       )}
                       <div>
-                        <p className="font-bold text-slate-900 text-sm">{student.name}</p>
+                        <p
+                          onClick={() => onViewProfile(student)}
+                          className="font-bold text-slate-900 text-sm hover:text-indigo-600 cursor-pointer transition-colors"
+                        >
+                          {student.name}
+                        </p>
                         {student.email && <p className="text-xs text-slate-400">{student.email}</p>}
                       </div>
                     </div>
@@ -372,25 +383,36 @@ export default function StudentList({
           return (
             <div key={student.id} className="p-4 space-y-2.5">
               <div className="flex items-start justify-between gap-2">
-                <div className="flex items-center gap-2.5">
+                <div className="flex items-center gap-3">
                   {student.photo ? (
                     <img
                       src={student.photo}
                       alt={student.name}
+                      onClick={() => onViewProfile(student)}
                       onError={(e) => {
                         e.currentTarget.style.display = 'none';
                       }}
-                      className="w-11 h-11 rounded-full object-cover border-2 border-indigo-100/90 shrink-0 shadow-2xs ring-1 ring-slate-200/60"
+                      className="w-14 h-14 rounded-full object-cover border-2 border-indigo-100/90 shrink-0 shadow-xs ring-2 ring-slate-200/50 cursor-pointer active:scale-95 transition-transform"
+                      title="View Profile"
                     />
                   ) : (
-                    <div className={`w-11 h-11 rounded-full flex items-center justify-center font-black text-xs shrink-0 shadow-2xs ${
-                      isLeft ? 'bg-rose-100 text-rose-700 border border-rose-200' : 'bg-indigo-100 text-indigo-700 border border-indigo-200'
-                    }`}>
+                    <div
+                      onClick={() => onViewProfile(student)}
+                      className={`w-14 h-14 rounded-full flex items-center justify-center font-black text-base shrink-0 shadow-xs cursor-pointer active:scale-95 transition-transform ${
+                        isLeft ? 'bg-rose-100 text-rose-700 border border-rose-200' : 'bg-indigo-100 text-indigo-700 border border-indigo-200'
+                      }`}
+                      title="View Profile"
+                    >
                       {student.name?.charAt(0)?.toUpperCase() || '?'}
                     </div>
                   )}
                   <div>
-                    <h4 className="font-extrabold text-slate-900 text-sm leading-tight">{student.name}</h4>
+                    <h4
+                      onClick={() => onViewProfile(student)}
+                      className="font-extrabold text-slate-900 text-base leading-tight cursor-pointer hover:text-indigo-600 transition-colors"
+                    >
+                      {student.name}
+                    </h4>
                     <p className="text-xs text-slate-500 mt-0.5">📞 {student.phone}</p>
                   </div>
                 </div>
