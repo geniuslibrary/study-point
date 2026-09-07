@@ -1,7 +1,7 @@
 import React from 'react';
 import {
   Users, TrendingUp, Wallet, AlertCircle,
-  ArrowUpRight, ArrowDownRight, Sparkles
+  ArrowUpRight, ArrowDownRight, Sparkles, Armchair
 } from 'lucide-react';
 import { formatCurrency } from '../../utils/helpers';
 
@@ -32,7 +32,7 @@ const StatCard = ({ label, value, subLabel, subColor = 'text-gray-500', icon: Ic
   </div>
 );
 
-const StatsCards = ({ stats }) => {
+const StatsCards = ({ stats, hideRevenue = false }) => {
   const { totalStudents, seatsOccupied, totalSeats, revenue, pendingFees } = stats;
   const occupancyPct = totalSeats > 0 ? Math.round((seatsOccupied / totalSeats) * 100) : 0;
 
@@ -56,15 +56,27 @@ const StatsCards = ({ stats }) => {
         iconBg="bg-emerald-50"
         iconColor="text-emerald-600"
       />
-      <StatCard
-        label="Revenue (This Month)"
-        value={formatCurrency(revenue)}
-        subLabel="Cash, UPI & Bank"
-        subColor="text-indigo-500"
-        icon={Wallet}
-        iconBg="bg-violet-50"
-        iconColor="text-violet-600"
-      />
+      {!hideRevenue ? (
+        <StatCard
+          label="Revenue (This Month)"
+          value={formatCurrency(revenue)}
+          subLabel="Cash, UPI & Bank"
+          subColor="text-indigo-500"
+          icon={Wallet}
+          iconBg="bg-violet-50"
+          iconColor="text-violet-600"
+        />
+      ) : (
+        <StatCard
+          label="Vacant Available Seats"
+          value={Math.max(0, totalSeats - seatsOccupied)}
+          subLabel="Available to assign"
+          subColor="text-emerald-500"
+          icon={Armchair}
+          iconBg="bg-emerald-50"
+          iconColor="text-emerald-600"
+        />
+      )}
       <StatCard
         label="Pending Dues"
         value={pendingFees > 0 ? `${pendingFees} Students` : 'All Clear ✓'}

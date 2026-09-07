@@ -3,6 +3,7 @@ import Modal from '../common/Modal';
 import Button from '../common/Button';
 import { formatCurrency, formatDate, formatDateInput, calculateSeatAddonCharges, getStoredAddons } from '../../utils/helpers';
 import { Armchair, Clock, Tag, Calendar, Sparkles, CheckCircle2, ArrowRight, MessageSquare } from 'lucide-react';
+import { getActiveTemplates, renderTemplate } from '../../utils/templateHelpers';
 
 export default function CollectFeeModal({
   isOpen,
@@ -160,20 +161,23 @@ export default function CollectFeeModal({
         }
 
         const onlineReceiptUrl = `${window.location.origin}/receipt/${fee?.id}`;
+        const currentTemplates = getActiveTemplates();
 
-        const message = `🎉 *FEE PAYMENT RECEIPT - ${libraryTitle.toUpperCase()}*\n\n` +
-          `Hello *${student?.name || 'Student'}*,\n` +
-          `Your official fee payment of *₹${totalPayable}* has been confirmed!\n\n` +
-          `🧾 *Receipt No:* ${receiptNo}\n` +
-          `📦 *Plan:* ${activePlan.name}\n` +
-          (addonSummary ? addonSummary : '') +
-          (discount > 0 ? `🏷️ *Discount:* -₹${discount}\n` : '') +
-          `📅 *Validity Period:* ${validityText}\n` +
-          `💺 *Seat Allocated:* Seat #${displaySeatNumber} (${student?.shiftTiming || 'Shift'})\n` +
-          `💳 *Payment Mode:* ${(paymentMode || 'CASH').toUpperCase()}\n` +
-          `✅ *Status:* PAID & VERIFIED\n\n` +
-          `📄 *View & Download Official PDF Receipt:* \n👉 ${onlineReceiptUrl}\n\n` +
-          `Thank you for studying at ${libraryTitle}! 🙏`;
+        let message = renderTemplate(currentTemplates.feeReceipt?.template, {
+          student_name: student?.name || 'Student',
+          library_name: libraryTitle.toUpperCase(),
+          amount: totalPayable,
+          receipt_no: receiptNo,
+          plan_name: activePlan.name,
+          validity_period: validityText,
+          seat_number: displaySeatNumber,
+          shift: student?.shiftTiming || 'Shift',
+          payment_mode: (paymentMode || 'CASH').toUpperCase(),
+        });
+
+        if (addonSummary) message += `\n${addonSummary}`;
+        if (discount > 0) message += `🏷️ *Discount:* -₹${discount}\n`;
+        message += `\n\n📄 *View & Download Official PDF Receipt:* \n👉 ${onlineReceiptUrl}\n\nThank you for studying at ${libraryTitle}! 🙏`;
 
         const waUrl = `https://api.whatsapp.com/send?phone=${phoneWithCountry}&text=${encodeURIComponent(message)}`;
         window.open(waUrl, '_blank', 'noopener,noreferrer');

@@ -4,6 +4,7 @@ import { AlertCircle, MessageSquare, CheckCircle2, IndianRupee, ChevronRight, Ph
 import { formatCurrency, formatReminderTime } from '../../utils/helpers';
 import { updateDocument } from '../../firebase/storageService';
 import { COLLECTIONS } from '../../utils/constants';
+import { getActiveTemplates, renderTemplate } from '../../utils/templateHelpers';
 
 export default function PendingDuesAlert({ pendingFees = [] }) {
   const navigate = useNavigate();
@@ -12,11 +13,19 @@ export default function PendingDuesAlert({ pendingFees = [] }) {
   const handleSendReminder = async (item) => {
     const cleanPhone = (item.phone || '').replace(/\D/g, '');
     const phoneWithCountry = cleanPhone.length === 10 ? `91${cleanPhone}` : cleanPhone;
+    const currentMonth = `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}`;
+    const currentTemplates = getActiveTemplates();
     
-    const message = `Namaste ${item.studentName || 'Student'} ji 🙏\n\nYeh ek reminder hai Study Point Library ki taraf se. Aapki is mahine ki fees ₹${item.amount || 0} pending hai.\n\nKripya samay par jama karwayein taaki aapki seat reserve rahe.\n\nDhanyawad! ✨\nStudy Point Library`;
+    const message = renderTemplate(currentTemplates.feeDueReminder?.template, {
+      student_name: item.studentName || 'Student',
+      library_name: 'Study Point Library',
+      month: item.month || currentMonth,
+      amount: item.amount || 0,
+      seat_number: item.seatNumber || '—',
+      phone: item.phone || '',
+    });
 
     const nowIso = new Date().toISOString();
-    const currentMonth = `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}`;
 
     if (item.studentId) {
       setRemindedMap((prev) => ({ ...prev, [item.id]: nowIso }));

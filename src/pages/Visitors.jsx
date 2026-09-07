@@ -7,6 +7,7 @@ import { COLLECTIONS, SHIFTS } from '../utils/constants';
 import { fetchCollectionData, createDocument, updateDocument, removeDocument } from '../firebase/storageService';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
+import { getActiveTemplates, renderTemplate } from '../utils/templateHelpers';
 import {
   UserCheck,
   UserPlus,
@@ -205,12 +206,21 @@ export default function Visitors() {
   const handleWhatsAppReminder = (visitor) => {
     const cleanPhone = (visitor.phone || '').replace(/\D/g, '');
     const phoneWithCountry = cleanPhone.length === 10 ? `91${cleanPhone}` : cleanPhone;
+    const currentTemplates = getActiveTemplates();
 
     let message = '';
     if (visitor.purpose === 'demo') {
-      message = `Namaste ${visitor.name || 'Student'} ji 🙏\n\nStudy Point Library mein aapka free demo trial kaisa raha? Humari peaceful reading environment, comfortable AC seats aur study facilities pasand aayi?\n\nAgar aap apni regular seat confirm karna chahte hain toh batayein, seats limited hain.\n\nDhanyawad! ✨\nStudy Point Library`;
+      message = renderTemplate(currentTemplates.demoEndingToday?.template, {
+        student_name: visitor.name || 'Student',
+        library_name: 'Study Point Library',
+        phone: visitor.phone || '',
+      });
     } else {
-      message = `Namaste ${visitor.name || 'Student'} ji 🙏\n\nStudy Point Library visit karne ke liye dhanyawad! Kya aapne library join karne ka decide kiya hai? Humare paas peaceful study space aur personal lockers available hain.\n\nKisi bhi jaankari ke liye humse sampark karein!\n\nDhanyawad! ✨\nStudy Point Library`;
+      message = renderTemplate(currentTemplates.visitorWelcome?.template, {
+        student_name: visitor.name || 'Student',
+        library_name: 'Study Point Library',
+        phone: visitor.phone || '',
+      });
     }
 
     const waUrl = `https://api.whatsapp.com/send?phone=${phoneWithCountry}&text=${encodeURIComponent(message)}`;

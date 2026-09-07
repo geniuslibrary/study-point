@@ -10,6 +10,7 @@ import {
   CreditCard,
   Receipt,
   ShieldCheck,
+  Sliders,
   Settings,
   LogOut,
   Sparkles,
@@ -30,6 +31,7 @@ const Sidebar = ({ isOpen, setIsOpen, onLogout }) => {
     { name: 'Memberships & Plans', path: '/memberships', icon: CreditCard, module: 'memberships' },
     { name: 'Expenses & Utility', path: '/expenses', icon: Receipt, module: 'expenses' },
     { name: 'Staff & Roles', path: '/staff', icon: ShieldCheck, module: 'staff' },
+    { name: 'Customization', path: '/customization', icon: Sliders, module: 'settings' },
     { name: 'Settings', path: '/settings', icon: Settings, module: 'settings' },
   ];
 

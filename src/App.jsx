@@ -14,6 +14,7 @@ import Memberships from './pages/Memberships';
 import Expenses from './pages/Expenses';
 import StaffRoles from './pages/StaffRoles';
 import Settings from './pages/Settings';
+import Customization from './pages/Customization';
 import PublicReceipt from './pages/PublicReceipt';
 
 const ProtectedRoute = ({ children, requiredModule = null }) => {
@@ -151,6 +152,14 @@ function AppRoutes() {
         element={
           <ProtectedRoute requiredModule="settings">
             <Settings />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/customization"
+        element={
+          <ProtectedRoute requiredModule="settings">
+            <Customization />
           </ProtectedRoute>
         }
       />

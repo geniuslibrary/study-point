@@ -12,6 +12,7 @@ import {
 import { formatReminderTime } from '../../utils/helpers';
 import { updateDocument } from '../../firebase/storageService';
 import { COLLECTIONS } from '../../utils/constants';
+import { getActiveTemplates, renderTemplate } from '../../utils/templateHelpers';
 
 export default function LiveDemoTracker({
   visitors = [],
@@ -93,14 +94,31 @@ export default function LiveDemoTracker({
   const handleWhatsApp = async (visitor) => {
     const cleanPhone = (visitor.phone || '').replace(/\D/g, '');
     const phoneWithCountry = cleanPhone.length === 10 ? `91${cleanPhone}` : cleanPhone;
+    const currentTemplates = getActiveTemplates();
 
     let message = '';
     if (visitor.info?.type === 'today') {
-      message = `Namaste ${visitor.name || 'Student'} ji 🙏\n\nStudy Point Library me aaj aapke Free Demo Trial ka aakhiri din hai. Kaisi lagi aapko library aur study space?\n\nRegular seat confirm karwane ke liye humse sampark karein. Dhanyawad! ✨\nStudy Point Library`;
+      message = renderTemplate(currentTemplates.demoEndingToday?.template, {
+        student_name: visitor.name || 'Student',
+        library_name: 'Study Point Library',
+        seat_number: visitor.seatNumber || '—',
+        shift: visitor.shift || 'Shift',
+        phone: visitor.phone || '',
+      });
     } else if (visitor.info?.type === 'expired') {
-      message = `Namaste ${visitor.name || 'Student'} ji 🙏\n\nStudy Point Library me aapka demo trial complete ho chuka hai. Agar aap apni regular seat confirm karna chahte hain toh batayein, seats limited hain. Dhanyawad! ✨\nStudy Point Library`;
+      message = renderTemplate(currentTemplates.demoExpired?.template, {
+        student_name: visitor.name || 'Student',
+        library_name: 'Study Point Library',
+        seat_number: visitor.seatNumber || '—',
+        shift: visitor.shift || 'Shift',
+        phone: visitor.phone || '',
+      });
     } else {
-      message = `Namaste ${visitor.name || 'Student'} ji 🙏\n\nStudy Point Library me aapka free demo trial chal raha hai. Kisi bhi suvidha ya query ke liye humse sampark karein! ✨\nStudy Point Library`;
+      message = renderTemplate(currentTemplates.visitorWelcome?.template, {
+        student_name: visitor.name || 'Student',
+        library_name: 'Study Point Library',
+        phone: visitor.phone || '',
+      });
     }
 
     const nowIso = new Date().toISOString();

@@ -12,6 +12,14 @@ import { COLLECTIONS } from '../utils/constants';
 import { fetchCollectionData } from '../firebase/storageService';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
+import { doc, getDoc } from 'firebase/firestore';
+import { db } from '../firebase/config';
+import {
+  getActiveDashboardConfig,
+  getActiveStaffDashboardConfig,
+  DASHBOARD_CONFIG_STORAGE_KEY,
+  STAFF_DASHBOARD_CONFIG_STORAGE_KEY,
+} from '../utils/templateHelpers';
 import {
   Users,
   UserPlus,
@@ -35,6 +43,9 @@ export default function Dashboard() {
   const navigate = useNavigate();
 
   const [loading, setLoading] = useState(true);
+  const [dashConfig, setDashConfig] = useState(getActiveDashboardConfig());
+  const [staffConfig, setStaffConfig] = useState(getActiveStaffDashboardConfig());
+
   const [stats, setStats] = useState({
     totalStudents: 0,
     seatsOccupied: 0,
@@ -229,6 +240,24 @@ export default function Dashboard() {
       setVisitors(allVisitors || []);
       setAllSeatsList(uniqueSeatsList || []);
       setAllSectionsList(allSections || []);
+
+      // 7. Cloud Customization Settings
+      try {
+        const custSnap = await getDoc(doc(db, COLLECTIONS.SETTINGS, 'customization'));
+        if (custSnap.exists()) {
+          const data = custSnap.data();
+          if (data.dashboardConfig) {
+            setDashConfig(data.dashboardConfig);
+            localStorage.setItem(DASHBOARD_CONFIG_STORAGE_KEY, JSON.stringify(data.dashboardConfig));
+          }
+          if (data.staffDashboardConfig) {
+            setStaffConfig(data.staffDashboardConfig);
+            localStorage.setItem(STAFF_DASHBOARD_CONFIG_STORAGE_KEY, JSON.stringify(data.staffDashboardConfig));
+          }
+        }
+      } catch (err) {
+        console.warn('Could not load cloud customization settings, using local:', err);
+      }
     } catch (err) {
       console.error('Error fetching dashboard metrics:', err);
     } finally {
@@ -256,6 +285,18 @@ export default function Dashboard() {
   }
 
   const occupancyRate = stats.totalSeats > 0 ? Math.round((stats.seatsOccupied / stats.totalSeats) * 100) : 0;
+
+  // Customization & Role-based visibility flags
+  const isStaff = userRole !== 'owner';
+  const showQuickActions = dashConfig.quickActions !== false;
+  const showTodayPulse = dashConfig.todayPulse !== false && (!isStaff || !staffConfig.hideFinancialsFromStaff);
+  const showCoreStats = dashConfig.coreStats !== false;
+  const showRevenueChart = dashConfig.revenueChart !== false && (!isStaff || !staffConfig.hideFinancialsFromStaff);
+  const showPendingDues = dashConfig.pendingDuesAlert !== false && (!isStaff || staffConfig.allowStaffPendingDues !== false);
+  const showDemoTracker = dashConfig.demoTracker !== false && (!isStaff || staffConfig.allowStaffDemoTracker !== false);
+  const showOccupancy = dashConfig.occupancyOverview !== false && (!isStaff || staffConfig.allowStaffSeatOccupancy !== false);
+  const showShiftDist = dashConfig.shiftDistribution !== false && (!isStaff || staffConfig.allowStaffShiftDistribution !== false);
+  const showRecentActivity = dashConfig.recentActivity !== false && (!isStaff || staffConfig.allowStaffRecentActivity === true);
 
   return (
     <Layout title="Dashboard">
@@ -313,109 +354,133 @@ export default function Dashboard() {
         </div>
 
         {/* Quick Workflow Action Strip */}
-        <div className="bg-white rounded-2xl p-3 sm:p-4 border border-slate-200/80 shadow-xs">
-          <div className="flex items-center justify-between gap-2 overflow-x-auto scrollbar-hide py-1">
-            <button
-              onClick={() => navigate('/students')}
-              className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-slate-50 hover:bg-indigo-50 text-slate-700 hover:text-indigo-700 text-xs font-bold transition-all whitespace-nowrap flex-shrink-0 cursor-pointer group"
-            >
-              <Users className="w-4 h-4 text-indigo-600 group-hover:scale-110 transition-transform" />
-              <span>Students</span>
-            </button>
+        {showQuickActions && (
+          <div className="bg-white rounded-2xl p-3 sm:p-4 border border-slate-200/80 shadow-xs">
+            <div className="flex items-center justify-between gap-2 overflow-x-auto scrollbar-hide py-1">
+              <button
+                onClick={() => navigate('/students')}
+                className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-slate-50 hover:bg-indigo-50 text-slate-700 hover:text-indigo-700 text-xs font-bold transition-all whitespace-nowrap flex-shrink-0 cursor-pointer group"
+              >
+                <Users className="w-4 h-4 text-indigo-600 group-hover:scale-110 transition-transform" />
+                <span>Students</span>
+              </button>
 
-            <button
-              onClick={() => navigate('/visitors')}
-              className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-slate-50 hover:bg-blue-50 text-slate-700 hover:text-blue-700 text-xs font-bold transition-all whitespace-nowrap flex-shrink-0 cursor-pointer group"
-            >
-              <UserCheck className="w-4 h-4 text-blue-600 group-hover:scale-110 transition-transform" />
-              <span>Visit & Demo</span>
-            </button>
+              <button
+                onClick={() => navigate('/visitors')}
+                className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-slate-50 hover:bg-blue-50 text-slate-700 hover:text-blue-700 text-xs font-bold transition-all whitespace-nowrap flex-shrink-0 cursor-pointer group"
+              >
+                <UserCheck className="w-4 h-4 text-blue-600 group-hover:scale-110 transition-transform" />
+                <span>Visit & Demo</span>
+              </button>
 
-            <button
-              onClick={() => navigate('/seats')}
-              className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-slate-50 hover:bg-emerald-50 text-slate-700 hover:text-emerald-700 text-xs font-bold transition-all whitespace-nowrap flex-shrink-0 cursor-pointer group"
-            >
-              <Armchair className="w-4 h-4 text-emerald-600 group-hover:scale-110 transition-transform" />
-              <span>Seat Matrix</span>
-            </button>
+              <button
+                onClick={() => navigate('/seats')}
+                className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-slate-50 hover:bg-emerald-50 text-slate-700 hover:text-emerald-700 text-xs font-bold transition-all whitespace-nowrap flex-shrink-0 cursor-pointer group"
+              >
+                <Armchair className="w-4 h-4 text-emerald-600 group-hover:scale-110 transition-transform" />
+                <span>Seat Matrix</span>
+              </button>
 
-            <button
-              onClick={() => navigate('/fees')}
-              className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-slate-50 hover:bg-purple-50 text-slate-700 hover:text-purple-700 text-xs font-bold transition-all whitespace-nowrap flex-shrink-0 cursor-pointer group"
-            >
-              <CreditCard className="w-4 h-4 text-purple-600 group-hover:scale-110 transition-transform" />
-              <span>Fee Manager</span>
-            </button>
+              <button
+                onClick={() => navigate('/fees')}
+                className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-slate-50 hover:bg-purple-50 text-slate-700 hover:text-purple-700 text-xs font-bold transition-all whitespace-nowrap flex-shrink-0 cursor-pointer group"
+              >
+                <CreditCard className="w-4 h-4 text-purple-600 group-hover:scale-110 transition-transform" />
+                <span>Fee Manager</span>
+              </button>
 
-            <button
-              onClick={() => navigate('/expenses')}
-              className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-slate-50 hover:bg-rose-50 text-slate-700 hover:text-rose-700 text-xs font-bold transition-all whitespace-nowrap flex-shrink-0 cursor-pointer group"
-            >
-              <Receipt className="w-4 h-4 text-rose-600 group-hover:scale-110 transition-transform" />
-              <span>Expenses</span>
-            </button>
+              <button
+                onClick={() => navigate('/expenses')}
+                className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-slate-50 hover:bg-rose-50 text-slate-700 hover:text-rose-700 text-xs font-bold transition-all whitespace-nowrap flex-shrink-0 cursor-pointer group"
+              >
+                <Receipt className="w-4 h-4 text-rose-600 group-hover:scale-110 transition-transform" />
+                <span>Expenses</span>
+              </button>
 
-            <button
-              onClick={() => navigate('/reports')}
-              className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-slate-50 hover:bg-amber-50 text-slate-700 hover:text-amber-700 text-xs font-bold transition-all whitespace-nowrap flex-shrink-0 cursor-pointer group"
-            >
-              <FileSpreadsheet className="w-4 h-4 text-amber-600 group-hover:scale-110 transition-transform" />
-              <span>Reports & Statement</span>
-            </button>
+              <button
+                onClick={() => navigate('/reports')}
+                className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-slate-50 hover:bg-amber-50 text-slate-700 hover:text-amber-700 text-xs font-bold transition-all whitespace-nowrap flex-shrink-0 cursor-pointer group"
+              >
+                <FileSpreadsheet className="w-4 h-4 text-amber-600 group-hover:scale-110 transition-transform" />
+                <span>Reports & Statement</span>
+              </button>
+            </div>
           </div>
-        </div>
+        )}
 
         {/* ⚡ NEW: Today's Live Pulse (Aaj Ka Hisaab) */}
-        <TodayPulse
-          todayCollection={todayPulse.todayCollection}
-          todayFeesCount={todayPulse.todayFeesCount}
-          todayAdmissions={todayPulse.todayAdmissions}
-          todayExpense={todayPulse.todayExpense}
-          emptySeats={todayPulse.emptySeats}
-        />
+        {showTodayPulse && (
+          <TodayPulse
+            todayCollection={todayPulse.todayCollection}
+            todayFeesCount={todayPulse.todayFeesCount}
+            todayAdmissions={todayPulse.todayAdmissions}
+            todayExpense={todayPulse.todayExpense}
+            emptySeats={todayPulse.emptySeats}
+          />
+        )}
 
         {/* 4 Core Monthly Stat Cards */}
-        <StatsCards stats={stats} />
+        {showCoreStats && (
+          <StatsCards stats={stats} hideRevenue={isStaff && staffConfig.hideFinancialsFromStaff} />
+        )}
 
         {/* Row 1: Revenue vs Expenses Chart & Urgent Dues Follow-ups */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 sm:gap-6">
-          <div className="bg-white rounded-3xl p-5 sm:p-6 border border-slate-200/80 shadow-xs flex flex-col">
-            <RevenueChart data={chartData} />
+        {(showRevenueChart || showPendingDues) && (
+          <div className={`grid grid-cols-1 ${showRevenueChart && showPendingDues ? 'lg:grid-cols-2' : ''} gap-5 sm:gap-6`}>
+            {showRevenueChart && (
+              <div className="bg-white rounded-3xl p-5 sm:p-6 border border-slate-200/80 shadow-xs flex flex-col">
+                <RevenueChart data={chartData} />
+              </div>
+            )}
+            {showPendingDues && (
+              <div className="flex flex-col">
+                <PendingDuesAlert pendingFees={urgentPendingList} />
+              </div>
+            )}
           </div>
-          <div className="flex flex-col">
-            <PendingDuesAlert pendingFees={urgentPendingList} />
-          </div>
-        </div>
+        )}
 
         {/* Row 2: Visit & Demo Tracker + Section Occupancy */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 sm:gap-6">
-          <div className="flex flex-col">
-            <LiveDemoTracker
-              visitors={visitors}
-              seats={allSeatsList}
-              sections={allSectionsList}
-              onUpdate={fetchAll}
-            />
+        {(showDemoTracker || showOccupancy) && (
+          <div className={`grid grid-cols-1 ${showDemoTracker && showOccupancy ? 'lg:grid-cols-2' : ''} gap-5 sm:gap-6`}>
+            {showDemoTracker && (
+              <div className="flex flex-col">
+                <LiveDemoTracker
+                  visitors={visitors}
+                  seats={allSeatsList}
+                  sections={allSectionsList}
+                  onUpdate={fetchAll}
+                />
+              </div>
+            )}
+            {showOccupancy && (
+              <div className="bg-white rounded-3xl p-5 sm:p-6 border border-slate-200/80 shadow-xs flex flex-col">
+                <OccupancyOverview sections={occupancyData} />
+              </div>
+            )}
           </div>
-          <div className="bg-white rounded-3xl p-5 sm:p-6 border border-slate-200/80 shadow-xs flex flex-col">
-            <OccupancyOverview sections={occupancyData} />
-          </div>
-        </div>
+        )}
 
         {/* Row 3: Shift Distribution & Recent Fee Collections */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 sm:gap-6">
-          <div className="flex flex-col">
-            <ShiftDistribution
-              fullDayCount={shiftStats.fullDayCount}
-              morningCount={shiftStats.morningCount}
-              eveningCount={shiftStats.eveningCount}
-              totalStudents={stats.totalStudents}
-            />
+        {(showShiftDist || showRecentActivity) && (
+          <div className={`grid grid-cols-1 ${showShiftDist && showRecentActivity ? 'lg:grid-cols-2' : ''} gap-5 sm:gap-6`}>
+            {showShiftDist && (
+              <div className="flex flex-col">
+                <ShiftDistribution
+                  fullDayCount={shiftStats.fullDayCount}
+                  morningCount={shiftStats.morningCount}
+                  eveningCount={shiftStats.eveningCount}
+                  totalStudents={stats.totalStudents}
+                />
+              </div>
+            )}
+            {showRecentActivity && (
+              <div className="bg-white rounded-3xl border border-slate-200/80 shadow-xs overflow-hidden flex flex-col">
+                <RecentActivity fees={recentFees} />
+              </div>
+            )}
           </div>
-          <div className="bg-white rounded-3xl border border-slate-200/80 shadow-xs overflow-hidden flex flex-col">
-            <RecentActivity fees={recentFees} />
-          </div>
-        </div>
+        )}
 
       </div>
     </Layout>

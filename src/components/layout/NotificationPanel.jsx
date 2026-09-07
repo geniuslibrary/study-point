@@ -20,6 +20,7 @@ import { formatDate, formatCurrency, formatReminderTime } from '../../utils/help
 import { fetchCollectionData, updateDocument } from '../../firebase/storageService';
 import { doc, getDoc } from 'firebase/firestore';
 import { db } from '../../firebase/config';
+import { getActiveTemplates, renderTemplate } from '../../utils/templateHelpers';
 
 export default function NotificationPanel({ isOpen, onClose }) {
   const navigate = useNavigate();
@@ -175,6 +176,7 @@ export default function NotificationPanel({ isOpen, onClose }) {
   const handleWhatsAppReminder = async (student, type = 'expiry') => {
     const cleanPhone = (student.phone || '').replace(/\D/g, '');
     const phoneWithCountry = cleanPhone.length === 10 ? `91${cleanPhone}` : cleanPhone;
+    const currentTemplates = getActiveTemplates();
 
     let message = '';
     if (type === 'expiry') {
@@ -187,9 +189,23 @@ export default function NotificationPanel({ isOpen, onClose }) {
         statusPhrase = `आज (${formatDate(student.expiryDate)}) समाप्त हो रहा है`;
       }
 
-      message = `नमस्ते ${student.name} जी,\n${libraryName} की तरफ से यह रिमाइंडर है कि आपकी Seat #${student.seatNumber} (${student.shiftTiming || 'Shift'}) का Subscription ${statusPhrase}।\nकृपया अपनी सीट जारी रखने के लिए समय पर फीस जमा करें। धन्यवाद! 🙏`;
+      message = renderTemplate(currentTemplates.expiryReminder?.template, {
+        student_name: student.name || 'Student',
+        library_name: libraryName,
+        seat_number: student.seatNumber || '—',
+        shift: student.shiftTiming || 'Shift',
+        status_phrase: statusPhrase,
+        expiry_date: formatDate(student.expiryDate),
+      });
     } else {
-      message = `नमस्ते ${student.name} जी,\n${libraryName} में आपके चालू माह (${currentMonth}) की फीस बकाया है। कृपया समय पर फीस जमा करवाएं। धन्यवाद! 🙏`;
+      message = renderTemplate(currentTemplates.feeDueReminder?.template, {
+        student_name: student.name || 'Student',
+        library_name: libraryName,
+        month: currentMonth,
+        amount: student.pendingAmount || 0,
+        seat_number: student.seatNumber || '—',
+        phone: student.phone || '',
+      });
     }
 
     const nowIso = new Date().toISOString();
@@ -231,12 +247,25 @@ export default function NotificationPanel({ isOpen, onClose }) {
   const handleDemoWhatsApp = async (demo) => {
     const cleanPhone = (demo.phone || '').replace(/\D/g, '');
     const phoneWithCountry = cleanPhone.length === 10 ? `91${cleanPhone}` : cleanPhone;
+    const currentTemplates = getActiveTemplates();
 
     let message = '';
     if (demo.isToday) {
-      message = `नमस्ते ${demo.name} जी 🙏\n\n${libraryName} में आज आपके Free Demo Trial का आखिरी दिन है।\n\nआशा है आपको हमारी लाइब्रेरी का माहौल, शांत वातावरण और AC सीट पसंद आई होगी। अपनी सीट नियमित रूप से कन्फर्म करवाने के लिए संपर्क करें।\n\nधन्यवाद! ✨\n${libraryName}`;
+      message = renderTemplate(currentTemplates.demoEndingToday?.template, {
+        student_name: demo.name || 'Student',
+        library_name: libraryName,
+        seat_number: demo.seatNumber || '—',
+        shift: demo.shift || 'Shift',
+        phone: demo.phone || '',
+      });
     } else {
-      message = `नमस्ते ${demo.name} जी 🙏\n\n${libraryName} में आपका Free Demo Trial समाप्त हो चुका है।\n\nयदि आप अपनी सीट जारी रखना चाहते हैं तो कृपया जल्द संपर्क करें क्योंकि सीटें सीमित हैं।\n\nधन्यवाद! ✨\n${libraryName}`;
+      message = renderTemplate(currentTemplates.demoExpired?.template, {
+        student_name: demo.name || 'Student',
+        library_name: libraryName,
+        seat_number: demo.seatNumber || '—',
+        shift: demo.shift || 'Shift',
+        phone: demo.phone || '',
+      });
     }
 
     const nowIso = new Date().toISOString();
