@@ -21,6 +21,8 @@ import {
   Sunrise,
   Sunset,
   Sparkles,
+  Database,
+  Calendar,
 } from 'lucide-react';
 import { doc, getDoc, setDoc, collection, getDocs, deleteDoc, addDoc, updateDoc } from 'firebase/firestore';
 import { db } from '../firebase/config';
@@ -31,6 +33,7 @@ import {
   getTenantItem,
   setTenantItem,
 } from '../firebase/storageService';
+import { seedOneYearDummyData } from '../utils/seedData';
 
 const getSettingsLocalKey = () => `studypoint_${getActiveTenantId()}_settings`;
 const getAddonsLocalKey = () => `studypoint_${getActiveTenantId()}_addons`;
@@ -427,6 +430,36 @@ export default function Settings() {
       console.error('Error wiping data:', error);
       alert('Error wiping data. Check console.');
       setIsWiping(false);
+    }
+  };
+
+  // --- 1 YEAR DUMMY DATA GENERATOR ---
+  const [isLoadingDummy, setIsLoadingDummy] = useState(false);
+
+  const handleLoadOneYearDummyData = async () => {
+    const isConfirmed = window.confirm(
+      '⚡ Kya aap 1 saal (12 months) ka realistic dummy test data load karna chahte hain?\n\n' +
+      '• 3 Study Halls (50 Total Seats)\n' +
+      '• 36 Students (24 Active + 12 Past Left)\n' +
+      '• 12 Months Continuous Fee Records (₹2.5L+ Revenue)\n' +
+      '• 12 Months Expenses (Rent, Bills, WiFi, RO, Cleaning)\n' +
+      '• 7 Membership Plans & 3 Add-on Facilities\n' +
+      '• Inquiries / Demo Leads\n\n' +
+      'Yeh data sirf aapki active logged-in ID me load hoga.'
+    );
+    if (!isConfirmed) return;
+
+    setIsLoadingDummy(true);
+    try {
+      const res = await seedOneYearDummyData();
+      showToast('🎉 1 saal (12 mahine) ka dummy data successfully load ho gaya! Dashboard update ho raha hai...');
+      setTimeout(() => {
+        window.location.reload();
+      }, 1500);
+    } catch (err) {
+      console.error('Error loading 1 year dummy data:', err);
+      showToast('Error: ' + err.message);
+      setIsLoadingDummy(false);
     }
   };
 
@@ -881,6 +914,59 @@ export default function Settings() {
             </Card>
           </div>
           
+          {/* --- 1 YEAR DUMMY DATA GENERATOR --- */}
+          <div className="mt-8 border-t border-indigo-100 pt-8">
+            <Card title="⚡ Load 1 Year Dummy Data (1 साल का डमी डेटा लोड करें)">
+              <div className="space-y-4">
+                <p className="text-sm text-slate-600 leading-relaxed">
+                  Software ke sabhi features jaise <strong>12-Month Revenue Graphs, Daily/Monthly Reports, Admissions vs Exits Churn, Seat Occupancy</strong> aur <strong>Pending Dues & Expiries</strong> ko test karne ke liye 1 saal ka realistic dummy data load karein.
+                </p>
+
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                  <div className="p-3.5 bg-indigo-50/70 border border-indigo-100 rounded-2xl text-center">
+                    <p className="text-[11px] font-bold text-indigo-500 uppercase tracking-wider">Time Span</p>
+                    <p className="text-xl font-black text-indigo-900 mt-0.5">12 Months</p>
+                    <p className="text-[11px] text-slate-500 mt-0.5">Full 1 Year History</p>
+                  </div>
+                  <div className="p-3.5 bg-emerald-50/70 border border-emerald-100 rounded-2xl text-center">
+                    <p className="text-[11px] font-bold text-emerald-600 uppercase tracking-wider">Students</p>
+                    <p className="text-xl font-black text-emerald-900 mt-0.5">36 Students</p>
+                    <p className="text-[11px] text-slate-500 mt-0.5">24 Active + 12 Left</p>
+                  </div>
+                  <div className="p-3.5 bg-blue-50/70 border border-blue-100 rounded-2xl text-center">
+                    <p className="text-[11px] font-bold text-blue-600 uppercase tracking-wider">Study Halls</p>
+                    <p className="text-xl font-black text-blue-900 mt-0.5">3 Halls (50 Seats)</p>
+                    <p className="text-[11px] text-slate-500 mt-0.5">AC & Cabin Zones</p>
+                  </div>
+                  <div className="p-3.5 bg-purple-50/70 border border-purple-100 rounded-2xl text-center">
+                    <p className="text-[11px] font-bold text-purple-600 uppercase tracking-wider">Transactions</p>
+                    <p className="text-xl font-black text-purple-900 mt-0.5">280+ Records</p>
+                    <p className="text-[11px] text-slate-500 mt-0.5">12 Mo Fees & Expenses</p>
+                  </div>
+                </div>
+
+                <div className="bg-gradient-to-r from-indigo-50 to-purple-50 border border-indigo-200/80 rounded-2xl p-4 flex items-start gap-3">
+                  <Sparkles className="w-5 h-5 text-indigo-600 shrink-0 mt-0.5" />
+                  <div className="text-xs text-indigo-950 space-y-1">
+                    <p className="font-bold">Yeh Dummy Data sirf aapki active logged-in ID me hi load hoga.</p>
+                    <p className="text-slate-600">Genius Library ya kisi aur account ka data 100% safe rahega aur bilkul alag rahega.</p>
+                  </div>
+                </div>
+
+                <div className="pt-1">
+                  <Button
+                    onClick={handleLoadOneYearDummyData}
+                    loading={isLoadingDummy}
+                    className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold shadow-lg shadow-indigo-200 px-6 py-2.5 rounded-xl text-sm"
+                  >
+                    <Database className="w-4 h-4 mr-2" />
+                    Load 1 Year Dummy Data (1 साल का डेटा लोड करें)
+                  </Button>
+                </div>
+              </div>
+            </Card>
+          </div>
+
           {/* --- DANGER ZONE --- */}
           <div className="mt-8 border-t border-rose-100 pt-8">
             <Card title="Danger Zone (Factory Reset)">
