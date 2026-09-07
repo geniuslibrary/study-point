@@ -6,10 +6,11 @@ import { BookOpen, Download, MessageSquare, CheckCircle2, PenTool, Loader2, Exte
 import { doc, getDoc } from 'firebase/firestore';
 import { db } from '../../firebase/config';
 import { COLLECTIONS } from '../../utils/constants';
+import { getFirestoreDocRef, getActiveTenantId, getTenantStorageKey } from '../../firebase/storageService';
 import html2canvas from 'html2canvas';
 import { jsPDF } from 'jspdf';
 
-const SETTINGS_LOCAL_KEY = 'studypoint_settings';
+const getSettingsKey = () => getTenantStorageKey('settings');
 
 export default function FeeReceipt({ isOpen, onClose, fee, student, section, seat }) {
   const receiptRef = useRef(null);
@@ -29,7 +30,12 @@ export default function FeeReceipt({ isOpen, onClose, fee, student, section, sea
   useEffect(() => {
     if (!isOpen) return;
 
-    const local = localStorage.getItem(SETTINGS_LOCAL_KEY);
+    const sKey = getSettingsKey();
+    let local = localStorage.getItem(sKey);
+    if (!local && getActiveTenantId() === 'genius_root') {
+      local = localStorage.getItem('studypoint_settings');
+      if (local) localStorage.setItem(sKey, local);
+    }
     if (local) {
       try {
         setLibraryInfo((prev) => ({ ...prev, ...JSON.parse(local) }));
@@ -38,11 +44,11 @@ export default function FeeReceipt({ isOpen, onClose, fee, student, section, sea
 
     const fetchCloudSettings = async () => {
       try {
-        const docSnap = await getDoc(doc(db, COLLECTIONS.SETTINGS, 'ownerProfile'));
+        const docSnap = await getDoc(getFirestoreDocRef(COLLECTIONS.SETTINGS, 'ownerProfile'));
         if (docSnap.exists()) {
           const data = docSnap.data();
           setLibraryInfo((prev) => ({ ...prev, ...data }));
-          localStorage.setItem(SETTINGS_LOCAL_KEY, JSON.stringify(data));
+          localStorage.setItem(sKey, JSON.stringify(data));
         }
       } catch (e) {
         console.warn('Receipt settings fetch warning:', e.message);
@@ -95,7 +101,9 @@ export default function FeeReceipt({ isOpen, onClose, fee, student, section, sea
     (student?.seatId ? student.seatId : '—');
 
   const pdfFileName = `Fee_Receipt_${(student?.name || 'Student').replace(/\s+/g, '_')}_${receiptNo}.pdf`;
-  const onlineReceiptUrl = `${window.location.origin}/receipt/${fee.id}`;
+  const tenantId = getActiveTenantId();
+  const tenantParam = tenantId && tenantId !== 'genius_root' ? `?tenant=${tenantId}` : '';
+  const onlineReceiptUrl = `${window.location.origin}/receipt/${fee.id}${tenantParam}`;
 
   // 1. Download / Save as PDF via native browser dialog (Guaranteed Strict 1 of 1 Page)
   const handleDownloadPDF = () => {

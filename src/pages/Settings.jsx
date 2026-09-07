@@ -24,10 +24,17 @@ import {
 } from 'lucide-react';
 import { doc, getDoc, setDoc, collection, getDocs, deleteDoc, addDoc, updateDoc } from 'firebase/firestore';
 import { db } from '../firebase/config';
+import {
+  getActiveTenantId,
+  getFirestoreCollectionRef,
+  getFirestoreDocRef,
+  getTenantItem,
+  setTenantItem,
+} from '../firebase/storageService';
 
-const SETTINGS_LOCAL_KEY = 'studypoint_settings';
-const ADDONS_LOCAL_KEY = 'studypoint_addons';
-const SHIFTS_LOCAL_KEY = 'studypoint_shifts';
+const getSettingsLocalKey = () => `studypoint_${getActiveTenantId()}_settings`;
+const getAddonsLocalKey = () => `studypoint_${getActiveTenantId()}_addons`;
+const getShiftsLocalKey = () => `studypoint_${getActiveTenantId()}_shifts`;
 
 export default function Settings() {
   const fileInputRef = useRef(null);
@@ -55,8 +62,13 @@ export default function Settings() {
   const [isSavingShifts, setIsSavingShifts] = useState(false);
 
   const fetchSettings = async () => {
-    // 1. Check LocalStorage first for instantaneous render
-    const local = localStorage.getItem(SETTINGS_LOCAL_KEY);
+    // 1. Check LocalStorage first for instantaneous render (tenant-scoped)
+    const sKey = getSettingsLocalKey();
+    let local = localStorage.getItem(sKey);
+    if (!local && getActiveTenantId() === 'genius_root') {
+      local = localStorage.getItem('studypoint_settings');
+      if (local) localStorage.setItem(sKey, local);
+    }
     if (local) {
       try {
         setInfo((prev) => ({ ...prev, ...JSON.parse(local) }));
@@ -64,49 +76,60 @@ export default function Settings() {
     }
 
     try {
-      const settingsDoc = await getDoc(doc(db, COLLECTIONS.SETTINGS, 'ownerProfile'));
+      const settingsDoc = await getDoc(getFirestoreDocRef(COLLECTIONS.SETTINGS, 'ownerProfile'));
       if (settingsDoc.exists()) {
         const cloudData = settingsDoc.data();
         setInfo((prev) => ({ ...prev, ...cloudData }));
-        localStorage.setItem(SETTINGS_LOCAL_KEY, JSON.stringify(cloudData));
+        localStorage.setItem(sKey, JSON.stringify(cloudData));
       }
     } catch (e) {
       console.warn('Settings fetch warning:', e.message);
     }
 
-    // 2. Fetch Shifts Configuration
+    // 2. Fetch Shifts Configuration (tenant-scoped)
     try {
-      const localShifts = localStorage.getItem(SHIFTS_LOCAL_KEY);
+      const shKey = getShiftsLocalKey();
+      let localShifts = localStorage.getItem(shKey);
+      if (!localShifts && getActiveTenantId() === 'genius_root') {
+        localShifts = localStorage.getItem('studypoint_shifts');
+        if (localShifts) localStorage.setItem(shKey, localShifts);
+      }
       if (localShifts) {
         setShifts(JSON.parse(localShifts));
       } else {
-        const shiftDoc = await getDoc(doc(db, COLLECTIONS.SETTINGS, 'shiftTimings'));
+        const shiftDoc = await getDoc(getFirestoreDocRef(COLLECTIONS.SETTINGS, 'shiftTimings'));
         if (shiftDoc.exists() && shiftDoc.data().shifts) {
           setShifts(shiftDoc.data().shifts);
-          localStorage.setItem(SHIFTS_LOCAL_KEY, JSON.stringify(shiftDoc.data().shifts));
+          localStorage.setItem(shKey, JSON.stringify(shiftDoc.data().shifts));
         }
       }
     } catch (e) {
       console.warn('Shift settings fetch warning:', e.message);
     }
 
-    // 3. Fetch Add-ons
+    // 3. Fetch Add-ons (tenant-scoped)
     try {
-      const localAddons = localStorage.getItem(ADDONS_LOCAL_KEY);
+      const adKey = getAddonsLocalKey();
+      let localAddons = localStorage.getItem(adKey);
+      if (!localAddons && getActiveTenantId() === 'genius_root') {
+        localAddons = localStorage.getItem('studypoint_addons');
+        if (localAddons) localStorage.setItem(adKey, localAddons);
+      }
       if (localAddons) {
         try {
           setAddons(JSON.parse(localAddons));
         } catch (e) {}
       }
 
-      const addonSnap = await getDocs(collection(db, COLLECTIONS.ADDON_PRICING));
+      const addonSnap = await getDocs(getFirestoreCollectionRef(COLLECTIONS.ADDON_PRICING));
       const addonsData = addonSnap.docs.map((d) => ({ id: d.id, ...d.data() }));
 
-      if (addonsData.length === 0 && !localStorage.getItem('studypoint_addons_initialized')) {
+      const initKey = `studypoint_${getActiveTenantId()}_addons_initialized`;
+      if (addonsData.length === 0 && !localStorage.getItem(initKey)) {
         const seeded = [];
         for (const def of DEFAULT_ADDONS) {
           try {
-            const added = await addDoc(collection(db, COLLECTIONS.ADDON_PRICING), {
+            const added = await addDoc(getFirestoreCollectionRef(COLLECTIONS.ADDON_PRICING), {
               name: def.name,
               monthlyCharge: Number(def.monthlyCharge) || 0,
               isActive: true,
@@ -116,12 +139,12 @@ export default function Settings() {
             seeded.push({ id: 'addon_' + Math.random().toString(36).substr(2, 6), ...def });
           }
         }
-        localStorage.setItem('studypoint_addons_initialized', 'true');
-        localStorage.setItem(ADDONS_LOCAL_KEY, JSON.stringify(seeded));
+        localStorage.setItem(initKey, 'true');
+        localStorage.setItem(adKey, JSON.stringify(seeded));
         setAddons(seeded);
       } else {
-        localStorage.setItem('studypoint_addons_initialized', 'true');
-        localStorage.setItem(ADDONS_LOCAL_KEY, JSON.stringify(addonsData));
+        localStorage.setItem(initKey, 'true');
+        localStorage.setItem(adKey, JSON.stringify(addonsData));
         setAddons(addonsData);
       }
     } catch (e) {
@@ -188,10 +211,13 @@ export default function Settings() {
     e.preventDefault();
     setIsSaving(true);
     try {
-      localStorage.setItem(SETTINGS_LOCAL_KEY, JSON.stringify(info));
+      const sKey = getSettingsLocalKey();
+      localStorage.setItem(sKey, JSON.stringify(info));
+      setTenantItem('library_name', info.studyPointName);
+      setTenantItem('library_phone', info.phone);
 
       try {
-        await setDoc(doc(db, COLLECTIONS.SETTINGS, 'ownerProfile'), info);
+        await setDoc(getFirestoreDocRef(COLLECTIONS.SETTINGS, 'ownerProfile'), info);
       } catch (cloudErr) {
         console.warn('Cloud save warning:', cloudErr.message);
       }
@@ -251,14 +277,14 @@ export default function Settings() {
     );
   };
 
-  // Save Shift Timings to Firestore & LocalStorage
+  // Save Shift Timings to Firestore & LocalStorage (tenant-scoped)
   const handleSaveShifts = async (e) => {
     if (e) e.preventDefault();
     setIsSavingShifts(true);
     try {
-      localStorage.setItem(SHIFTS_LOCAL_KEY, JSON.stringify(shifts));
+      localStorage.setItem(getShiftsLocalKey(), JSON.stringify(shifts));
       try {
-        await setDoc(doc(db, COLLECTIONS.SETTINGS, 'shiftTimings'), { shifts });
+        await setDoc(getFirestoreDocRef(COLLECTIONS.SETTINGS, 'shiftTimings'), { shifts });
       } catch (cloudErr) {
         console.warn('Cloud shift save warning:', cloudErr.message);
       }
@@ -271,7 +297,7 @@ export default function Settings() {
     }
   };
 
-  // Add new Add-on Facility
+  // Add new Add-on Facility (tenant-scoped)
   const handleAddAddon = async (e) => {
     if (e) e.preventDefault();
     if (!newAddon.name.trim()) return;
@@ -280,7 +306,7 @@ export default function Settings() {
     try {
       let newDocId = 'addon_' + Date.now();
       try {
-        const added = await addDoc(collection(db, COLLECTIONS.ADDON_PRICING), {
+        const added = await addDoc(getFirestoreCollectionRef(COLLECTIONS.ADDON_PRICING), {
           name: newAddon.name.trim(),
           monthlyCharge: chargeNum,
           isActive: true,
@@ -292,7 +318,7 @@ export default function Settings() {
 
       const updated = [...addons, { id: newDocId, name: newAddon.name.trim(), monthlyCharge: chargeNum, isActive: true }];
       setAddons(updated);
-      localStorage.setItem(ADDONS_LOCAL_KEY, JSON.stringify(updated));
+      localStorage.setItem(getAddonsLocalKey(), JSON.stringify(updated));
       setNewAddon({ name: '', monthlyCharge: '' });
       showToast(`Facility "${newAddon.name.trim()}" added successfully!`);
     } catch (e) {
@@ -309,14 +335,14 @@ export default function Settings() {
     });
   };
 
-  // Save Edit of an Add-on
+  // Save Edit of an Add-on (tenant-scoped)
   const handleSaveEditAddon = async (id) => {
     if (!editAddonData.name.trim()) return;
     const chargeNum = editAddonData.monthlyCharge === '' ? 0 : Number(editAddonData.monthlyCharge) || 0;
 
     try {
       try {
-        await updateDoc(doc(db, COLLECTIONS.ADDON_PRICING, id), {
+        await updateDoc(getFirestoreDocRef(COLLECTIONS.ADDON_PRICING, id), {
           name: editAddonData.name.trim(),
           monthlyCharge: chargeNum,
         });
@@ -328,7 +354,7 @@ export default function Settings() {
         a.id === id ? { ...a, name: editAddonData.name.trim(), monthlyCharge: chargeNum } : a
       );
       setAddons(updated);
-      localStorage.setItem(ADDONS_LOCAL_KEY, JSON.stringify(updated));
+      localStorage.setItem(getAddonsLocalKey(), JSON.stringify(updated));
       setEditingAddonId(null);
       showToast('Facility details updated successfully!');
     } catch (e) {
@@ -336,18 +362,18 @@ export default function Settings() {
     }
   };
 
-  // Delete an Add-on
+  // Delete an Add-on (tenant-scoped)
   const handleDeleteAddon = async (id) => {
     try {
       try {
-        await deleteDoc(doc(db, COLLECTIONS.ADDON_PRICING, id));
+        await deleteDoc(getFirestoreDocRef(COLLECTIONS.ADDON_PRICING, id));
       } catch (err) {
         console.warn('Cloud delete addon error:', err);
       }
 
       const updated = addons.filter((a) => a.id !== id);
       setAddons(updated);
-      localStorage.setItem(ADDONS_LOCAL_KEY, JSON.stringify(updated));
+      localStorage.setItem(getAddonsLocalKey(), JSON.stringify(updated));
       showToast('Facility Add-on removed');
     } catch (e) {
       console.error('Error deleting addon:', e);
@@ -368,7 +394,7 @@ export default function Settings() {
     return <Clock className="w-4 h-4 text-teal-600 shrink-0" />;
   };
 
-  // --- FACTORY RESET ---
+  // --- FACTORY RESET (Strictly Tenant Scoped - Safe for multi-account) ---
   const [showWipeConfirm, setShowWipeConfirm] = useState(false);
   const [wipeInput, setWipeInput] = useState('');
   const [isWiping, setIsWiping] = useState(false);
@@ -377,15 +403,25 @@ export default function Settings() {
     if (wipeInput !== 'CONFIRM') return;
     setIsWiping(true);
     try {
+      const tenantId = getActiveTenantId();
       const allColls = Object.values(COLLECTIONS);
       for (const collName of allColls) {
-        const collRef = collection(db, collName);
+        const collRef = getFirestoreCollectionRef(collName, tenantId);
         const snap = await getDocs(collRef);
         for (const d of snap.docs) {
-          await deleteDoc(doc(db, collName, d.id));
+          await deleteDoc(getFirestoreDocRef(collName, d.id, tenantId));
         }
       }
-      localStorage.clear();
+      // Remove only this tenant's local data
+      allColls.forEach((c) => {
+        localStorage.removeItem(`studypoint_${tenantId}_db_${c}`);
+      });
+      localStorage.removeItem(getSettingsLocalKey());
+      localStorage.removeItem(getAddonsLocalKey());
+      localStorage.removeItem(getShiftsLocalKey());
+      localStorage.removeItem(`studypoint_${tenantId}_whatsapp_templates`);
+      localStorage.removeItem(`studypoint_${tenantId}_dashboard_config`);
+      localStorage.removeItem(`studypoint_${tenantId}_dashboard_order`);
       window.location.href = '/';
     } catch (error) {
       console.error('Error wiping data:', error);

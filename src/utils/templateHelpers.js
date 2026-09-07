@@ -1,3 +1,5 @@
+import { getActiveTenantId } from '../firebase/storageService';
+
 // Default WhatsApp Templates & Replacer Utilities
 
 export const TEMPLATE_CATEGORIES = [
@@ -320,6 +322,12 @@ export const DEFAULT_DASHBOARD_ORDER = [
 
 export const DEFAULT_STAFF_DASHBOARD_CONFIG = DEFAULT_STAFF_DASHBOARD_WIDGETS;
 
+export const getWhatsAppTemplatesStorageKey = () => `studypoint_${getActiveTenantId()}_whatsapp_templates`;
+export const getDashboardConfigStorageKey = () => `studypoint_${getActiveTenantId()}_dashboard_config`;
+export const getDashboardOrderStorageKey = () => `studypoint_${getActiveTenantId()}_dashboard_order`;
+export const getStaffDashboardConfigStorageKey = () => `studypoint_${getActiveTenantId()}_staff_dashboard_config`;
+
+// Legacy keys for backward compatibility
 export const WHATSAPP_TEMPLATES_STORAGE_KEY = 'studypoint_whatsapp_templates';
 export const DASHBOARD_CONFIG_STORAGE_KEY = 'studypoint_dashboard_config';
 export const DASHBOARD_ORDER_STORAGE_KEY = 'studypoint_dashboard_order';
@@ -336,10 +344,15 @@ export const renderTemplate = (templateString, data = {}) => {
   return result;
 };
 
-// Retrieve saved templates or fallback to defaults
+// Retrieve saved templates or fallback to defaults (tenant-scoped)
 export const getActiveTemplates = () => {
   try {
-    const local = localStorage.getItem(WHATSAPP_TEMPLATES_STORAGE_KEY);
+    const key = getWhatsAppTemplatesStorageKey();
+    let local = localStorage.getItem(key);
+    if (!local && getActiveTenantId() === 'genius_root') {
+      local = localStorage.getItem(WHATSAPP_TEMPLATES_STORAGE_KEY);
+      if (local) localStorage.setItem(key, local);
+    }
     if (local) {
       const parsed = JSON.parse(local);
       return { ...DEFAULT_WHATSAPP_TEMPLATES, ...parsed };
@@ -348,10 +361,15 @@ export const getActiveTemplates = () => {
   return DEFAULT_WHATSAPP_TEMPLATES;
 };
 
-// Retrieve saved dashboard config or fallback to defaults
+// Retrieve saved dashboard config or fallback to defaults (tenant-scoped)
 export const getActiveDashboardConfig = () => {
   try {
-    const local = localStorage.getItem(DASHBOARD_CONFIG_STORAGE_KEY);
+    const key = getDashboardConfigStorageKey();
+    let local = localStorage.getItem(key);
+    if (!local && getActiveTenantId() === 'genius_root') {
+      local = localStorage.getItem(DASHBOARD_CONFIG_STORAGE_KEY);
+      if (local) localStorage.setItem(key, local);
+    }
     if (local) {
       return { ...DEFAULT_DASHBOARD_CONFIG, ...JSON.parse(local) };
     }
@@ -359,10 +377,15 @@ export const getActiveDashboardConfig = () => {
   return DEFAULT_DASHBOARD_CONFIG;
 };
 
-// Retrieve saved staff dashboard config
+// Retrieve saved staff dashboard config (tenant-scoped)
 export const getActiveStaffDashboardConfig = () => {
   try {
-    const local = localStorage.getItem(STAFF_DASHBOARD_CONFIG_STORAGE_KEY);
+    const key = getStaffDashboardConfigStorageKey();
+    let local = localStorage.getItem(key);
+    if (!local && getActiveTenantId() === 'genius_root') {
+      local = localStorage.getItem(STAFF_DASHBOARD_CONFIG_STORAGE_KEY);
+      if (local) localStorage.setItem(key, local);
+    }
     if (local) {
       return { ...DEFAULT_STAFF_DASHBOARD_CONFIG, ...JSON.parse(local) };
     }
@@ -370,10 +393,15 @@ export const getActiveStaffDashboardConfig = () => {
   return DEFAULT_STAFF_DASHBOARD_CONFIG;
 };
 
-// Retrieve saved dashboard widgets sequence order or fallback to defaults
+// Retrieve saved dashboard widgets sequence order or fallback to defaults (tenant-scoped)
 export const getActiveDashboardOrder = () => {
   try {
-    const local = localStorage.getItem(DASHBOARD_ORDER_STORAGE_KEY);
+    const key = getDashboardOrderStorageKey();
+    let local = localStorage.getItem(key);
+    if (!local && getActiveTenantId() === 'genius_root') {
+      local = localStorage.getItem(DASHBOARD_ORDER_STORAGE_KEY);
+      if (local) localStorage.setItem(key, local);
+    }
     if (local) {
       const parsed = JSON.parse(local);
       if (Array.isArray(parsed) && parsed.length > 0) {

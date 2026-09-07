@@ -17,7 +17,7 @@ import {
 } from 'lucide-react';
 import { COLLECTIONS } from '../../utils/constants';
 import { formatDate, formatCurrency, formatReminderTime } from '../../utils/helpers';
-import { fetchCollectionData, updateDocument } from '../../firebase/storageService';
+import { fetchCollectionData, updateDocument, getFirestoreDocRef } from '../../firebase/storageService';
 import { doc, getDoc } from 'firebase/firestore';
 import { db } from '../../firebase/config';
 import { getActiveTemplates, renderTemplate } from '../../utils/templateHelpers';
@@ -62,7 +62,7 @@ export default function NotificationPanel({ isOpen, onClose }) {
         setVisitors(visitorDocs || []);
 
         try {
-          const settingsSnap = await getDoc(doc(db, COLLECTIONS.SETTINGS, 'ownerProfile'));
+          const settingsSnap = await getDoc(getFirestoreDocRef(COLLECTIONS.SETTINGS, 'ownerProfile'));
           if (settingsSnap.exists() && settingsSnap.data().studyPointName) {
             setLibraryName(settingsSnap.data().studyPointName);
           }

@@ -9,13 +9,15 @@ import ShiftDistribution from '../components/dashboard/ShiftDistribution';
 import PendingDuesAlert from '../components/dashboard/PendingDuesAlert';
 import LiveDemoTracker from '../components/dashboard/LiveDemoTracker';
 import { COLLECTIONS, SEAT_STATUS } from '../utils/constants';
-import { fetchCollectionData, updateDocument } from '../firebase/storageService';
+import { fetchCollectionData, updateDocument, getFirestoreDocRef } from '../firebase/storageService';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { doc, getDoc } from 'firebase/firestore';
 import { db } from '../firebase/config';
 import {
   getActiveDashboardConfig,
+  getDashboardConfigStorageKey,
+  getDashboardOrderStorageKey,
   DASHBOARD_CONFIG_STORAGE_KEY,
   DEFAULT_STAFF_DASHBOARD_WIDGETS,
   getActiveDashboardOrder,
@@ -333,18 +335,18 @@ export default function Dashboard() {
       const mLeft = students.filter((s) => s.status === 'left' || s.status === 'inactive').length;
       setAdmissionsVsLeft({ admissions: mAdmissions, left: mLeft });
 
-      // 8. Cloud Customization Settings (Owner / Library Default)
+      // 8. Cloud Customization Settings (Owner / Library Default - tenant-scoped)
       try {
-        const custSnap = await getDoc(doc(db, COLLECTIONS.SETTINGS, 'customization'));
+        const custSnap = await getDoc(getFirestoreDocRef(COLLECTIONS.SETTINGS, 'customization'));
         if (custSnap.exists()) {
           const data = custSnap.data();
           if (data.dashboardConfig) {
             setDashConfig(data.dashboardConfig);
-            localStorage.setItem(DASHBOARD_CONFIG_STORAGE_KEY, JSON.stringify(data.dashboardConfig));
+            localStorage.setItem(getDashboardConfigStorageKey(), JSON.stringify(data.dashboardConfig));
           }
           if (data.dashboardWidgetOrder && Array.isArray(data.dashboardWidgetOrder)) {
             setWidgetOrder(data.dashboardWidgetOrder);
-            localStorage.setItem(DASHBOARD_ORDER_STORAGE_KEY, JSON.stringify(data.dashboardWidgetOrder));
+            localStorage.setItem(getDashboardOrderStorageKey(), JSON.stringify(data.dashboardWidgetOrder));
           }
         }
       } catch (err) {

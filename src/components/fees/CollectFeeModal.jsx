@@ -4,6 +4,7 @@ import Button from '../common/Button';
 import { formatCurrency, formatDate, formatDateInput, calculateSeatAddonCharges, getStoredAddons } from '../../utils/helpers';
 import { Armchair, Clock, Tag, Calendar, Sparkles, CheckCircle2, ArrowRight, MessageSquare } from 'lucide-react';
 import { getActiveTemplates, renderTemplate } from '../../utils/templateHelpers';
+import { getActiveTenantId, getTenantItem } from '../../firebase/storageService';
 
 export default function CollectFeeModal({
   isOpen,
@@ -145,13 +146,10 @@ export default function CollectFeeModal({
         const cleanPhone = (student?.phone || '').replace(/\D/g, '');
         const phoneWithCountry = cleanPhone.length === 10 ? `91${cleanPhone}` : cleanPhone;
         
-        const libraryTitle = localStorage.getItem('studypoint_library_name') || 'Study Point Library';
-        const receiptNo = fee?.receiptNumber || `REC-${Date.now().toString().slice(-6)}`;
-        
-        const startText = formatDate(startDateObj.toISOString());
-        const endText = formatDate(endDateObj.toISOString());
-        const validityText = `${startText} to ${endText}`;
-        const displaySeatNumber = seat?.seatNumber || 'N/A';
+        const libraryTitle = getTenantItem('library_name', 'Study Point Library');
+        const validityText = (validityStart && validityEnd)
+          ? `${formatDate(validityStart)} to ${formatDate(validityEnd)}`
+          : (activePlan.durationMonths ? `${activePlan.durationMonths} Month(s)` : `${activePlan.durationDays || 10} Day(s)`);
 
         let addonSummary = '';
         if (Object.keys(addonCharges).length > 0) {
@@ -160,7 +158,9 @@ export default function CollectFeeModal({
             .join('');
         }
 
-        const onlineReceiptUrl = `${window.location.origin}/receipt/${fee?.id}`;
+        const tenantId = getActiveTenantId();
+        const tenantParam = tenantId && tenantId !== 'genius_root' ? `?tenant=${tenantId}` : '';
+        const onlineReceiptUrl = `${window.location.origin}/receipt/${fee?.id}${tenantParam}`;
         const currentTemplates = getActiveTemplates();
 
         let message = renderTemplate(currentTemplates.feeReceipt?.template, {

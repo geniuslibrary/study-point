@@ -55,13 +55,19 @@ import {
   STAFF_DASHBOARD_CONFIG_STORAGE_KEY,
   renderTemplate,
   getActiveDashboardOrder,
+  getActiveDashboardConfig,
+  getActiveTemplates,
+  getWhatsAppTemplatesStorageKey,
+  getDashboardConfigStorageKey,
+  getDashboardOrderStorageKey,
   TEMPLATE_CATEGORIES,
   TAG_METADATA,
   TEMPLATE_PRESETS,
 } from '../utils/templateHelpers';
-import { doc, getDoc, setDoc } from 'firebase/firestore';
+import { getDoc, setDoc } from 'firebase/firestore';
 import { db } from '../firebase/config';
 import { COLLECTIONS } from '../utils/constants';
+import { getFirestoreDocRef, getTenantItem, setTenantItem } from '../firebase/storageService';
 
 export default function Customization() {
   const [activeTab, setActiveTab] = useState('dashboard'); // 'dashboard' | 'whatsapp' | 'staff'
@@ -86,47 +92,37 @@ export default function Customization() {
     description: '',
     template: '',
   });
-  const [testPhone, setTestPhone] = useState(localStorage.getItem('studypoint_library_phone') || '');
+  const [testPhone, setTestPhone] = useState(getTenantItem('library_phone', ''));
   const templateTextareaRef = useRef(null);
 
-  // Load from LocalStorage and Firestore
+  // Load from LocalStorage and Firestore (tenant-scoped)
   useEffect(() => {
     const loadAllConfigs = async () => {
       // 1. LocalStorage
       try {
-        const localDash = localStorage.getItem(DASHBOARD_CONFIG_STORAGE_KEY);
-        if (localDash) setDashConfig({ ...DEFAULT_DASHBOARD_CONFIG, ...JSON.parse(localDash) });
-
-        const localOrder = localStorage.getItem(DASHBOARD_ORDER_STORAGE_KEY);
-        if (localOrder) {
-          const parsed = JSON.parse(localOrder);
-          if (Array.isArray(parsed) && parsed.length > 0) {
-            setWidgetOrder(parsed);
-          }
-        }
-
-        const localWA = localStorage.getItem(WHATSAPP_TEMPLATES_STORAGE_KEY);
-        if (localWA) setTemplates({ ...DEFAULT_WHATSAPP_TEMPLATES, ...JSON.parse(localWA) });
+        setDashConfig(getActiveDashboardConfig());
+        setWidgetOrder(getActiveDashboardOrder());
+        setTemplates(getActiveTemplates());
       } catch (e) {
         console.error('Error reading local customization settings', e);
       }
 
       // 2. Firestore Cloud Sync
       try {
-        const docSnap = await getDoc(doc(db, COLLECTIONS.SETTINGS, 'customization'));
+        const docSnap = await getDoc(getFirestoreDocRef(COLLECTIONS.SETTINGS, 'customization'));
         if (docSnap.exists()) {
           const data = docSnap.data();
           if (data.dashboardConfig) {
             setDashConfig({ ...DEFAULT_DASHBOARD_CONFIG, ...data.dashboardConfig });
-            localStorage.setItem(DASHBOARD_CONFIG_STORAGE_KEY, JSON.stringify(data.dashboardConfig));
+            localStorage.setItem(getDashboardConfigStorageKey(), JSON.stringify(data.dashboardConfig));
           }
           if (data.dashboardWidgetOrder && Array.isArray(data.dashboardWidgetOrder)) {
             setWidgetOrder(data.dashboardWidgetOrder);
-            localStorage.setItem(DASHBOARD_ORDER_STORAGE_KEY, JSON.stringify(data.dashboardWidgetOrder));
+            localStorage.setItem(getDashboardOrderStorageKey(), JSON.stringify(data.dashboardWidgetOrder));
           }
           if (data.whatsappTemplates) {
             setTemplates({ ...DEFAULT_WHATSAPP_TEMPLATES, ...data.whatsappTemplates });
-            localStorage.setItem(WHATSAPP_TEMPLATES_STORAGE_KEY, JSON.stringify(data.whatsappTemplates));
+            localStorage.setItem(getWhatsAppTemplatesStorageKey(), JSON.stringify(data.whatsappTemplates));
           }
         }
       } catch (e) {
@@ -146,9 +142,9 @@ export default function Customization() {
   const updateAndSaveDashConfig = async (newConfig, showToastMsg = false) => {
     setDashConfig(newConfig);
     try {
-      localStorage.setItem(DASHBOARD_CONFIG_STORAGE_KEY, JSON.stringify(newConfig));
+      localStorage.setItem(getDashboardConfigStorageKey(), JSON.stringify(newConfig));
       await setDoc(
-        doc(db, COLLECTIONS.SETTINGS, 'customization'),
+        getFirestoreDocRef(COLLECTIONS.SETTINGS, 'customization'),
         { dashboardConfig: newConfig },
         { merge: true }
       );
@@ -167,9 +163,9 @@ export default function Customization() {
   const updateAndSaveWidgetOrder = async (newOrder, showToastMsg = false) => {
     setWidgetOrder(newOrder);
     try {
-      localStorage.setItem(DASHBOARD_ORDER_STORAGE_KEY, JSON.stringify(newOrder));
+      localStorage.setItem(getDashboardOrderStorageKey(), JSON.stringify(newOrder));
       await setDoc(
-        doc(db, COLLECTIONS.SETTINGS, 'customization'),
+        getFirestoreDocRef(COLLECTIONS.SETTINGS, 'customization'),
         { dashboardWidgetOrder: newOrder },
         { merge: true }
       );
@@ -238,9 +234,9 @@ export default function Customization() {
   const handleSaveWhatsAppTemplates = async (newTemplates = templates) => {
     setIsSaving(true);
     try {
-      localStorage.setItem(WHATSAPP_TEMPLATES_STORAGE_KEY, JSON.stringify(newTemplates));
+      localStorage.setItem(getWhatsAppTemplatesStorageKey(), JSON.stringify(newTemplates));
       await setDoc(
-        doc(db, COLLECTIONS.SETTINGS, 'customization'),
+        getFirestoreDocRef(COLLECTIONS.SETTINGS, 'customization'),
         { whatsappTemplates: newTemplates },
         { merge: true }
       );
@@ -461,7 +457,7 @@ export default function Customization() {
   // Sample data for live WhatsApp preview
   const samplePreviewData = {
     student_name: 'Rahul Sharma',
-    library_name: localStorage.getItem('studypoint_library_name') || 'Study Point Library',
+    library_name: getTenantItem('library_name', 'Study Point Library'),
     seat_number: '14',
     shift: 'Full Day (6 AM - 11 PM)',
     status_phrase: 'कल समाप्त हो रहा है',

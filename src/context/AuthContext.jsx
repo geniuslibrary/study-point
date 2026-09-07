@@ -1,11 +1,12 @@
 import { createContext, useContext, useEffect, useState } from 'react';
-import { auth } from '../firebase/config';
+import { auth, db } from '../firebase/config';
 import {
   signInWithEmailAndPassword,
   signOut,
   onAuthStateChanged,
   createUserWithEmailAndPassword,
 } from 'firebase/auth';
+import { collectionGroup, getDocs } from 'firebase/firestore';
 import { fetchCollectionData, getLocalCollection } from '../firebase/storageService';
 import { COLLECTIONS, ROLE_PRESETS } from '../utils/constants';
 
@@ -31,6 +32,11 @@ export const AuthProvider = ({ children }) => {
     if (savedSession) {
       try {
         const parsed = JSON.parse(savedSession);
+        if (!parsed.tenantId) {
+          const emailLower = (parsed.email || '').toLowerCase().trim();
+          parsed.tenantId = emailLower === 'geniuslibrary1526@gmail.com' ? 'genius_root' : parsed.uid;
+          localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(parsed));
+        }
         setUser(parsed);
       } catch (e) {
         localStorage.removeItem(LOCAL_STORAGE_KEY);
@@ -109,10 +115,17 @@ export const AuthProvider = ({ children }) => {
     // 3. Listen to Firebase Auth state
     const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
       if (firebaseUser) {
+        const emailLower = (firebaseUser.email || '').toLowerCase().trim();
+        const tenantId = emailLower === 'geniuslibrary1526@gmail.com' ? 'genius_root' : firebaseUser.uid;
+
         const local = localStorage.getItem(LOCAL_STORAGE_KEY);
         if (local) {
           try {
             const parsed = JSON.parse(local);
+            if (!parsed.tenantId) {
+              parsed.tenantId = tenantId;
+              localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(parsed));
+            }
             setUser(parsed);
             if (parsed.role !== 'owner') {
               syncStaffSession(parsed);
@@ -125,6 +138,7 @@ export const AuthProvider = ({ children }) => {
             displayName: firebaseUser.displayName || 'Owner',
             role: 'owner',
             roleLabel: '👑 Owner',
+            tenantId: tenantId,
             permissions: ROLE_PRESETS.owner.permissions,
           };
           setUser(userData);
@@ -188,55 +202,77 @@ export const AuthProvider = ({ children }) => {
         console.warn('Live staff fetch error during login:', err);
       }
 
-      if (staffList && staffList.length > 0) {
-        const staffMember = staffList.find((s) => {
-          const sEmail = (s.email || '').trim().toLowerCase();
-          const sName = (s.name || '').trim().toLowerCase();
-          const sPhone = (s.phone || '').trim().toLowerCase();
-          const sUsername = sEmail.includes('@') ? sEmail.split('@')[0] : sEmail;
+      let staffMember = (staffList || []).find((s) => {
+        const sEmail = (s.email || '').trim().toLowerCase();
+        const sName = (s.name || '').trim().toLowerCase();
+        const sPhone = (s.phone || '').trim().toLowerCase();
+        const sUsername = sEmail.includes('@') ? sEmail.split('@')[0] : sEmail;
 
-          return (
-            sEmail === cleanId ||
-            sName === cleanId ||
-            sPhone === cleanId ||
-            sUsername === cleanId
-          );
-        });
+        return (
+          sEmail === cleanId ||
+          sName === cleanId ||
+          sPhone === cleanId ||
+          sUsername === cleanId
+        );
+      });
 
-        if (staffMember) {
-          // Compare password
-          if (String(staffMember.password || '').trim() !== cleanPass) {
-            throw new Error('Incorrect staff password. Please re-enter or check with owner.');
+      // If staff not found in active tenant, search across all libraries using collectionGroup
+      if (!staffMember) {
+        try {
+          const groupSnap = await getDocs(collectionGroup(db, COLLECTIONS.STAFF_USERS));
+          if (groupSnap && groupSnap.docs) {
+            for (const d of groupSnap.docs) {
+              const s = { id: d.id, ...d.data() };
+              const sEmail = (s.email || '').trim().toLowerCase();
+              const sName = (s.name || '').trim().toLowerCase();
+              const sPhone = (s.phone || '').trim().toLowerCase();
+              const sUsername = sEmail.includes('@') ? sEmail.split('@')[0] : sEmail;
+
+              if (sEmail === cleanId || sName === cleanId || sPhone === cleanId || sUsername === cleanId) {
+                staffMember = s;
+                break;
+              }
+            }
           }
-
-          if (staffMember.status === 'inactive') {
-            throw new Error('This staff account is currently inactive (disabled). Please contact the Owner.');
-          }
-
-          // Build staff session
-          const fallbackPerms = ROLE_PRESETS[staffMember.role]?.permissions || ROLE_PRESETS.receptionist.permissions;
-          const defaultLabel =
-            staffMember.role === 'receptionist'
-              ? '🛎️ Receptionist'
-              : staffMember.role === 'manager'
-              ? '👔 Branch Manager'
-              : staffMember.role || 'Staff Member';
-
-          const staffSession = {
-            uid: staffMember.id,
-            email: staffMember.email,
-            displayName: staffMember.name || 'Staff Member',
-            role: staffMember.role || 'receptionist',
-            roleLabel: staffMember.roleLabel || defaultLabel,
-            permissions: staffMember.permissions || fallbackPerms,
-            dashboardWidgets: staffMember.dashboardWidgets || null,
-            phone: staffMember.phone || '',
-          };
-
-          setUser(staffSession);
-          localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(staffSession));
-          return staffSession;
+        } catch (cgErr) {
+          console.warn('Cross-library staff search warning:', cgErr);
         }
+      }
+
+      if (staffMember) {
+        // Compare password
+        if (String(staffMember.password || '').trim() !== cleanPass) {
+          throw new Error('Incorrect staff password. Please re-enter or check with owner.');
+        }
+
+        if (staffMember.status === 'inactive') {
+          throw new Error('This staff account is currently inactive (disabled). Please contact the Owner.');
+        }
+
+        // Build staff session
+        const fallbackPerms = ROLE_PRESETS[staffMember.role]?.permissions || ROLE_PRESETS.receptionist.permissions;
+        const defaultLabel =
+          staffMember.role === 'receptionist'
+            ? '🛎️ Receptionist'
+            : staffMember.role === 'manager'
+            ? '👔 Branch Manager'
+            : staffMember.role || 'Staff Member';
+
+        const staffSession = {
+          uid: staffMember.id,
+          email: staffMember.email,
+          displayName: staffMember.name || 'Staff Member',
+          role: staffMember.role || 'receptionist',
+          roleLabel: staffMember.roleLabel || defaultLabel,
+          tenantId: staffMember.tenantId || staffMember.ownerId || 'genius_root',
+          permissions: staffMember.permissions || fallbackPerms,
+          dashboardWidgets: staffMember.dashboardWidgets || null,
+          phone: staffMember.phone || '',
+        };
+
+        setUser(staffSession);
+        localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(staffSession));
+        return staffSession;
       }
     } catch (e) {
       if (
@@ -252,11 +288,15 @@ export const AuthProvider = ({ children }) => {
     if (cleanId.includes('@')) {
       try {
         const userCredential = await signInWithEmailAndPassword(auth, cleanId, cleanPass);
+        const emailLower = (userCredential.user.email || '').toLowerCase().trim();
+        const tenantId = emailLower === 'geniuslibrary1526@gmail.com' ? 'genius_root' : userCredential.user.uid;
         const userData = {
           uid: userCredential.user.uid,
           email: userCredential.user.email,
           displayName: userCredential.user.displayName || 'Owner',
           role: 'owner',
+          roleLabel: '👑 Owner',
+          tenantId: tenantId,
           permissions: ROLE_PRESETS.owner.permissions,
         };
         setUser(userData);
@@ -290,11 +330,14 @@ export const AuthProvider = ({ children }) => {
     }
 
     const userCredential = await createUserWithEmailAndPassword(auth, cleanEmail, cleanPass);
+    const tenantId = cleanEmail === 'geniuslibrary1526@gmail.com' ? 'genius_root' : userCredential.user.uid;
     const userData = {
       uid: userCredential.user.uid,
       email: userCredential.user.email,
       displayName: displayName || 'Owner',
       role: 'owner',
+      roleLabel: '👑 Owner',
+      tenantId: tenantId,
       permissions: ROLE_PRESETS.owner.permissions,
     };
     setUser(userData);

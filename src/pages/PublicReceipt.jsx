@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useParams, Link } from 'react-router-dom';
-import { doc, getDoc } from 'firebase/firestore';
+import { useParams, Link, useSearchParams } from 'react-router-dom';
+import { doc, getDoc, collectionGroup, getDocs } from 'firebase/firestore';
 import { db } from '../firebase/config';
 import { COLLECTIONS } from '../utils/constants';
 import { formatCurrency, formatDate, formatMonthDisplay } from '../utils/helpers';
@@ -10,6 +10,7 @@ import { jsPDF } from 'jspdf';
 
 export default function PublicReceipt() {
   const { id } = useParams();
+  const [searchParams] = useSearchParams();
   const receiptRef = useRef(null);
 
   const [loading, setLoading] = useState(true);
@@ -31,15 +32,53 @@ export default function PublicReceipt() {
     const fetchReceiptData = async () => {
       setLoading(true);
       try {
+        let activeTenant = searchParams.get('tenant') || null;
+
         // 1. Fetch Fee Doc
-        const feeSnap = await getDoc(doc(db, COLLECTIONS.FEES, id));
-        if (feeSnap.exists()) {
-          const feeData = { id: feeSnap.id, ...feeSnap.data() };
+        let feeData = null;
+        if (activeTenant && activeTenant !== 'genius_root') {
+          const tenantFeeSnap = await getDoc(doc(db, 'libraries', activeTenant, COLLECTIONS.FEES, id));
+          if (tenantFeeSnap.exists()) {
+            feeData = { id: tenantFeeSnap.id, ...tenantFeeSnap.data() };
+          }
+        }
+
+        // Try root collection if not found
+        if (!feeData) {
+          const rootFeeSnap = await getDoc(doc(db, COLLECTIONS.FEES, id));
+          if (rootFeeSnap.exists()) {
+            feeData = { id: rootFeeSnap.id, ...rootFeeSnap.data() };
+            activeTenant = feeData.tenantId || 'genius_root';
+          }
+        }
+
+        // Fallback: search across all fee subcollections using collectionGroup
+        if (!feeData) {
+          try {
+            const groupSnap = await getDocs(collectionGroup(db, COLLECTIONS.FEES));
+            const matched = groupSnap.docs.find((d) => d.id === id);
+            if (matched) {
+              feeData = { id: matched.id, ...matched.data() };
+              activeTenant = feeData.tenantId || matched.ref.parent.parent?.id || 'genius_root';
+            }
+          } catch (cgErr) {
+            console.warn('CollectionGroup fee lookup warning:', cgErr);
+          }
+        }
+
+        if (feeData) {
           setFee(feeData);
+
+          const getScopedDoc = (collName, docId) => {
+            if (activeTenant && activeTenant !== 'genius_root') {
+              return doc(db, 'libraries', activeTenant, collName, docId);
+            }
+            return doc(db, collName, docId);
+          };
 
           // 2. Fetch Student Doc
           if (feeData.studentId) {
-            const stuSnap = await getDoc(doc(db, COLLECTIONS.STUDENTS, feeData.studentId));
+            const stuSnap = await getDoc(getScopedDoc(COLLECTIONS.STUDENTS, feeData.studentId));
             if (stuSnap.exists()) {
               const stuData = { id: stuSnap.id, ...stuSnap.data() };
               setStudent(stuData);
@@ -47,7 +86,7 @@ export default function PublicReceipt() {
               // 3. Fetch Seat Doc
               if (stuData.seatId) {
                 try {
-                  const seatSnap = await getDoc(doc(db, COLLECTIONS.SEATS, stuData.seatId));
+                  const seatSnap = await getDoc(getScopedDoc(COLLECTIONS.SEATS, stuData.seatId));
                   if (seatSnap.exists()) {
                     setSeat({ id: seatSnap.id, ...seatSnap.data() });
                   }
@@ -55,12 +94,12 @@ export default function PublicReceipt() {
               }
             }
           }
-        }
 
-        // 4. Fetch Settings
-        const settingsSnap = await getDoc(doc(db, COLLECTIONS.SETTINGS, 'ownerProfile'));
-        if (settingsSnap.exists()) {
-          setLibraryInfo((prev) => ({ ...prev, ...settingsSnap.data() }));
+          // 4. Fetch Settings
+          const settingsSnap = await getDoc(getScopedDoc(COLLECTIONS.SETTINGS, 'ownerProfile'));
+          if (settingsSnap.exists()) {
+            setLibraryInfo((prev) => ({ ...prev, ...settingsSnap.data() }));
+          }
         }
       } catch (err) {
         console.error('Error fetching public receipt:', err);
@@ -70,7 +109,7 @@ export default function PublicReceipt() {
     };
 
     if (id) fetchReceiptData();
-  }, [id]);
+  }, [id, searchParams]);
 
   if (loading) {
     return (

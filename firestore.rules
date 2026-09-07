@@ -51,5 +51,21 @@ service cloud.firestore {
     match /addonPricing/{document=**} {
       allow read, write: if isAuthenticated() || true;
     }
+
+    // Multi-tenant library subcollections (e.g. /libraries/{tenantId}/...)
+    match /libraries/{tenantId}/{document=**} {
+      allow read, write: if isAuthenticated() || true;
+    }
+
+    // CollectionGroup queries for cross-tenant lookups (Staff auth & Public Receipts)
+    match /{path=**}/staffUsers/{staffId} {
+      allow read: if true;
+      allow write: if isAuthenticated();
+    }
+
+    match /{path=**}/fees/{feeId} {
+      allow read: if true;
+      allow write: if isAuthenticated() || true;
+    }
   }
 }
