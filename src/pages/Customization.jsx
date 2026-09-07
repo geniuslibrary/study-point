@@ -28,6 +28,20 @@ import {
   ChevronsDown,
   GripVertical,
   ListOrdered,
+  Plus,
+  Trash2,
+  Copy,
+  ExternalLink,
+  Phone,
+  MessageCircle,
+  Layers,
+  Bell,
+  Smile,
+  Bold,
+  Italic,
+  Strikethrough,
+  Share2,
+  X,
 } from 'lucide-react';
 import {
   DEFAULT_WHATSAPP_TEMPLATES,
@@ -41,6 +55,9 @@ import {
   STAFF_DASHBOARD_CONFIG_STORAGE_KEY,
   renderTemplate,
   getActiveDashboardOrder,
+  TEMPLATE_CATEGORIES,
+  TAG_METADATA,
+  TEMPLATE_PRESETS,
 } from '../utils/templateHelpers';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { db } from '../firebase/config';
@@ -60,6 +77,16 @@ export default function Customization() {
   // 2. WhatsApp Templates Configuration
   const [templates, setTemplates] = useState(DEFAULT_WHATSAPP_TEMPLATES);
   const [selectedTemplateKey, setSelectedTemplateKey] = useState('expiryReminder');
+  const [templateCategory, setTemplateCategory] = useState('all');
+  const [showNewTemplateModal, setShowNewTemplateModal] = useState(false);
+  const [newTemplateForm, setNewTemplateForm] = useState({
+    title: '',
+    category: 'custom',
+    badge: '💬 Custom',
+    description: '',
+    template: '',
+  });
+  const [testPhone, setTestPhone] = useState(localStorage.getItem('studypoint_library_phone') || '');
   const templateTextareaRef = useRef(null);
 
   // Load from LocalStorage and Firestore
@@ -261,8 +288,164 @@ export default function Customization() {
     }, 0);
   };
 
+  // Helper to insert emoji or arbitrary text at cursor
+  const insertTextAtCursor = (insertStr) => {
+    const textarea = templateTextareaRef.current;
+    const currentTpl = templates[selectedTemplateKey]?.template || '';
+
+    if (!textarea) {
+      setTemplates((prev) => ({
+        ...prev,
+        [selectedTemplateKey]: {
+          ...prev[selectedTemplateKey],
+          template: currentTpl + insertStr,
+        },
+      }));
+      return;
+    }
+
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+    const newText = currentTpl.substring(0, start) + insertStr + currentTpl.substring(end);
+
+    setTemplates((prev) => ({
+      ...prev,
+      [selectedTemplateKey]: {
+        ...prev[selectedTemplateKey],
+        template: newText,
+      },
+    }));
+
+    setTimeout(() => {
+      textarea.focus();
+      textarea.setSelectionRange(start + insertStr.length, start + insertStr.length);
+    }, 0);
+  };
+
+  // Wrap selected text with markdown character (e.g. *bold*, _italic_)
+  const wrapSelectionWith = (wrapper) => {
+    const textarea = templateTextareaRef.current;
+    const currentTpl = templates[selectedTemplateKey]?.template || '';
+    if (!textarea) {
+      insertTextAtCursor(`${wrapper}text${wrapper}`);
+      return;
+    }
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+    const selected = currentTpl.substring(start, end);
+    const replacement = selected ? `${wrapper}${selected}${wrapper}` : `${wrapper}text${wrapper}`;
+    const newText = currentTpl.substring(0, start) + replacement + currentTpl.substring(end);
+
+    setTemplates((prev) => ({
+      ...prev,
+      [selectedTemplateKey]: {
+        ...prev[selectedTemplateKey],
+        template: newText,
+      },
+    }));
+
+    setTimeout(() => {
+      textarea.focus();
+      textarea.setSelectionRange(start + wrapper.length, end + wrapper.length);
+    }, 0);
+  };
+
+  // 1-Click apply pre-made tone preset (Hinglish, English, Short)
+  const applyPreset = (presetType) => {
+    const presetsForTemplate = TEMPLATE_PRESETS[selectedTemplateKey];
+    if (presetsForTemplate && presetsForTemplate[presetType]) {
+      setTemplates((prev) => ({
+        ...prev,
+        [selectedTemplateKey]: {
+          ...prev[selectedTemplateKey],
+          template: presetsForTemplate[presetType],
+        },
+      }));
+      showToast(`Applied ${presetType.toUpperCase()} preset! ✨`);
+    } else {
+      showToast('No preset available for this template');
+    }
+  };
+
+  // Create new custom template
+  const handleCreateCustomTemplate = async (e) => {
+    e.preventDefault();
+    if (!newTemplateForm.title.trim() || !newTemplateForm.template.trim()) {
+      alert('कृपया टेम्पलेट का नाम और संदेश भरें');
+      return;
+    }
+    const newKey = `custom_${Date.now()}`;
+    const newTemplate = {
+      title: newTemplateForm.title.trim(),
+      category: newTemplateForm.category || 'custom',
+      badge: '💬 Custom',
+      description: newTemplateForm.description.trim() || 'Custom created template',
+      template: newTemplateForm.template.trim(),
+      availableTags: [
+        'student_name',
+        'library_name',
+        'phone',
+        'seat_number',
+        'amount',
+        'expiry_date',
+        'notice_message',
+      ],
+      isCustom: true,
+    };
+    const updated = { ...templates, [newKey]: newTemplate };
+    setTemplates(updated);
+    setSelectedTemplateKey(newKey);
+    setShowNewTemplateModal(false);
+    setNewTemplateForm({
+      title: '',
+      category: 'custom',
+      badge: '💬 Custom',
+      description: '',
+      template: '',
+    });
+    await handleSaveWhatsAppTemplates(updated);
+    showToast('Naya Custom Template ban gaya! 🎉');
+  };
+
+  // Delete custom template
+  const handleDeleteCustomTemplate = async (key) => {
+    if (!window.confirm(`Delete "${templates[key]?.title}" template permanently?`)) return;
+    const updated = { ...templates };
+    delete updated[key];
+    setTemplates(updated);
+    setSelectedTemplateKey(Object.keys(updated)[0] || 'expiryReminder');
+    await handleSaveWhatsAppTemplates(updated);
+    showToast('Custom template deleted! 🗑️');
+  };
+
+  // Copy preview message text to clipboard
+  const handleCopyMessageText = () => {
+    if (!currentPreviewText) return;
+    navigator.clipboard.writeText(currentPreviewText);
+    showToast('Message text copied! 📋');
+  };
+
+  // Send live test message to own WhatsApp
+  const handleSendTestWhatsApp = () => {
+    let target = testPhone ? testPhone.replace(/[^0-9]/g, '') : '';
+    if (!target) {
+      const promptPhone = window.prompt(
+        'WhatsApp Test message bhejne ke liye 10-digit number daalein:',
+        '91'
+      );
+      if (!promptPhone) return;
+      target = promptPhone.replace(/[^0-9]/g, '');
+    }
+    const phoneWithCountry = target.length === 10 ? `91${target}` : target;
+    const waUrl = `https://api.whatsapp.com/send?phone=${phoneWithCountry}&text=${encodeURIComponent(
+      currentPreviewText
+    )}`;
+    window.open(waUrl, '_blank');
+  };
+
   // Reset single template to default
   const handleResetTemplate = (key) => {
+    if (!DEFAULT_WHATSAPP_TEMPLATES[key]) return;
     if (!window.confirm(`Reset "${DEFAULT_WHATSAPP_TEMPLATES[key].title}" to default message?`)) return;
     const updated = {
       ...templates,
@@ -279,16 +462,20 @@ export default function Customization() {
   const samplePreviewData = {
     student_name: 'Rahul Sharma',
     library_name: localStorage.getItem('studypoint_library_name') || 'Study Point Library',
-    seat_number: '12',
-    shift: 'Full Day',
+    seat_number: '14',
+    shift: 'Full Day (6 AM - 11 PM)',
     status_phrase: 'कल समाप्त हो रहा है',
-    expiry_date: '08/09/2026',
+    expiry_date: '18/09/2026',
     month: 'September 2026',
     amount: '800',
     receipt_no: 'REC-982143',
-    plan_name: 'Standard Monthly Plan',
-    validity_period: '01/09/2026 to 01/10/2026',
-    payment_mode: 'UPI',
+    plan_name: '10 Days Crash / Monthly',
+    validity_period: '01/09/2026 to 18/09/2026',
+    payment_mode: 'UPI (GPay)',
+    extra_days: '10',
+    new_expiry_date: '28/09/2026',
+    fee_amount: '400',
+    notice_message: 'कल लाइब्रेरी सुबह 8:00 AM से दोपहर 2:00 PM तक खुली रहेगी।',
     phone: '9876543210',
   };
 
@@ -712,156 +899,537 @@ export default function Customization() {
         {/* TAB 2: WHATSAPP TEMPLATES CUSTOMIZER */}
         {/* ========================================================= */}
         {activeTab === 'whatsapp' && (
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-            {/* Left Column: Template Selector & Editor (7 Cols) */}
-            <div className="lg:col-span-7 bg-white rounded-3xl p-5 sm:p-7 border border-slate-200/80 shadow-xs space-y-5">
-              <div>
-                <h3 className="text-base font-bold text-slate-900">WhatsApp Message Templates</h3>
-                <p className="text-xs text-slate-500 mt-0.5">
-                  Select a template to customize its wording. You can use dynamic tags like {'{student_name}'} and {'{amount}'}.
-                </p>
-              </div>
+          <div className="space-y-6">
+            {/* Top Filter and Actions Bar */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-4 rounded-2xl border border-slate-200/80 shadow-2xs">
+              {/* Category Pills */}
+              <div className="flex items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0">
+                {TEMPLATE_CATEGORIES.map((cat) => {
+                  const isActive = templateCategory === cat.id;
+                  const count =
+                    cat.id === 'all'
+                      ? Object.keys(templates).length
+                      : Object.values(templates).filter((t) => t.category === cat.id).length;
 
-              {/* Template Select Buttons */}
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                {Object.keys(templates).map((key) => {
-                  const tpl = templates[key];
-                  const isSelected = selectedTemplateKey === key;
                   return (
                     <button
-                      key={key}
-                      onClick={() => setSelectedTemplateKey(key)}
-                      className={`p-2.5 rounded-xl text-left border text-xs font-bold transition-all cursor-pointer flex flex-col justify-between ${
-                        isSelected
-                          ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm'
-                          : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
+                      key={cat.id}
+                      type="button"
+                      onClick={() => setTemplateCategory(cat.id)}
+                      className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap cursor-pointer flex items-center gap-1.5 ${
+                        isActive
+                          ? 'bg-indigo-600 text-white shadow-xs'
+                          : 'bg-slate-100 text-slate-600 hover:bg-slate-200 hover:text-slate-900'
                       }`}
                     >
-                      <span className="truncate">{tpl.title?.split('(')[0] || key}</span>
-                      <span className={`text-[10px] mt-1 ${isSelected ? 'text-indigo-200' : 'text-slate-400'}`}>
-                        {key === 'expiryReminder' ? '⏳ Expiry' : key === 'feeDueReminder' ? '💸 Pending Fee' : key.includes('demo') ? '🎯 Demo' : '🧾 Receipt'}
+                      <span>{cat.label}</span>
+                      <span
+                        className={`text-[10px] px-1.5 py-0.2 rounded-full font-black ${
+                          isActive ? 'bg-indigo-700 text-indigo-100' : 'bg-slate-200 text-slate-700'
+                        }`}
+                      >
+                        {count}
                       </span>
                     </button>
                   );
                 })}
               </div>
 
-              {/* Active Template Editor Box */}
-              {templates[selectedTemplateKey] && (
-                <div className="space-y-3 pt-2">
-                  <div className="flex items-center justify-between">
+              {/* Add Custom Template Button */}
+              <button
+                type="button"
+                onClick={() => setShowNewTemplateModal(true)}
+                className="px-4 py-2 rounded-xl bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-xs font-extrabold border border-indigo-200 flex items-center gap-1.5 shrink-0 cursor-pointer shadow-2xs transition-colors"
+              >
+                <Plus className="w-4 h-4" />
+                <span>+ Create Custom Template</span>
+              </button>
+            </div>
+
+            {/* Main Studio Grid: Left Editor & Right WhatsApp Mockup */}
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+              {/* Left Column: Template Selector & Editor (7 Cols) */}
+              <div className="lg:col-span-7 bg-white rounded-3xl p-5 sm:p-7 border border-slate-200/80 shadow-xs space-y-5">
+                {/* Template Selection Cards */}
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <h3 className="text-sm font-bold uppercase tracking-wider text-slate-700">
+                      Select Template to Edit (टेम्पलेट चुनें)
+                    </h3>
+                    <span className="text-[11px] text-slate-400 font-medium">
+                      Total {Object.keys(templates).length} Templates
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2.5 max-h-56 overflow-y-auto p-1">
+                    {Object.keys(templates)
+                      .filter((key) => {
+                        if (templateCategory === 'all') return true;
+                        return templates[key]?.category === templateCategory;
+                      })
+                      .map((key) => {
+                        const tpl = templates[key];
+                        const isSelected = selectedTemplateKey === key;
+                        const isCustom = tpl.isCustom || key.startsWith('custom_');
+
+                        return (
+                          <div
+                            key={key}
+                            onClick={() => setSelectedTemplateKey(key)}
+                            className={`p-3 rounded-2xl text-left border transition-all cursor-pointer flex flex-col justify-between relative group ${
+                              isSelected
+                                ? 'bg-indigo-600 text-white border-indigo-600 shadow-md ring-2 ring-indigo-200'
+                                : 'bg-slate-50 text-slate-800 border-slate-200 hover:bg-slate-100 hover:border-slate-300'
+                            }`}
+                          >
+                            <div className="flex items-start justify-between gap-1">
+                              <span className="font-extrabold text-xs line-clamp-2 leading-snug">
+                                {tpl.title?.split('(')[0] || key}
+                              </span>
+                              {isCustom && (
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleDeleteCustomTemplate(key);
+                                  }}
+                                  className={`p-1 rounded-md opacity-70 hover:opacity-100 transition-opacity ${
+                                    isSelected ? 'hover:bg-indigo-700 text-rose-200' : 'hover:bg-rose-50 text-rose-600'
+                                  }`}
+                                  title="Delete Custom Template"
+                                >
+                                  <Trash2 className="w-3 h-3" />
+                                </button>
+                              )}
+                            </div>
+                            <div className="flex items-center justify-between mt-2 pt-1 border-t border-black/5">
+                              <span
+                                className={`text-[10px] font-bold px-1.5 py-0.5 rounded-md ${
+                                  isSelected ? 'bg-indigo-700 text-indigo-100' : 'bg-white text-slate-600 border border-slate-200'
+                                }`}
+                              >
+                                {tpl.badge || '💬 Template'}
+                              </span>
+                              {isSelected && <Check className="w-3.5 h-3.5 text-white" />}
+                            </div>
+                          </div>
+                        );
+                      })}
+                  </div>
+                </div>
+
+                {/* Active Template Editor Box */}
+                {templates[selectedTemplateKey] && (
+                  <div className="space-y-4 pt-3 border-t border-slate-100">
+                    {/* Header & Reset */}
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <h4 className="text-base font-extrabold text-slate-900">
+                            {templates[selectedTemplateKey].title}
+                          </h4>
+                          <span className="text-[10px] font-black px-2 py-0.5 rounded-md bg-indigo-50 text-indigo-700 border border-indigo-100">
+                            {templates[selectedTemplateKey].badge || '💬 Template'}
+                          </span>
+                        </div>
+                        <p className="text-xs text-slate-500 mt-1">
+                          {templates[selectedTemplateKey].description}
+                        </p>
+                      </div>
+
+                      {DEFAULT_WHATSAPP_TEMPLATES[selectedTemplateKey] && (
+                        <button
+                          type="button"
+                          onClick={() => handleResetTemplate(selectedTemplateKey)}
+                          className="px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-600 text-xs font-bold flex items-center gap-1.5 cursor-pointer transition-colors shrink-0"
+                          title="Reset this template to original default text"
+                        >
+                          <RotateCcw className="w-3 h-3" />
+                          <span>Reset</span>
+                        </button>
+                      )}
+                    </div>
+
+                    {/* 1-Click Tone Presets (If Available) */}
+                    {TEMPLATE_PRESETS[selectedTemplateKey] && (
+                      <div className="p-3 bg-gradient-to-r from-amber-50/70 to-indigo-50/70 rounded-2xl border border-amber-200/60 space-y-1.5">
+                        <span className="text-[11px] font-extrabold text-slate-800 flex items-center gap-1.5">
+                          <Sparkles className="w-3.5 h-3.5 text-amber-600" />
+                          <span>1-Click Tone Presets (तुरंत तैयार भाषा चुनें):</span>
+                        </span>
+                        <div className="flex flex-wrap gap-2 pt-1">
+                          <button
+                            type="button"
+                            onClick={() => applyPreset('hinglish')}
+                            className="px-2.5 py-1 rounded-lg bg-white border border-slate-300 hover:border-indigo-400 text-xs font-bold text-slate-800 shadow-2xs hover:bg-indigo-50 transition-all cursor-pointer flex items-center gap-1"
+                          >
+                            <span>🇮🇳 Hinglish / Hindi</span>
+                            <span className="text-[10px] text-slate-400 font-normal">(विनम्र)</span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => applyPreset('english')}
+                            className="px-2.5 py-1 rounded-lg bg-white border border-slate-300 hover:border-indigo-400 text-xs font-bold text-slate-800 shadow-2xs hover:bg-indigo-50 transition-all cursor-pointer flex items-center gap-1"
+                          >
+                            <span>💼 Professional English</span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => applyPreset('short')}
+                            className="px-2.5 py-1 rounded-lg bg-white border border-slate-300 hover:border-indigo-400 text-xs font-bold text-slate-800 shadow-2xs hover:bg-indigo-50 transition-all cursor-pointer flex items-center gap-1"
+                          >
+                            <span>⚡ Short & Direct SMS</span>
+                          </button>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Emoji & Formatting Toolbar */}
+                    <div className="flex items-center justify-between gap-2 p-2 bg-slate-50 border border-slate-200 rounded-xl flex-wrap">
+                      <div className="flex items-center gap-1">
+                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mr-1">
+                          Format:
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => wrapSelectionWith('*')}
+                          className="p-1 px-2 rounded-lg bg-white hover:bg-slate-200 text-slate-700 font-black text-xs border border-slate-200 transition-colors"
+                          title="Bold (*text*)"
+                        >
+                          B
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => wrapSelectionWith('_')}
+                          className="p-1 px-2 rounded-lg bg-white hover:bg-slate-200 text-slate-700 italic font-serif text-xs border border-slate-200 transition-colors"
+                          title="Italic (_text_)"
+                        >
+                          I
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => wrapSelectionWith('~')}
+                          className="p-1 px-2 rounded-lg bg-white hover:bg-slate-200 text-slate-700 line-through text-xs border border-slate-200 transition-colors"
+                          title="Strikethrough (~text~)"
+                        >
+                          S
+                        </button>
+                      </div>
+
+                      <div className="flex items-center gap-1 flex-wrap">
+                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mr-1">
+                          Emojis:
+                        </span>
+                        {['🙏', '✨', '📚', '💺', '⏰', '📅', '💰', '🧾', '⚠️', '✅', '🎉', '📢', '📞', '📍', '🎯', '💡'].map(
+                          (emo) => (
+                            <button
+                              key={emo}
+                              type="button"
+                              onClick={() => insertTextAtCursor(emo)}
+                              className="p-1 rounded-md hover:bg-white text-xs transition-transform hover:scale-125 cursor-pointer"
+                              title={`Insert ${emo}`}
+                            >
+                              {emo}
+                            </button>
+                          )
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Dynamic Tags Pill Bar with Hindi labels */}
                     <div>
-                      <h4 className="text-sm font-bold text-slate-900">
-                        {templates[selectedTemplateKey].title}
-                      </h4>
-                      <p className="text-[11px] text-slate-500 mt-0.5">
-                        {templates[selectedTemplateKey].description}
+                      <label className="text-[11px] font-bold text-slate-700 block mb-1.5 flex items-center gap-1">
+                        <Tag className="w-3.5 h-3.5 text-indigo-600" />
+                        <span>Click Tag to Insert into Message (वेरिएबल जोड़ें):</span>
+                      </label>
+                      <div className="flex flex-wrap gap-1.5">
+                        {(templates[selectedTemplateKey].availableTags || []).map((tag) => {
+                          const meta = TAG_METADATA[tag] || { label: tag };
+                          return (
+                            <button
+                              key={tag}
+                              type="button"
+                              onClick={() => insertTag(tag)}
+                              className="px-2.5 py-1 rounded-lg bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 text-xs font-semibold transition-all cursor-pointer flex items-center gap-1 shadow-2xs hover:scale-102"
+                              title={`Insert {${tag}} - ${meta.label}`}
+                            >
+                              <span className="font-mono font-bold">+{`{${tag}}`}</span>
+                              <span className="text-[10px] text-indigo-500 font-normal">({meta.label})</span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    {/* Textarea */}
+                    <div>
+                      <textarea
+                        ref={templateTextareaRef}
+                        rows={8}
+                        value={templates[selectedTemplateKey].template}
+                        onChange={(e) =>
+                          setTemplates({
+                            ...templates,
+                            [selectedTemplateKey]: {
+                              ...templates[selectedTemplateKey],
+                              template: e.target.value,
+                            },
+                          })
+                        }
+                        className="w-full p-3.5 bg-slate-50 border border-slate-300 rounded-2xl text-xs sm:text-sm font-medium focus:ring-2 focus:ring-indigo-500 focus:bg-white transition-all leading-relaxed shadow-inner"
+                        placeholder="Write WhatsApp message text here..."
+                      />
+                    </div>
+
+                    {/* Footer / Save Bar */}
+                    <div className="pt-2 flex items-center justify-between">
+                      <span className="text-[11px] text-slate-400">
+                        Supports emojis, line breaks & WhatsApp markdown (*bold*, _italic_)
+                      </span>
+                      <button
+                        type="button"
+                        disabled={isSaving}
+                        onClick={() => handleSaveWhatsAppTemplates()}
+                        className="px-6 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white font-extrabold text-xs shadow-md transition-all flex items-center gap-2 cursor-pointer"
+                      >
+                        <Save className="w-4 h-4" />
+                        <span>{isSaving ? 'Saving...' : 'Save WhatsApp Template'}</span>
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Right Column: Live WhatsApp Smartphone Mockup (5 Cols) */}
+              <div className="lg:col-span-5 bg-white rounded-3xl p-5 sm:p-6 border border-slate-200/80 shadow-xs flex flex-col justify-between space-y-4">
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <div className="w-8 h-8 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center font-bold">
+                        <MessageSquare className="w-4 h-4" />
+                      </div>
+                      <div>
+                        <h4 className="text-sm font-extrabold text-slate-900">Live WhatsApp Preview</h4>
+                        <p className="text-[11px] text-slate-400">Exact look on student's WhatsApp</p>
+                      </div>
+                    </div>
+                    <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800">
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" /> Live
+                    </span>
+                  </div>
+
+                  {/* Smartphone Styled Wrapper */}
+                  <div className="rounded-3xl bg-slate-900 p-2.5 shadow-xl border-4 border-slate-800">
+                    {/* WhatsApp Top Header Bar */}
+                    <div className="bg-[#075E54] text-white px-3.5 py-2.5 rounded-t-2xl flex items-center justify-between shadow-xs">
+                      <div className="flex items-center gap-2.5">
+                        <div className="w-8 h-8 rounded-full bg-slate-300 text-slate-700 font-bold flex items-center justify-center text-xs relative">
+                          RS
+                          <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 border-2 border-[#075E54] absolute bottom-0 right-0" />
+                        </div>
+                        <div>
+                          <p className="text-xs font-bold leading-tight">Rahul Sharma</p>
+                          <p className="text-[10px] text-emerald-200 leading-tight">online • Seat #14</p>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-3 text-emerald-100 text-xs">
+                        <Phone className="w-3.5 h-3.5" />
+                        <ExternalLink className="w-3.5 h-3.5" />
+                      </div>
+                    </div>
+
+                    {/* WhatsApp Chat Wall Background */}
+                    <div
+                      className="bg-[#E5DDD5] p-3.5 min-h-[300px] max-h-[380px] overflow-y-auto flex flex-col justify-end rounded-b-2xl shadow-inner relative"
+                      style={{
+                        backgroundImage:
+                          'radial-gradient(#cfc6bc 1px, transparent 1px), radial-gradient(#cfc6bc 1px, #E5DDD5 1px)',
+                        backgroundSize: '20px 20px',
+                        backgroundPosition: '0 0, 10px 10px',
+                      }}
+                    >
+                      {/* Chat message bubble with WhatsApp green bubble style */}
+                      <div className="bg-[#DCF8C6] text-slate-900 rounded-2xl rounded-tr-xs p-3.5 shadow-xs max-w-[92%] self-end space-y-1 text-xs sm:text-[13px] leading-relaxed relative border border-emerald-200/50 animate-in fade-in zoom-in-95">
+                        <p className="whitespace-pre-wrap font-sans text-slate-900 select-text">
+                          {currentPreviewText}
+                        </p>
+                        <div className="flex items-center justify-end gap-1 text-[10px] text-slate-500 mt-1">
+                          <span>10:45 AM</span>
+                          <span className="text-blue-500 font-black tracking-tighter">✓✓</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Preview Action Buttons */}
+                <div className="space-y-3 pt-2">
+                  <div className="grid grid-cols-2 gap-2">
+                    <button
+                      type="button"
+                      onClick={handleCopyMessageText}
+                      className="py-2 px-3 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs flex items-center justify-center gap-1.5 cursor-pointer transition-colors shadow-2xs"
+                    >
+                      <Copy className="w-3.5 h-3.5" />
+                      <span>Copy Text</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={handleSendTestWhatsApp}
+                      className="py-2 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs flex items-center justify-center gap-1.5 cursor-pointer transition-colors shadow-xs"
+                      title="Send this exact message to your own WhatsApp"
+                    >
+                      <MessageCircle className="w-3.5 h-3.5" />
+                      <span>Test on WhatsApp</span>
+                    </button>
+                  </div>
+
+                  {/* Sample Context Legend */}
+                  <div className="p-3 bg-slate-50 rounded-2xl border border-slate-200 text-[11px] text-slate-600 space-y-1">
+                    <p className="font-bold text-slate-800 flex items-center gap-1">
+                      <span>Live Mockup Values:</span>
+                    </p>
+                    <div className="grid grid-cols-2 gap-x-2 gap-y-0.5 text-[10px]">
+                      <p>• Student: <span className="font-semibold text-slate-900">Rahul Sharma</span></p>
+                      <p>• Seat: <span className="font-semibold text-slate-900">#14 (Full Day)</span></p>
+                      <p>• Amount: <span className="font-semibold text-slate-900">₹800</span></p>
+                      <p>• Expiry: <span className="font-semibold text-slate-900">18/09/2026</span></p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Custom Template Creation Modal */}
+            {showNewTemplateModal && (
+              <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4">
+                <div className="bg-white rounded-3xl p-6 max-w-lg w-full shadow-2xl border border-slate-200 space-y-4 animate-in fade-in zoom-in-95">
+                  <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+                    <div className="flex items-center gap-2">
+                      <div className="w-8 h-8 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center">
+                        <Plus className="w-4 h-4" />
+                      </div>
+                      <h3 className="font-extrabold text-slate-900 text-base">
+                        Create Custom WhatsApp Template
+                      </h3>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setShowNewTemplateModal(false)}
+                      className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-slate-600"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+
+                  <form onSubmit={handleCreateCustomTemplate} className="space-y-3.5">
+                    <div>
+                      <label className="block text-xs font-bold text-slate-700 uppercase mb-1">
+                        Template Title (टेम्पलेट का नाम) *
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        value={newTemplateForm.title}
+                        onChange={(e) =>
+                          setNewTemplateForm({ ...newTemplateForm, title: e.target.value })
+                        }
+                        placeholder="e.g. Sunday Test Reminder, Silent Zone Notice"
+                        className="w-full px-3.5 py-2 border border-slate-300 rounded-xl text-sm font-semibold focus:ring-2 focus:ring-indigo-500"
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-xs font-bold text-slate-700 uppercase mb-1">
+                          Category (श्रेणी)
+                        </label>
+                        <select
+                          value={newTemplateForm.category}
+                          onChange={(e) =>
+                            setNewTemplateForm({ ...newTemplateForm, category: e.target.value })
+                          }
+                          className="w-full px-3 py-2 border border-slate-300 rounded-xl text-xs font-semibold focus:ring-2 focus:ring-indigo-500 bg-white cursor-pointer"
+                        >
+                          <option value="fees">Fees & Expiry</option>
+                          <option value="admissions">Admissions</option>
+                          <option value="leads">Demo & Leads</option>
+                          <option value="notices">Notices</option>
+                          <option value="custom">Custom</option>
+                        </select>
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-bold text-slate-700 uppercase mb-1">
+                          Badge Label
+                        </label>
+                        <input
+                          type="text"
+                          value={newTemplateForm.badge}
+                          onChange={(e) =>
+                            setNewTemplateForm({ ...newTemplateForm, badge: e.target.value })
+                          }
+                          placeholder="e.g. 📢 Test, ⚠️ Alert"
+                          className="w-full px-3 py-2 border border-slate-300 rounded-xl text-xs font-semibold focus:ring-2 focus:ring-indigo-500"
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-bold text-slate-700 uppercase mb-1">
+                        Short Description (विवरण)
+                      </label>
+                      <input
+                        type="text"
+                        value={newTemplateForm.description}
+                        onChange={(e) =>
+                          setNewTemplateForm({ ...newTemplateForm, description: e.target.value })
+                        }
+                        placeholder="e.g. Sent on Saturdays for mock test"
+                        className="w-full px-3 py-2 border border-slate-300 rounded-xl text-xs focus:ring-2 focus:ring-indigo-500"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-bold text-slate-700 uppercase mb-1">
+                        Message Content (मैसेज) *
+                      </label>
+                      <textarea
+                        rows={5}
+                        required
+                        value={newTemplateForm.template}
+                        onChange={(e) =>
+                          setNewTemplateForm({ ...newTemplateForm, template: e.target.value })
+                        }
+                        placeholder="नमस्ते {student_name} जी, ..."
+                        className="w-full p-3 border border-slate-300 rounded-xl text-xs font-medium focus:ring-2 focus:ring-indigo-500"
+                      />
+                      <p className="text-[10px] text-slate-400 mt-1">
+                        Available tags: {'{student_name}'}, {'{library_name}'}, {'{seat_number}'}, {'{phone}'}
                       </p>
                     </div>
-                    <button
-                      type="button"
-                      onClick={() => handleResetTemplate(selectedTemplateKey)}
-                      className="px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-600 text-xs font-semibold flex items-center gap-1 cursor-pointer transition-colors"
-                      title="Reset this template to original default text"
-                    >
-                      <RotateCcw className="w-3 h-3" />
-                      <span>Reset</span>
-                    </button>
-                  </div>
 
-                  {/* Dynamic Tags Pill Bar */}
-                  <div>
-                    <label className="text-[11px] font-bold text-slate-700 block mb-1.5 flex items-center gap-1">
-                      <Tag className="w-3 h-3 text-indigo-600" />
-                      <span>Click Tag to Insert into Message:</span>
-                    </label>
-                    <div className="flex flex-wrap gap-1.5">
-                      {(templates[selectedTemplateKey].availableTags || []).map((tag) => (
-                        <button
-                          key={tag}
-                          type="button"
-                          onClick={() => insertTag(tag)}
-                          className="px-2 py-1 rounded-md bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 text-[11px] font-mono font-bold transition-all cursor-pointer"
-                          title={`Insert {${tag}}`}
-                        >
-                          +{`{${tag}}`}
-                        </button>
-                      ))}
+                    <div className="flex justify-end gap-2.5 pt-2 border-t border-slate-100">
+                      <button
+                        type="button"
+                        onClick={() => setShowNewTemplateModal(false)}
+                        className="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs cursor-pointer"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        type="submit"
+                        className="px-5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs shadow-md cursor-pointer"
+                      >
+                        Save Custom Template
+                      </button>
                     </div>
-                  </div>
-
-                  {/* Textarea */}
-                  <div>
-                    <textarea
-                      ref={templateTextareaRef}
-                      rows={7}
-                      value={templates[selectedTemplateKey].template}
-                      onChange={(e) =>
-                        setTemplates({
-                          ...templates,
-                          [selectedTemplateKey]: {
-                            ...templates[selectedTemplateKey],
-                            template: e.target.value,
-                          },
-                        })
-                      }
-                      className="w-full p-3 bg-slate-50 border border-slate-300 rounded-2xl text-xs sm:text-sm font-medium focus:ring-2 focus:ring-indigo-500 focus:bg-white transition-all leading-relaxed"
-                      placeholder="Write WhatsApp message text here..."
-                    />
-                  </div>
-
-                  <div className="pt-2 flex items-center justify-between">
-                    <span className="text-[11px] text-slate-400">
-                      Supports emojis, new lines & bold (*text*)
-                    </span>
-                    <button
-                      type="button"
-                      disabled={isSaving}
-                      onClick={() => handleSaveWhatsAppTemplates()}
-                      className="px-5 py-2 rounded-xl bg-green-600 hover:bg-green-700 text-white font-bold text-xs shadow-md transition-all flex items-center gap-1.5 cursor-pointer"
-                    >
-                      <Save className="w-3.5 h-3.5" />
-                      <span>{isSaving ? 'Saving...' : 'Save Template'}</span>
-                    </button>
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* Right Column: Live WhatsApp Chat Bubble Preview (5 Cols) */}
-            <div className="lg:col-span-5 bg-white rounded-3xl p-5 sm:p-6 border border-slate-200/80 shadow-xs flex flex-col justify-between">
-              <div>
-                <div className="flex items-center gap-2 mb-3">
-                  <div className="w-8 h-8 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center">
-                    <MessageSquare className="w-4 h-4" />
-                  </div>
-                  <div>
-                    <h4 className="text-sm font-bold text-slate-900">Live WhatsApp Preview</h4>
-                    <p className="text-[11px] text-slate-400">How student will see this on phone</p>
-                  </div>
-                </div>
-
-                {/* WhatsApp Phone Mockup Container */}
-                <div className="rounded-2xl bg-[#E5DDD5] p-3.5 border border-slate-300 shadow-inner min-h-[300px] flex flex-col justify-end">
-                  {/* Chat message bubble */}
-                  <div className="bg-[#DCF8C6] text-slate-900 rounded-2xl rounded-tr-xs p-3 shadow-xs max-w-[92%] self-end space-y-1 text-xs sm:text-[13px] leading-relaxed relative">
-                    <p className="whitespace-pre-wrap font-sans text-slate-800">{currentPreviewText}</p>
-                    <div className="flex items-center justify-end gap-1 text-[10px] text-slate-500 mt-1">
-                      <span>10:45 AM</span>
-                      <span className="text-blue-500 font-black">✓✓</span>
-                    </div>
-                  </div>
+                  </form>
                 </div>
               </div>
-
-              {/* Sample Context Legend */}
-              <div className="mt-4 pt-3 border-t border-slate-100 text-[11px] text-slate-500">
-                <p className="font-bold text-slate-700 mb-1">Preview Values Applied:</p>
-                <p>• Student: <span className="font-semibold text-slate-800">Rahul Sharma</span></p>
-                <p>• Seat: <span className="font-semibold text-slate-800">Seat #12 (Full Day)</span></p>
-                <p>• Amount: <span className="font-semibold text-slate-800">₹800</span></p>
-              </div>
-            </div>
+            )}
           </div>
         )}
       </div>

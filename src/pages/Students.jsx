@@ -15,6 +15,11 @@ import {
   checkAndAutoReleaseExpiredMemberships,
   formatDate,
 } from '../utils/helpers';
+import {
+  getActiveTemplates,
+  renderTemplate,
+  DEFAULT_WHATSAPP_TEMPLATES,
+} from '../utils/templateHelpers';
 import { useAuth } from '../context/AuthContext';
 import {
   fetchCollectionData,
@@ -444,7 +449,22 @@ export default function Students() {
         const phoneClean = st.phone.replace(/[^0-9]/g, '');
         const phoneWithCountry = phoneClean.length === 10 ? `91${phoneClean}` : phoneClean;
         const newDateFormatted = formatDate(newExpiryDate);
-        const msg = `🙏 नमस्ते ${st.name}!\n\n🎉 आपकी *Study Point Library* की सदस्यता सफलतापुर्वक *+${extraDays} दिन* आगे बढ़ा दी गई है।\n\n📅 *नई समाप्ति तिथि (New Expiry):* ${newDateFormatted}\n💰 *प्राप्त शुल्क:* ₹${feeAmount}\n💳 *माध्यम:* ${paymentMode.toUpperCase()}\n\nधन्यवाद! पढ़ाई जारी रखें और उज्ज्वल भविष्य बनाएं। ✨`;
+        const currentTemplates = getActiveTemplates();
+        const tpl =
+          currentTemplates?.membershipExtended?.template ||
+          DEFAULT_WHATSAPP_TEMPLATES.membershipExtended?.template;
+        const assignedSeat = seats.find((s) => s.id === st.seatId);
+        const msg = renderTemplate(tpl, {
+          student_name: st.name,
+          library_name: localStorage.getItem('studypoint_library_name') || 'Study Point Library',
+          extra_days: extraDays,
+          new_expiry_date: newDateFormatted,
+          seat_number: assignedSeat?.seatNumber || '—',
+          shift: st.shift || 'Full Day',
+          fee_amount: feeAmount,
+          payment_mode: (paymentMode || 'cash').toUpperCase(),
+          phone: st.phone,
+        });
         const waUrl = `https://api.whatsapp.com/send?phone=${phoneWithCountry}&text=${encodeURIComponent(msg)}`;
         window.open(waUrl, '_blank');
       }
