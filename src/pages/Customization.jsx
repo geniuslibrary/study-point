@@ -49,9 +49,6 @@ export default function Customization() {
   const [selectedTemplateKey, setSelectedTemplateKey] = useState('expiryReminder');
   const templateTextareaRef = useRef(null);
 
-  // 3. Staff Dashboard Permissions
-  const [staffDashConfig, setStaffDashConfig] = useState(DEFAULT_STAFF_DASHBOARD_CONFIG);
-
   // Load from LocalStorage and Firestore
   useEffect(() => {
     const loadAllConfigs = async () => {
@@ -62,9 +59,6 @@ export default function Customization() {
 
         const localWA = localStorage.getItem(WHATSAPP_TEMPLATES_STORAGE_KEY);
         if (localWA) setTemplates({ ...DEFAULT_WHATSAPP_TEMPLATES, ...JSON.parse(localWA) });
-
-        const localStaff = localStorage.getItem(STAFF_DASHBOARD_CONFIG_STORAGE_KEY);
-        if (localStaff) setStaffDashConfig({ ...DEFAULT_STAFF_DASHBOARD_CONFIG, ...JSON.parse(localStaff) });
       } catch (e) {
         console.error('Error reading local customization settings', e);
       }
@@ -82,13 +76,9 @@ export default function Customization() {
             setTemplates({ ...DEFAULT_WHATSAPP_TEMPLATES, ...data.whatsappTemplates });
             localStorage.setItem(WHATSAPP_TEMPLATES_STORAGE_KEY, JSON.stringify(data.whatsappTemplates));
           }
-          if (data.staffDashboardConfig) {
-            setStaffDashConfig({ ...DEFAULT_STAFF_DASHBOARD_CONFIG, ...data.staffDashboardConfig });
-            localStorage.setItem(STAFF_DASHBOARD_CONFIG_STORAGE_KEY, JSON.stringify(data.staffDashboardConfig));
-          }
         }
       } catch (e) {
-        console.warn('Firestore customization sync warning:', e.message);
+        console.error('Error fetching cloud customization doc:', e);
       }
     };
 
@@ -97,20 +87,20 @@ export default function Customization() {
 
   const showToast = (msg) => {
     setToastMessage(msg);
-    setTimeout(() => setToastMessage(''), 3000);
+    setTimeout(() => setToastMessage(''), 3500);
   };
 
   // Save Dashboard Config
-  const handleSaveDashboardConfig = async (newConfig = dashConfig) => {
+  const handleSaveDashboardConfig = async () => {
     setIsSaving(true);
     try {
-      localStorage.setItem(DASHBOARD_CONFIG_STORAGE_KEY, JSON.stringify(newConfig));
+      localStorage.setItem(DASHBOARD_CONFIG_STORAGE_KEY, JSON.stringify(dashConfig));
       await setDoc(
         doc(db, COLLECTIONS.SETTINGS, 'customization'),
-        { dashboardConfig: newConfig },
+        { dashboardConfig: dashConfig },
         { merge: true }
       );
-      showToast('Dashboard widgets updated successfully! 🎉');
+      showToast('Dashboard widgets settings saved! ✨');
     } catch (e) {
       console.error(e);
       showToast('Saved locally!');
@@ -130,25 +120,6 @@ export default function Customization() {
         { merge: true }
       );
       showToast('WhatsApp templates saved successfully! ✨');
-    } catch (e) {
-      console.error(e);
-      showToast('Saved locally!');
-    } finally {
-      setIsSaving(false);
-    }
-  };
-
-  // Save Staff Dashboard Config
-  const handleSaveStaffConfig = async (newStaffConfig = staffDashConfig) => {
-    setIsSaving(true);
-    try {
-      localStorage.setItem(STAFF_DASHBOARD_CONFIG_STORAGE_KEY, JSON.stringify(newStaffConfig));
-      await setDoc(
-        doc(db, COLLECTIONS.SETTINGS, 'customization'),
-        { staffDashboardConfig: newStaffConfig },
-        { merge: true }
-      );
-      showToast('Staff dashboard access rules updated! 🛡️');
     } catch (e) {
       console.error(e);
       showToast('Saved locally!');
@@ -282,18 +253,6 @@ export default function Customization() {
           >
             <MessageSquare className="w-4 h-4" />
             <span>💬 WhatsApp Templates</span>
-          </button>
-
-          <button
-            onClick={() => setActiveTab('staff')}
-            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all whitespace-nowrap cursor-pointer ${
-              activeTab === 'staff'
-                ? 'bg-white text-indigo-700 shadow-xs'
-                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/50'
-            }`}
-          >
-            <Shield className="w-4 h-4" />
-            <span>👥 Staff Dashboard Access</span>
           </button>
         </div>
 
@@ -597,111 +556,6 @@ export default function Customization() {
                 <p>• Seat: <span className="font-semibold text-slate-800">Seat #12 (Full Day)</span></p>
                 <p>• Amount: <span className="font-semibold text-slate-800">₹800</span></p>
               </div>
-            </div>
-          </div>
-        )}
-
-        {/* ========================================================= */}
-        {/* TAB 3: STAFF DASHBOARD ACCESS CONTROLS */}
-        {/* ========================================================= */}
-        {activeTab === 'staff' && (
-          <div className="bg-white rounded-3xl p-5 sm:p-7 border border-slate-200/80 shadow-xs space-y-6">
-            <div className="pb-4 border-b border-slate-100">
-              <h3 className="text-base font-bold text-slate-900">Staff Dashboard Privacy & View Rules</h3>
-              <p className="text-xs text-slate-500 mt-0.5">
-                Control what receptionists and staff members see on the Dashboard. Protect your revenue, daily earnings, and profit data.
-              </p>
-            </div>
-
-            <div className="space-y-4 max-w-2xl">
-              {[
-                {
-                  id: 'hideFinancialsFromStaff',
-                  title: '🔒 Hide Financials & Revenue from Staff',
-                  desc: 'Staff will NOT see Total Monthly Revenue, Net Profit, and Revenue vs Expense Chart on the Dashboard. Only active student counts and seats will be visible.',
-                  recommended: true,
-                },
-                {
-                  id: 'allowStaffDemoTracker',
-                  title: '🎯 Allow Staff to see Visit & Demo Tracker',
-                  desc: 'Staff can see incoming demo visitors, trial seat allocations, and follow-ups on the dashboard.',
-                  recommended: true,
-                },
-                {
-                  id: 'allowStaffSeatOccupancy',
-                  title: '🪑 Allow Staff to see Section Seat Occupancy',
-                  desc: 'Staff can see how full each room/section is to allocate seats quickly.',
-                  recommended: true,
-                },
-                {
-                  id: 'allowStaffPendingDues',
-                  title: '🚨 Allow Staff to see Urgent Fee Follow-ups',
-                  desc: 'Staff can see students with pending dues and collect fees directly from the dashboard.',
-                  recommended: true,
-                },
-                {
-                  id: 'allowStaffShiftDistribution',
-                  title: '⏰ Allow Staff to see Shift Breakdown',
-                  desc: 'Staff can see shift counts (Morning, Evening, Full Day).',
-                  recommended: true,
-                },
-                {
-                  id: 'allowStaffRecentActivity',
-                  title: '🧾 Allow Staff to see Recent Fee Collections Audit',
-                  desc: 'If enabled, staff can see the stream of recently paid fee receipts and amounts.',
-                  recommended: false,
-                },
-              ].map((rule) => {
-                const isChecked = staffDashConfig[rule.id] !== false;
-                return (
-                  <div
-                    key={rule.id}
-                    onClick={() => setStaffDashConfig((prev) => ({ ...prev, [rule.id]: !isChecked }))}
-                    className={`p-4 rounded-2xl border transition-all cursor-pointer flex items-start justify-between gap-4 ${
-                      isChecked
-                        ? 'bg-purple-50/40 border-purple-200 ring-1 ring-purple-500/20'
-                        : 'bg-slate-50/60 border-slate-200 opacity-60'
-                    }`}
-                  >
-                    <div className="space-y-1">
-                      <div className="flex items-center gap-2">
-                        <span className="font-bold text-slate-900 text-sm">{rule.title}</span>
-                        {rule.recommended && (
-                          <span className="text-[10px] font-extrabold bg-purple-100 text-purple-700 px-1.5 py-0.2 rounded">
-                            Recommended
-                          </span>
-                        )}
-                      </div>
-                      <p className="text-xs text-slate-500 leading-relaxed">{rule.desc}</p>
-                    </div>
-
-                    <div
-                      className={`w-11 h-6 rounded-full transition-colors flex items-center p-0.5 shrink-0 mt-1 ${
-                        isChecked ? 'bg-purple-600' : 'bg-slate-300'
-                      }`}
-                    >
-                      <div
-                        className={`w-5 h-5 rounded-full bg-white shadow-xs transform transition-transform ${
-                          isChecked ? 'translate-x-5' : 'translate-x-0'
-                        }`}
-                      />
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-
-            {/* Save Button */}
-            <div className="pt-4 border-t border-slate-100 flex items-center justify-end">
-              <button
-                type="button"
-                disabled={isSaving}
-                onClick={() => handleSaveStaffConfig()}
-                className="px-6 py-2.5 rounded-xl bg-purple-600 hover:bg-purple-700 active:scale-95 text-white font-bold text-sm shadow-md transition-all flex items-center gap-2 cursor-pointer"
-              >
-                <Save className="w-4 h-4" />
-                <span>{isSaving ? 'Saving...' : 'Save Staff Access Rules'}</span>
-              </button>
             </div>
           </div>
         )}

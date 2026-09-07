@@ -57,14 +57,33 @@ export const DEFAULT_DASHBOARD_CONFIG = {
   recentActivity: true,
 };
 
-export const DEFAULT_STAFF_DASHBOARD_CONFIG = {
-  hideFinancialsFromStaff: true, // Hides Revenue chart, total revenue stat, and profit/loss
-  allowStaffDemoTracker: true,
-  allowStaffSeatOccupancy: true,
-  allowStaffPendingDues: true,
-  allowStaffShiftDistribution: true,
-  allowStaffRecentActivity: false, // Hides financial transaction streams
+export const DEFAULT_STAFF_DASHBOARD_WIDGETS = {
+  quickActions: true,
+  todayPulse: true,
+  coreStats: true,
+  revenueChart: false,
+  pendingDuesAlert: true,
+  demoTracker: true,
+  occupancyOverview: true,
+  shiftDistribution: true,
+  recentActivity: false,
+  hideFinancials: true,
 };
+
+export const DASHBOARD_WIDGET_OPTIONS = [
+  { id: 'quickActions', label: 'Quick Shortcuts Strip (शॉर्टकट स्ट्रिप)' },
+  { id: 'todayPulse', label: 'Today Pulse - Aaj Ka Hisaab (आज का हिसाब)' },
+  { id: 'coreStats', label: 'Core Stat Cards (स्टूडेंट्स, सीट्स आदि कार्ड्स)' },
+  { id: 'revenueChart', label: 'Revenue vs Expense Chart (कमाई ग्राफ)' },
+  { id: 'pendingDuesAlert', label: 'Pending Dues Alerts (बकाया फीस अलर्ट)' },
+  { id: 'demoTracker', label: 'Live Demo & Visit Tracker (डेमो ट्रैकर)' },
+  { id: 'occupancyOverview', label: 'Section Seat Occupancy (सीट ऑक्यूपेंसी)' },
+  { id: 'shiftDistribution', label: 'Shift Distribution (शिफ्ट विभाजन)' },
+  { id: 'recentActivity', label: 'Recent Fee Collections (हालिया फीस लिस्ट)' },
+  { id: 'hideFinancials', label: '🔒 Hide All Financial Numbers (कमाई/रुपये छिपाएं)' },
+];
+
+export const DEFAULT_STAFF_DASHBOARD_CONFIG = DEFAULT_STAFF_DASHBOARD_WIDGETS;
 
 export const WHATSAPP_TEMPLATES_STORAGE_KEY = 'studypoint_whatsapp_templates';
 export const DASHBOARD_CONFIG_STORAGE_KEY = 'studypoint_dashboard_config';

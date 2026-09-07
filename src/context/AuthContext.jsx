@@ -71,6 +71,7 @@ export const AuthProvider = ({ children }) => {
             role: staffMember.role || 'receptionist',
             roleLabel,
             permissions: staffMember.permissions || currUser.permissions,
+            dashboardWidgets: staffMember.dashboardWidgets || currUser.dashboardWidgets,
             phone: staffMember.phone || currUser.phone,
           };
           setUser(updated);
@@ -228,6 +229,7 @@ export const AuthProvider = ({ children }) => {
             role: staffMember.role || 'receptionist',
             roleLabel: staffMember.roleLabel || defaultLabel,
             permissions: staffMember.permissions || fallbackPerms,
+            dashboardWidgets: staffMember.dashboardWidgets || null,
             phone: staffMember.phone || '',
           };
 

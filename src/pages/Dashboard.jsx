@@ -16,9 +16,8 @@ import { doc, getDoc } from 'firebase/firestore';
 import { db } from '../firebase/config';
 import {
   getActiveDashboardConfig,
-  getActiveStaffDashboardConfig,
   DASHBOARD_CONFIG_STORAGE_KEY,
-  STAFF_DASHBOARD_CONFIG_STORAGE_KEY,
+  DEFAULT_STAFF_DASHBOARD_WIDGETS,
 } from '../utils/templateHelpers';
 import {
   Users,
@@ -44,7 +43,6 @@ export default function Dashboard() {
 
   const [loading, setLoading] = useState(true);
   const [dashConfig, setDashConfig] = useState(getActiveDashboardConfig());
-  const [staffConfig, setStaffConfig] = useState(getActiveStaffDashboardConfig());
 
   const [stats, setStats] = useState({
     totalStudents: 0,
@@ -241,7 +239,7 @@ export default function Dashboard() {
       setAllSeatsList(uniqueSeatsList || []);
       setAllSectionsList(allSections || []);
 
-      // 7. Cloud Customization Settings
+      // 7. Cloud Customization Settings (Owner / Library Default)
       try {
         const custSnap = await getDoc(doc(db, COLLECTIONS.SETTINGS, 'customization'));
         if (custSnap.exists()) {
@@ -249,10 +247,6 @@ export default function Dashboard() {
           if (data.dashboardConfig) {
             setDashConfig(data.dashboardConfig);
             localStorage.setItem(DASHBOARD_CONFIG_STORAGE_KEY, JSON.stringify(data.dashboardConfig));
-          }
-          if (data.staffDashboardConfig) {
-            setStaffConfig(data.staffDashboardConfig);
-            localStorage.setItem(STAFF_DASHBOARD_CONFIG_STORAGE_KEY, JSON.stringify(data.staffDashboardConfig));
           }
         }
       } catch (err) {
@@ -288,15 +282,24 @@ export default function Dashboard() {
 
   // Customization & Role-based visibility flags
   const isStaff = userRole !== 'owner';
-  const showQuickActions = dashConfig.quickActions !== false;
-  const showTodayPulse = dashConfig.todayPulse !== false && (!isStaff || !staffConfig.hideFinancialsFromStaff);
-  const showCoreStats = dashConfig.coreStats !== false;
-  const showRevenueChart = dashConfig.revenueChart !== false && (!isStaff || !staffConfig.hideFinancialsFromStaff);
-  const showPendingDues = dashConfig.pendingDuesAlert !== false && (!isStaff || staffConfig.allowStaffPendingDues !== false);
-  const showDemoTracker = dashConfig.demoTracker !== false && (!isStaff || staffConfig.allowStaffDemoTracker !== false);
-  const showOccupancy = dashConfig.occupancyOverview !== false && (!isStaff || staffConfig.allowStaffSeatOccupancy !== false);
-  const showShiftDist = dashConfig.shiftDistribution !== false && (!isStaff || staffConfig.allowStaffShiftDistribution !== false);
-  const showRecentActivity = dashConfig.recentActivity !== false && (!isStaff || staffConfig.allowStaffRecentActivity === true);
+  const staffWidgets = isStaff
+    ? user?.dashboardWidgets || user?.permissions?.dashboardWidgets || DEFAULT_STAFF_DASHBOARD_WIDGETS
+    : null;
+
+  const showQuickActions = isStaff ? staffWidgets.quickActions !== false : dashConfig.quickActions !== false;
+  const showTodayPulse = isStaff
+    ? staffWidgets.todayPulse !== false && !staffWidgets.hideFinancials
+    : dashConfig.todayPulse !== false;
+  const showCoreStats = isStaff ? staffWidgets.coreStats !== false : dashConfig.coreStats !== false;
+  const showRevenueChart = isStaff
+    ? staffWidgets.revenueChart === true && !staffWidgets.hideFinancials
+    : dashConfig.revenueChart !== false;
+  const showPendingDues = isStaff ? staffWidgets.pendingDuesAlert !== false : dashConfig.pendingDuesAlert !== false;
+  const showDemoTracker = isStaff ? staffWidgets.demoTracker !== false : dashConfig.demoTracker !== false;
+  const showOccupancy = isStaff ? staffWidgets.occupancyOverview !== false : dashConfig.occupancyOverview !== false;
+  const showShiftDist = isStaff ? staffWidgets.shiftDistribution !== false : dashConfig.shiftDistribution !== false;
+  const showRecentActivity = isStaff ? staffWidgets.recentActivity === true : dashConfig.recentActivity !== false;
+  const hideRevenueCard = isStaff && (staffWidgets.hideFinancials || !staffWidgets.revenueChart);
 
   return (
     <Layout title="Dashboard">
@@ -421,7 +424,7 @@ export default function Dashboard() {
 
         {/* 4 Core Monthly Stat Cards */}
         {showCoreStats && (
-          <StatsCards stats={stats} hideRevenue={isStaff && staffConfig.hideFinancialsFromStaff} />
+          <StatsCards stats={stats} hideRevenue={hideRevenueCard} />
         )}
 
         {/* Row 1: Revenue vs Expenses Chart & Urgent Dues Follow-ups */}

@@ -42,6 +42,10 @@ import {
   updateDocument,
   removeDocument,
 } from '../firebase/storageService';
+import {
+  DEFAULT_STAFF_DASHBOARD_WIDGETS,
+  DASHBOARD_WIDGET_OPTIONS,
+} from '../utils/templateHelpers';
 
 const MODULE_META = {
   dashboard: {
@@ -138,6 +142,7 @@ export default function StaffRoles() {
     emoji: '💼',
     description: '',
     permissions: JSON.parse(JSON.stringify(ROLE_PRESETS.receptionist.permissions)),
+    dashboardWidgets: { ...DEFAULT_STAFF_DASHBOARD_WIDGETS },
   });
 
   const [toastMessage, setToastMessage] = useState('');
@@ -154,6 +159,7 @@ export default function StaffRoles() {
     roleLabel: '🛎️ Receptionist',
     status: 'active',
     permissions: JSON.parse(JSON.stringify(ROLE_PRESETS.receptionist.permissions)),
+    dashboardWidgets: { ...DEFAULT_STAFF_DASHBOARD_WIDGETS },
   });
 
   const fetchData = async () => {
@@ -216,6 +222,9 @@ export default function StaffRoles() {
       roleLabel: defaultRole.label || `${defaultRole.emoji || '💼'} ${defaultRole.name}`,
       status: 'active',
       permissions: JSON.parse(JSON.stringify(defaultRole.permissions)),
+      dashboardWidgets: defaultRole.dashboardWidgets
+        ? { ...DEFAULT_STAFF_DASHBOARD_WIDGETS, ...defaultRole.dashboardWidgets }
+        : { ...DEFAULT_STAFF_DASHBOARD_WIDGETS },
     });
     setShowModal(true);
   };
@@ -245,6 +254,11 @@ export default function StaffRoles() {
       permissions: staff.permissions
         ? JSON.parse(JSON.stringify(staff.permissions))
         : JSON.parse(JSON.stringify(fallbackPerms)),
+      dashboardWidgets: staff.dashboardWidgets
+        ? { ...DEFAULT_STAFF_DASHBOARD_WIDGETS, ...staff.dashboardWidgets }
+        : matchedRole.dashboardWidgets
+        ? { ...DEFAULT_STAFF_DASHBOARD_WIDGETS, ...matchedRole.dashboardWidgets }
+        : { ...DEFAULT_STAFF_DASHBOARD_WIDGETS },
     });
     setShowModal(true);
   };
@@ -258,6 +272,9 @@ export default function StaffRoles() {
         role: preset.id,
         roleLabel: preset.label || `${preset.emoji || '💼'} ${preset.name}`,
         permissions: JSON.parse(JSON.stringify(preset.permissions)),
+        dashboardWidgets: preset.dashboardWidgets
+          ? { ...DEFAULT_STAFF_DASHBOARD_WIDGETS, ...preset.dashboardWidgets }
+          : prev.dashboardWidgets,
       }));
     }
   };
@@ -340,6 +357,7 @@ export default function StaffRoles() {
       emoji: '💼',
       description: '',
       permissions: JSON.parse(JSON.stringify(ROLE_PRESETS.receptionist.permissions)),
+      dashboardWidgets: { ...DEFAULT_STAFF_DASHBOARD_WIDGETS },
     });
     setShowRoleModal(true);
   };
@@ -353,6 +371,9 @@ export default function StaffRoles() {
       permissions: role.permissions
         ? JSON.parse(JSON.stringify(role.permissions))
         : JSON.parse(JSON.stringify(ROLE_PRESETS.receptionist.permissions)),
+      dashboardWidgets: role.dashboardWidgets
+        ? { ...DEFAULT_STAFF_DASHBOARD_WIDGETS, ...role.dashboardWidgets }
+        : { ...DEFAULT_STAFF_DASHBOARD_WIDGETS },
     });
     setShowRoleModal(true);
   };
@@ -407,6 +428,7 @@ export default function StaffRoles() {
       label: `${roleFormData.emoji || (isOwnerRole ? '👑' : '💼')} ${roleFormData.name.trim()}`,
       description: roleFormData.description.trim() || 'Staff role template',
       permissions: roleFormData.permissions,
+      dashboardWidgets: roleFormData.dashboardWidgets || DEFAULT_STAFF_DASHBOARD_WIDGETS,
       isOwner: isOwnerRole,
     };
 
@@ -898,60 +920,106 @@ export default function StaffRoles() {
                 return (
                   <div
                     key={module.id}
-                    className="p-3 sm:p-3.5 hover:bg-slate-50/80 transition-colors flex flex-col sm:flex-row sm:items-center justify-between gap-2.5"
+                    className="p-3 sm:p-3.5 hover:bg-slate-50/80 transition-colors flex flex-col gap-2.5"
                   >
-                    {/* Left: Icon, Module Name & Subtitle */}
-                    <div className="flex items-center gap-3">
-                      <div
-                        className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 border ${meta.color}`}
-                      >
-                        <IconComponent className="w-4 h-4" />
-                      </div>
-                      <div>
-                        <p className="font-extrabold text-xs sm:text-sm text-slate-900 leading-tight">
-                          {module.label || module.id}
-                        </p>
-                        <p className="text-[10px] text-slate-400 mt-0.5">{meta.desc}</p>
-                      </div>
-                    </div>
-
-                    {/* Right: Action Checkboxes */}
-                    <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 ml-12 sm:ml-0">
-                      {module.actions.map((act) => {
-                        const isChecked = !!modPerms[act];
-
-                        return (
-                          <label
-                            key={act}
-                            className={`flex items-center gap-1 text-[11px] font-bold cursor-pointer px-2.5 py-1 rounded-lg border transition-all select-none ${
-                              isChecked
-                                ? 'bg-indigo-50 border-indigo-300 text-indigo-700 shadow-2xs font-extrabold'
-                                : 'bg-white border-slate-200 text-slate-400 hover:border-slate-300'
-                            }`}
-                          >
-                            <input
-                              type="checkbox"
-                              checked={isChecked}
-                              onChange={() => handlePermissionToggle(module.id, act)}
-                              className="rounded text-indigo-600 focus:ring-indigo-500 h-3.5 w-3.5 cursor-pointer"
-                            />
-                            <span className="capitalize">{act}</span>
-                          </label>
-                        );
-                      })}
-
-                      {/* Quick Module Toggle All button */}
-                      {module.actions.length > 1 && (
-                        <button
-                          type="button"
-                          onClick={() => handleModuleToggleAll(module.id, module.actions)}
-                          className="text-[10px] font-bold px-1.5 py-1 text-slate-400 hover:text-indigo-600 rounded cursor-pointer transition-colors"
-                          title="Toggle all actions for this module"
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+                      {/* Left: Icon, Module Name & Subtitle */}
+                      <div className="flex items-center gap-3">
+                        <div
+                          className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 border ${meta.color}`}
                         >
-                          All
-                        </button>
-                      )}
+                          <IconComponent className="w-4 h-4" />
+                        </div>
+                        <div>
+                          <p className="font-extrabold text-xs sm:text-sm text-slate-900 leading-tight">
+                            {module.label || module.id}
+                          </p>
+                          <p className="text-[10px] text-slate-400 mt-0.5">{meta.desc}</p>
+                        </div>
+                      </div>
+
+                      {/* Right: Action Checkboxes */}
+                      <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 ml-12 sm:ml-0">
+                        {module.actions.map((act) => {
+                          const isChecked = !!modPerms[act];
+
+                          return (
+                            <label
+                              key={act}
+                              className={`flex items-center gap-1 text-[11px] font-bold cursor-pointer px-2.5 py-1 rounded-lg border transition-all select-none ${
+                                isChecked
+                                  ? 'bg-indigo-50 border-indigo-300 text-indigo-700 shadow-2xs font-extrabold'
+                                  : 'bg-white border-slate-200 text-slate-400 hover:border-slate-300'
+                              }`}
+                            >
+                              <input
+                                type="checkbox"
+                                checked={isChecked}
+                                onChange={() => handlePermissionToggle(module.id, act)}
+                                className="rounded text-indigo-600 focus:ring-indigo-500 h-3.5 w-3.5 cursor-pointer"
+                              />
+                              <span className="capitalize">{act}</span>
+                            </label>
+                          );
+                        })}
+
+                        {/* Quick Module Toggle All button */}
+                        {module.actions.length > 1 && (
+                          <button
+                            type="button"
+                            onClick={() => handleModuleToggleAll(module.id, module.actions)}
+                            className="text-[10px] font-bold px-1.5 py-1 text-slate-400 hover:text-indigo-600 rounded cursor-pointer transition-colors"
+                            title="Toggle all actions for this module"
+                          >
+                            All
+                          </button>
+                        )}
+                      </div>
                     </div>
+
+                    {/* Dashboard specific custom widgets selector */}
+                    {module.id === 'dashboard' && modPerms.view && (
+                      <div className="mt-1 pt-2.5 border-t border-slate-100 sm:ml-12 bg-slate-50/90 rounded-2xl p-3 border border-slate-200/80">
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="text-xs font-black text-slate-800 flex items-center gap-1.5">
+                            <span>🎛️</span>
+                            <span>Dashboard Sections for this Staff (डैशबोर्ड पर क्या-क्या दिखे):</span>
+                          </span>
+                          <span className="text-[10px] text-indigo-600 font-bold">Tick allowed sections</span>
+                        </div>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
+                          {DASHBOARD_WIDGET_OPTIONS.map((opt) => {
+                            const isWidgetChecked = formData.dashboardWidgets?.[opt.id] !== false;
+                            return (
+                              <label
+                                key={opt.id}
+                                className={`flex items-center gap-2 p-2 rounded-xl border text-xs cursor-pointer transition-all select-none ${
+                                  isWidgetChecked
+                                    ? 'bg-white border-indigo-200 text-indigo-950 font-bold shadow-2xs'
+                                    : 'bg-slate-100/60 border-slate-200 text-slate-400 font-medium'
+                                }`}
+                              >
+                                <input
+                                  type="checkbox"
+                                  checked={isWidgetChecked}
+                                  onChange={() => {
+                                    setFormData((prev) => ({
+                                      ...prev,
+                                      dashboardWidgets: {
+                                        ...prev.dashboardWidgets,
+                                        [opt.id]: !isWidgetChecked,
+                                      },
+                                    }));
+                                  }}
+                                  className="rounded text-indigo-600 focus:ring-indigo-500 h-3.5 w-3.5 cursor-pointer"
+                                />
+                                <span className="truncate">{opt.label}</span>
+                              </label>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 );
               })}
@@ -1050,57 +1118,103 @@ export default function StaffRoles() {
                 return (
                   <div
                     key={module.id}
-                    className="p-3 sm:p-3.5 hover:bg-slate-50/80 transition-colors flex flex-col sm:flex-row sm:items-center justify-between gap-2.5"
+                    className="p-3 sm:p-3.5 hover:bg-slate-50/80 transition-colors flex flex-col gap-2.5"
                   >
-                    <div className="flex items-center gap-3">
-                      <div
-                        className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 border ${meta.color}`}
-                      >
-                        <IconComponent className="w-3.5 h-3.5" />
-                      </div>
-                      <div>
-                        <p className="font-extrabold text-xs text-slate-900 leading-tight">
-                          {module.label || module.id}
-                        </p>
-                        <p className="text-[10px] text-slate-400">{meta.desc}</p>
-                      </div>
-                    </div>
-
-                    <div className="flex flex-wrap items-center gap-1.5 ml-11 sm:ml-0">
-                      {module.actions.map((act) => {
-                        const isChecked = !!modPerms[act];
-
-                        return (
-                          <label
-                            key={act}
-                            className={`flex items-center gap-1 text-[11px] font-bold cursor-pointer px-2.5 py-1 rounded-lg border transition-all select-none ${
-                              isChecked
-                                ? 'bg-indigo-50 border-indigo-300 text-indigo-700 font-extrabold'
-                                : 'bg-white border-slate-200 text-slate-400 hover:border-slate-300'
-                            }`}
-                          >
-                            <input
-                              type="checkbox"
-                              checked={isChecked}
-                              onChange={() => handleRoleFormPermissionToggle(module.id, act)}
-                              className="rounded text-indigo-600 focus:ring-indigo-500 h-3.5 w-3.5 cursor-pointer"
-                            />
-                            <span className="capitalize">{act}</span>
-                          </label>
-                        );
-                      })}
-
-                      {module.actions.length > 1 && (
-                        <button
-                          type="button"
-                          onClick={() => handleRoleFormModuleToggleAll(module.id, module.actions)}
-                          className="text-[10px] font-bold px-1.5 py-1 text-slate-400 hover:text-indigo-600 rounded cursor-pointer"
-                          title="Toggle all actions for this module"
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+                      <div className="flex items-center gap-3">
+                        <div
+                          className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 border ${meta.color}`}
                         >
-                          All
-                        </button>
-                      )}
+                          <IconComponent className="w-3.5 h-3.5" />
+                        </div>
+                        <div>
+                          <p className="font-extrabold text-xs text-slate-900 leading-tight">
+                            {module.label || module.id}
+                          </p>
+                          <p className="text-[10px] text-slate-400">{meta.desc}</p>
+                        </div>
+                      </div>
+
+                      <div className="flex flex-wrap items-center gap-1.5 ml-11 sm:ml-0">
+                        {module.actions.map((act) => {
+                          const isChecked = !!modPerms[act];
+
+                          return (
+                            <label
+                              key={act}
+                              className={`flex items-center gap-1 text-[11px] font-bold cursor-pointer px-2.5 py-1 rounded-lg border transition-all select-none ${
+                                isChecked
+                                  ? 'bg-indigo-50 border-indigo-300 text-indigo-700 font-extrabold'
+                                  : 'bg-white border-slate-200 text-slate-400 hover:border-slate-300'
+                              }`}
+                            >
+                              <input
+                                type="checkbox"
+                                checked={isChecked}
+                                onChange={() => handleRoleFormPermissionToggle(module.id, act)}
+                                className="rounded text-indigo-600 focus:ring-indigo-500 h-3.5 w-3.5 cursor-pointer"
+                              />
+                              <span className="capitalize">{act}</span>
+                            </label>
+                          );
+                        })}
+
+                        {module.actions.length > 1 && (
+                          <button
+                            type="button"
+                            onClick={() => handleRoleFormModuleToggleAll(module.id, module.actions)}
+                            className="text-[10px] font-bold px-1.5 py-1 text-slate-400 hover:text-indigo-600 rounded cursor-pointer"
+                            title="Toggle all actions for this module"
+                          >
+                            All
+                          </button>
+                        )}
+                      </div>
                     </div>
+
+                    {/* Dashboard specific custom widgets selector for role */}
+                    {module.id === 'dashboard' && modPerms.view && (
+                      <div className="mt-1 pt-2.5 border-t border-slate-100 sm:ml-11 bg-slate-50/90 rounded-2xl p-3 border border-slate-200/80">
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="text-xs font-black text-slate-800 flex items-center gap-1.5">
+                            <span>🎛️</span>
+                            <span>Dashboard Sections for this Role (इस रोल को क्या-क्या दिखे):</span>
+                          </span>
+                          <span className="text-[10px] text-indigo-600 font-bold">Tick allowed sections</span>
+                        </div>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
+                          {DASHBOARD_WIDGET_OPTIONS.map((opt) => {
+                            const isWidgetChecked = roleFormData.dashboardWidgets?.[opt.id] !== false;
+                            return (
+                              <label
+                                key={opt.id}
+                                className={`flex items-center gap-2 p-2 rounded-xl border text-xs cursor-pointer transition-all select-none ${
+                                  isWidgetChecked
+                                    ? 'bg-white border-indigo-200 text-indigo-950 font-bold shadow-2xs'
+                                    : 'bg-slate-100/60 border-slate-200 text-slate-400 font-medium'
+                                }`}
+                              >
+                                <input
+                                  type="checkbox"
+                                  checked={isWidgetChecked}
+                                  onChange={() => {
+                                    setRoleFormData((prev) => ({
+                                      ...prev,
+                                      dashboardWidgets: {
+                                        ...prev.dashboardWidgets,
+                                        [opt.id]: !isWidgetChecked,
+                                      },
+                                    }));
+                                  }}
+                                  className="rounded text-indigo-600 focus:ring-indigo-500 h-3.5 w-3.5 cursor-pointer"
+                                />
+                                <span className="truncate">{opt.label}</span>
+                              </label>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 );
               })}
