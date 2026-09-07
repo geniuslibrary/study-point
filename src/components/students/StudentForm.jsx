@@ -316,7 +316,7 @@ export default function StudentForm({
         <div className="p-3.5 sm:p-4 bg-gradient-to-r from-slate-50 to-indigo-50/30 rounded-2xl border border-indigo-100/80 shadow-2xs">
           <div className="flex flex-col sm:flex-row sm:items-center gap-3.5 sm:gap-4">
             {/* Avatar Preview Box */}
-            <div className="relative group w-18 h-18 sm:w-20 sm:h-20 rounded-2xl overflow-hidden bg-white border-2 border-slate-200 flex items-center justify-center shrink-0 shadow-xs ring-2 ring-indigo-500/10">
+            <div className="relative group w-24 h-24 sm:w-28 sm:h-28 rounded-2xl overflow-hidden bg-white border-2 border-slate-200 flex items-center justify-center shrink-0 shadow-sm ring-2 ring-indigo-500/10">
               {formData.photo ? (
                 <>
                   <img

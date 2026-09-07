@@ -85,10 +85,10 @@ export default function StudentProfile({
               <img
                 src={student.photo}
                 alt={student.name}
-                className="w-18 h-18 sm:w-20 sm:h-20 rounded-full object-cover shadow-md shadow-indigo-600/20 border-3 border-white ring-2 ring-indigo-200 shrink-0"
+                className="w-24 h-24 sm:w-28 sm:h-28 rounded-full object-cover shadow-lg shadow-indigo-600/20 border-4 border-white ring-2 ring-indigo-200 shrink-0"
               />
             ) : (
-              <div className="w-18 h-18 sm:w-20 sm:h-20 bg-indigo-600 rounded-full flex items-center justify-center text-white font-black text-2xl shadow-md shadow-indigo-600/20 border-3 border-white ring-2 ring-indigo-200 shrink-0">
+              <div className="w-24 h-24 sm:w-28 sm:h-28 bg-indigo-600 rounded-full flex items-center justify-center text-white font-black text-3xl shadow-lg shadow-indigo-600/20 border-4 border-white ring-2 ring-indigo-200 shrink-0">
                 {student.name?.charAt(0)?.toUpperCase()}
               </div>
             )}

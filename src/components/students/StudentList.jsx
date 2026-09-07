@@ -236,8 +236,8 @@ export default function StudentList({
 
               return (
                 <tr key={student.id} className="hover:bg-slate-50/80 transition-colors">
-                  <td className="px-5 py-3.5">
-                    <div className="flex items-center gap-3.5">
+                  <td className="px-5 py-4">
+                    <div className="flex items-center gap-4">
                       {student.photo ? (
                         <img
                           src={student.photo}
@@ -246,13 +246,13 @@ export default function StudentList({
                           onError={(e) => {
                             e.currentTarget.style.display = 'none';
                           }}
-                          className="w-12 h-12 rounded-full object-cover border-2 border-indigo-100/90 shrink-0 shadow-xs ring-2 ring-slate-200/50 cursor-pointer hover:scale-105 transition-transform"
+                          className="w-[60px] h-[60px] rounded-full object-cover border-2 border-indigo-100/90 shrink-0 shadow-sm ring-2 ring-slate-200/60 cursor-pointer hover:scale-105 transition-transform"
                           title="Click to view profile"
                         />
                       ) : (
                         <div
                           onClick={() => onViewProfile(student)}
-                          className={`w-12 h-12 rounded-full flex items-center justify-center font-black text-sm shrink-0 shadow-xs cursor-pointer hover:scale-105 transition-transform ${
+                          className={`w-[60px] h-[60px] rounded-full flex items-center justify-center font-black text-base shrink-0 shadow-sm cursor-pointer hover:scale-105 transition-transform ${
                             isLeft ? 'bg-rose-100 text-rose-700 border border-rose-200' : 'bg-indigo-100 text-indigo-700 border border-indigo-200'
                           }`}
                           title="Click to view profile"
@@ -263,11 +263,11 @@ export default function StudentList({
                       <div>
                         <p
                           onClick={() => onViewProfile(student)}
-                          className="font-bold text-slate-900 text-sm hover:text-indigo-600 cursor-pointer transition-colors"
+                          className="font-bold text-slate-900 text-sm sm:text-base hover:text-indigo-600 cursor-pointer transition-colors leading-snug"
                         >
                           {student.name}
                         </p>
-                        {student.email && <p className="text-xs text-slate-400">{student.email}</p>}
+                        {student.email && <p className="text-xs text-slate-400 mt-0.5">{student.email}</p>}
                       </div>
                     </div>
                   </td>
@@ -383,7 +383,7 @@ export default function StudentList({
           return (
             <div key={student.id} className="p-4 space-y-2.5">
               <div className="flex items-start justify-between gap-2">
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-3.5">
                   {student.photo ? (
                     <img
                       src={student.photo}
@@ -392,13 +392,13 @@ export default function StudentList({
                       onError={(e) => {
                         e.currentTarget.style.display = 'none';
                       }}
-                      className="w-14 h-14 rounded-full object-cover border-2 border-indigo-100/90 shrink-0 shadow-xs ring-2 ring-slate-200/50 cursor-pointer active:scale-95 transition-transform"
+                      className="w-16 h-16 rounded-full object-cover border-2 border-indigo-100/90 shrink-0 shadow-sm ring-2 ring-slate-200/60 cursor-pointer active:scale-95 transition-transform"
                       title="View Profile"
                     />
                   ) : (
                     <div
                       onClick={() => onViewProfile(student)}
-                      className={`w-14 h-14 rounded-full flex items-center justify-center font-black text-base shrink-0 shadow-xs cursor-pointer active:scale-95 transition-transform ${
+                      className={`w-16 h-16 rounded-full flex items-center justify-center font-black text-lg shrink-0 shadow-sm cursor-pointer active:scale-95 transition-transform ${
                         isLeft ? 'bg-rose-100 text-rose-700 border border-rose-200' : 'bg-indigo-100 text-indigo-700 border border-indigo-200'
                       }`}
                       title="View Profile"
