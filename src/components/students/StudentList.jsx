@@ -14,11 +14,12 @@ import {
   UserX,
   RotateCcw,
   Calendar,
+  CalendarPlus,
   CheckCircle,
   Tag,
 } from 'lucide-react';
 import StatusBadge from '../common/StatusBadge';
-import { getShiftBadgeStyle, formatDate, formatCurrency } from '../../utils/helpers';
+import { getShiftBadgeStyle, formatDate, formatCurrency, getMembershipRemainingDays } from '../../utils/helpers';
 import { SHIFTS } from '../../utils/constants';
 
 export default function StudentList({
@@ -29,6 +30,7 @@ export default function StudentList({
   onEdit,
   onDelete,
   onCollectFee,
+  onExtend,
   onViewProfile,
   onToggleStatus,
   canEdit = true,
@@ -230,9 +232,11 @@ export default function StudentList({
             {filtered.map((student) => {
               const isLeft = student.status === 'left' || student.status === 'inactive';
               const plan = getPlan(student.membershipPlanId);
-              const planPrice = Number(plan?.price) || 0;
+              const planPrice = Number(student.planPrice || plan?.price) || 0;
               const discount = Number(student.discountAmount) || 0;
               const netFee = Math.max(0, planPrice - discount);
+              const planLabel = student.durationLabel || (student.isDayBased ? `${student.durationDays} Days Plan` : plan?.name) || 'Standard Monthly';
+              const remainingInfo = getMembershipRemainingDays(student.membershipEnd);
 
               return (
                 <tr key={student.id} className="hover:bg-slate-50/80 transition-colors">
@@ -283,7 +287,7 @@ export default function StudentList({
 
                   <td className="px-5 py-3.5">
                     <div>
-                      <p className="font-bold text-xs text-slate-900">{plan?.name || 'Standard Monthly'}</p>
+                      <p className="font-bold text-xs text-slate-900">{planLabel}</p>
                       <div className="flex items-center gap-1.5 text-xs mt-0.5">
                         <span className="font-extrabold text-indigo-700">{formatCurrency(netFee)}</span>
                         {discount > 0 && (
@@ -292,6 +296,16 @@ export default function StudentList({
                           </span>
                         )}
                       </div>
+                      {student.membershipEnd && (
+                        <div className="mt-1">
+                          <span
+                            className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-extrabold border ${remainingInfo.color}`}
+                            title={`Valid till ${formatDate(student.membershipEnd)}`}
+                          >
+                            {remainingInfo.label}
+                          </span>
+                        </div>
+                      )}
                     </div>
                   </td>
 
@@ -332,6 +346,16 @@ export default function StudentList({
                       >
                         <Eye className="w-4 h-4" />
                       </button>
+
+                      {onExtend && (
+                        <button
+                          onClick={() => onExtend(student)}
+                          className="p-1.5 hover:bg-emerald-50 rounded-lg text-emerald-600 transition-colors cursor-pointer"
+                          title="Extend Membership Validity (दिन आगे बढ़ाएं)"
+                        >
+                          <CalendarPlus className="w-4 h-4" />
+                        </button>
+                      )}
 
                       {!isLeft && canCollectFee && (
                         <button
@@ -376,9 +400,11 @@ export default function StudentList({
         {filtered.map((student) => {
           const isLeft = student.status === 'left' || student.status === 'inactive';
           const plan = getPlan(student.membershipPlanId);
-          const planPrice = Number(plan?.price) || 0;
+          const planPrice = Number(student.planPrice || plan?.price) || 0;
           const discount = Number(student.discountAmount) || 0;
           const netFee = Math.max(0, planPrice - discount);
+          const planLabel = student.durationLabel || (student.isDayBased ? `${student.durationDays} Days Plan` : plan?.name) || 'Monthly';
+          const remainingInfo = getMembershipRemainingDays(student.membershipEnd);
 
           return (
             <div key={student.id} className="p-4 space-y-2.5">
@@ -419,15 +445,24 @@ export default function StudentList({
                 <StatusBadge status={student.status || 'active'} size="sm" />
               </div>
 
-              <div className="bg-slate-50 p-2.5 rounded-xl text-xs space-y-1">
+              <div className="bg-slate-50 p-2.5 rounded-xl text-xs space-y-1.5">
                 <div className="flex justify-between items-center">
                   <span className="text-slate-500">Plan & Net Fee:</span>
                   <div className="flex items-center gap-1 font-bold text-slate-900">
-                    <span>{plan?.name || 'Monthly'}</span>
+                    <span>{planLabel}</span>
                     <span className="text-indigo-700 font-extrabold">({formatCurrency(netFee)})</span>
                     {discount > 0 && <span className="text-emerald-700 text-[10px]">(-₹{discount})</span>}
                   </div>
                 </div>
+
+                {student.membershipEnd && (
+                  <div className="flex justify-between items-center">
+                    <span className="text-slate-500">Validity:</span>
+                    <span className={`inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-extrabold border ${remainingInfo.color}`}>
+                      {remainingInfo.label}
+                    </span>
+                  </div>
+                )}
 
                 {!isLeft && (
                   <div className="flex justify-between items-center">
@@ -446,6 +481,14 @@ export default function StudentList({
                 >
                   Profile
                 </button>
+                {onExtend && (
+                  <button
+                    onClick={() => onExtend(student)}
+                    className="px-2.5 py-1 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-lg text-xs font-bold flex items-center gap-1"
+                  >
+                    <CalendarPlus size={12} /> Extend
+                  </button>
+                )}
                 {!isLeft && canCollectFee && (
                   <button
                     onClick={() => onCollectFee(student)}

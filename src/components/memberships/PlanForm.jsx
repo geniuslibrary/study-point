@@ -5,7 +5,9 @@ import Button from '../common/Button';
 export default function PlanForm({ isOpen, onClose, onSubmit, editData }) {
   const [formData, setFormData] = useState({
     name: '',
-    durationMonths: '',
+    durationUnit: 'months', // 'months' | 'days'
+    durationMonths: '1',
+    durationDays: '10',
     price: '',
     originalPrice: '',
     shiftType: 'all',
@@ -15,9 +17,12 @@ export default function PlanForm({ isOpen, onClose, onSubmit, editData }) {
 
   useEffect(() => {
     if (editData) {
+      const isDays = editData.durationUnit === 'days' || (editData.durationDays && !editData.durationMonths);
       setFormData({
         name: editData.name || '',
-        durationMonths: editData.durationMonths !== undefined && editData.durationMonths !== null ? String(editData.durationMonths) : '',
+        durationUnit: isDays ? 'days' : 'months',
+        durationMonths: editData.durationMonths !== undefined && editData.durationMonths !== null ? String(editData.durationMonths) : '1',
+        durationDays: editData.durationDays !== undefined && editData.durationDays !== null ? String(editData.durationDays) : '10',
         price: editData.price !== undefined && editData.price !== null ? String(editData.price) : '',
         originalPrice: editData.originalPrice !== undefined && editData.originalPrice !== null ? String(editData.originalPrice) : '',
         shiftType: editData.shiftType || 'all',
@@ -27,7 +32,9 @@ export default function PlanForm({ isOpen, onClose, onSubmit, editData }) {
     } else {
       setFormData({
         name: '',
-        durationMonths: '',
+        durationUnit: 'months',
+        durationMonths: '1',
+        durationDays: '10',
         price: '',
         originalPrice: '',
         shiftType: 'all',
@@ -49,10 +56,14 @@ export default function PlanForm({ isOpen, onClose, onSubmit, editData }) {
     e.preventDefault();
     if (!formData.name.trim()) return;
 
+    const isDays = formData.durationUnit === 'days';
+
     onSubmit({
       ...formData,
       name: formData.name.trim(),
-      durationMonths: formData.durationMonths === '' ? 1 : Number(formData.durationMonths) || 1,
+      durationUnit: formData.durationUnit,
+      durationDays: isDays ? (Number(formData.durationDays) || 10) : null,
+      durationMonths: isDays ? 0 : (Number(formData.durationMonths) || 1),
       price: formData.price === '' ? 0 : Number(formData.price) || 0,
       originalPrice: formData.originalPrice === '' ? 0 : Number(formData.originalPrice) || 0,
     });
@@ -74,27 +85,58 @@ export default function PlanForm({ isOpen, onClose, onSubmit, editData }) {
             required
             value={formData.name}
             onChange={handleChange}
-            placeholder="e.g. 1 Month Full Day, 3 Months Golden Offer"
+            placeholder="e.g. 10 Days Exam Crash, 1 Month Full Day"
             className="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500"
           />
         </div>
 
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
             <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
-              Duration (Months) *
+              Duration Unit (अवधि प्रकार) *
+            </label>
+            <div className="flex bg-slate-100 p-1 rounded-xl border border-slate-200">
+              <button
+                type="button"
+                onClick={() => setFormData((prev) => ({ ...prev, durationUnit: 'months' }))}
+                className={`flex-1 py-1.5 text-xs font-bold rounded-lg transition cursor-pointer ${
+                  formData.durationUnit === 'months'
+                    ? 'bg-white text-indigo-700 shadow-xs'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                📅 Months (महीने)
+              </button>
+              <button
+                type="button"
+                onClick={() => setFormData((prev) => ({ ...prev, durationUnit: 'days' }))}
+                className={`flex-1 py-1.5 text-xs font-bold rounded-lg transition cursor-pointer ${
+                  formData.durationUnit === 'days'
+                    ? 'bg-white text-indigo-700 shadow-xs'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                🗓️ Days (दिन)
+              </button>
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
+              {formData.durationUnit === 'days' ? 'Duration in Days (दिन) *' : 'Duration in Months (महीने) *'}
             </label>
             <input
               type="number"
-              name="durationMonths"
+              name={formData.durationUnit === 'days' ? 'durationDays' : 'durationMonths'}
               min="1"
               required
-              value={formData.durationMonths}
+              value={formData.durationUnit === 'days' ? formData.durationDays : formData.durationMonths}
               onChange={handleChange}
-              placeholder="e.g. 1, 3, 6, 12"
+              placeholder={formData.durationUnit === 'days' ? 'e.g. 7, 10, 15, 20' : 'e.g. 1, 3, 6, 12'}
               className="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500"
             />
           </div>
+        </div>
 
           <div>
             <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
@@ -111,7 +153,6 @@ export default function PlanForm({ isOpen, onClose, onSubmit, editData }) {
               <option value="half_day">Half Day (Morning / Evening)</option>
             </select>
           </div>
-        </div>
 
         <div className="flex items-center gap-2 pt-1">
           <input

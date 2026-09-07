@@ -52,8 +52,13 @@ export default function PlanList({ plans, studentCounts, onEdit, onDelete, onTog
             <div className="flex justify-between items-start mb-3">
               <div>
                 <h3 className="text-xl font-bold text-gray-900">{plan.name}</h3>
-                <p className="text-xs text-gray-500 mt-0.5">
-                  {plan.durationMonths} {plan.durationMonths === 1 ? 'Month' : 'Months'} Duration
+                <p className="text-xs text-gray-500 mt-0.5 font-medium flex items-center gap-1">
+                  <span>🗓️</span>
+                  <span>
+                    {plan.durationUnit === 'days' || (plan.durationDays && !plan.durationMonths)
+                      ? `${plan.durationDays || 7} Days Duration (दिन)`
+                      : `${plan.durationMonths || 1} ${plan.durationMonths === 1 ? 'Month' : 'Months'} Duration`}
+                  </span>
                 </p>
               </div>
               <div className="flex flex-col items-end gap-1.5">

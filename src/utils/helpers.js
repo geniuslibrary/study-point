@@ -320,3 +320,164 @@ export const compressImageFile = (fileOrBlob, targetDim = 480, quality = 0.86) =
   });
 };
 
+/**
+ * Calculate membership end date based on days or months
+ */
+export const calculateMembershipEndDate = (startDateInput, plan, customDays = null) => {
+  const start = startDateInput instanceof Date ? new Date(startDateInput) : new Date(startDateInput);
+  if (isNaN(start.getTime())) return new Date();
+
+  // 1. If explicit custom days provided
+  if (customDays !== null && customDays !== undefined && Number(customDays) > 0) {
+    const end = new Date(start);
+    end.setDate(end.getDate() + Number(customDays));
+    return end;
+  }
+
+  // 2. If plan is Day-based
+  if (plan?.durationUnit === 'days' || (plan?.durationDays && Number(plan.durationDays) > 0)) {
+    const days = Number(plan.durationDays) || 7;
+    const end = new Date(start);
+    end.setDate(end.getDate() + days);
+    return end;
+  }
+
+  // 3. Month-based plan (standard)
+  const durationMonths = Number(plan?.durationMonths) || 1;
+  const end = new Date(start.getFullYear(), start.getMonth() + durationMonths, start.getDate());
+  return end;
+};
+
+/**
+ * Calculate remaining days or overdue days for a membership
+ */
+export const getMembershipRemainingDays = (membershipEnd) => {
+  if (!membershipEnd) return { diffDays: 0, isExpired: false, isEndingToday: false, label: '—' };
+  const end = membershipEnd.toDate ? membershipEnd.toDate() : new Date(membershipEnd);
+  if (isNaN(end.getTime())) return { diffDays: 0, isExpired: false, isEndingToday: false, label: '—' };
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  const target = new Date(end);
+  target.setHours(0, 0, 0, 0);
+
+  const diffMs = target.getTime() - today.getTime();
+  const diffDays = Math.round(diffMs / (1000 * 60 * 60 * 24));
+
+  if (diffDays < 0) {
+    return {
+      diffDays,
+      isExpired: true,
+      isEndingToday: false,
+      label: `🔴 Expired (${Math.abs(diffDays)}d ago)`,
+      shortLabel: `${Math.abs(diffDays)}d ago`,
+      color: 'bg-rose-50 text-rose-700 border-rose-200 font-bold',
+    };
+  } else if (diffDays === 0) {
+    return {
+      diffDays: 0,
+      isExpired: false,
+      isEndingToday: true,
+      label: '⚠️ Ending Today (आज समाप्त)',
+      shortLabel: 'Today',
+      color: 'bg-amber-50 text-amber-800 border-amber-200 font-bold',
+    };
+  } else if (diffDays <= 3) {
+    return {
+      diffDays,
+      isExpired: false,
+      isEndingToday: false,
+      label: `⏳ In ${diffDays} days`,
+      shortLabel: `${diffDays}d left`,
+      color: 'bg-amber-50 text-amber-700 border-amber-200 font-semibold',
+    };
+  } else {
+    return {
+      diffDays,
+      isExpired: false,
+      isEndingToday: false,
+      label: `Active (${diffDays} days left)`,
+      shortLabel: `${diffDays}d left`,
+      color: 'bg-emerald-50 text-emerald-700 border-emerald-200 font-medium',
+    };
+  }
+};
+
+/**
+ * Automatically inspect active students and free seats whose validity expired without extension
+ */
+export const checkAndAutoReleaseExpiredMemberships = async ({
+  students = [],
+  seats = [],
+  updateDocument,
+  COLLECTIONS,
+  SEAT_STATUS,
+}) => {
+  if (!updateDocument || !COLLECTIONS || !SEAT_STATUS) return [];
+
+  const releasedItems = [];
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  // Find active students with assigned seats whose membershipEnd is in the past (< today)
+  const expiredActiveStudents = students.filter((s) => {
+    if (s.status !== 'active' || !s.seatId || !s.membershipEnd) return false;
+    const end = s.membershipEnd.toDate ? s.membershipEnd.toDate() : new Date(s.membershipEnd);
+    if (isNaN(end.getTime())) return false;
+    end.setHours(0, 0, 0, 0);
+    return end.getTime() < today.getTime(); // Strictly expired before today
+  });
+
+  for (const student of expiredActiveStudents) {
+    const seatId = student.seatId;
+    const assignedSeat = seats.find((seat) => seat.id === seatId);
+
+    // 1. Unlink seat and mark student as expired
+    try {
+      await updateDocument(COLLECTIONS.STUDENTS, student.id, {
+        status: 'expired',
+        seatId: '',
+        seatReleasedAt: new Date().toISOString(),
+        autoReleasedReason: 'Membership validity expired without extension',
+      });
+
+      // 2. Re-evaluate seat occupancy
+      const remainingActiveStudents = students.filter(
+        (s) => s.seatId === seatId && s.status === 'active' && s.id !== student.id
+      );
+
+      let newSeatStatus = SEAT_STATUS.AVAILABLE;
+      if (remainingActiveStudents.length > 0) {
+        const hasFullDay = remainingActiveStudents.some((s) => !s.shift || s.shift === 'full_day');
+        const hasFirstHalf = remainingActiveStudents.some((s) => s.shift === 'first_half');
+        const hasSecondHalf = remainingActiveStudents.some((s) => s.shift === 'second_half');
+
+        if (hasFullDay || (hasFirstHalf && hasSecondHalf) || remainingActiveStudents.length >= 2) {
+          newSeatStatus = SEAT_STATUS.OCCUPIED;
+        } else {
+          newSeatStatus = SEAT_STATUS.PARTIALLY_OCCUPIED;
+        }
+      }
+
+      await updateDocument(COLLECTIONS.SEATS, seatId, {
+        status: newSeatStatus,
+        studentId: remainingActiveStudents[0] ? remainingActiveStudents[0].id : null,
+      });
+
+      releasedItems.push({
+        studentId: student.id,
+        studentName: student.name,
+        seatNumber: assignedSeat?.seatNumber || '—',
+        seatId,
+        expiredDate: student.membershipEnd,
+      });
+    } catch (err) {
+      console.error('Error auto-releasing expired seat for student:', student.name, err);
+    }
+  }
+
+  return releasedItems;
+};
+
+

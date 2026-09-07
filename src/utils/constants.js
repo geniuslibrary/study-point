@@ -61,6 +61,14 @@ export const STUDENT_STATUS = {
   INACTIVE: 'inactive',
 };
 
+export const PAYMENT_MODES = [
+  { id: 'cash', label: '💵 Cash (नकद)' },
+  { id: 'upi', label: '📱 UPI / QR (GPay/PhonePe)' },
+  { id: 'bank', label: '🏦 Bank Transfer / Net Banking' },
+  { id: 'card', label: '💳 Card' },
+  { id: 'other', label: '📝 Other' },
+];
+
 export const DEFAULT_ADDONS = [
   { name: 'Locker', monthlyCharge: 200, isActive: true },
   { name: 'WiFi', monthlyCharge: 100, isActive: true },

@@ -3,7 +3,7 @@ import Modal from '../common/Modal';
 import Button from '../common/Button';
 import CameraCaptureModal from '../common/CameraCaptureModal';
 import { Sun, Sunrise, Sunset, Clock, Armchair, AlertCircle, Calendar, UserX, CheckCircle, Tag, IndianRupee, Lock, Camera, Upload, X, Trash2, User, Image, Check } from 'lucide-react';
-import { formatDate, formatCurrency, getStoredShifts, calculateSeatAddonCharges, getStoredAddons, compressImageFile } from '../../utils/helpers';
+import { formatDate, formatCurrency, getStoredShifts, calculateSeatAddonCharges, getStoredAddons, compressImageFile, calculateMembershipEndDate } from '../../utils/helpers';
 
 export default function StudentForm({
   isOpen,
@@ -29,6 +29,9 @@ export default function StudentForm({
     sectionId: '',
     seatId: '',
     membershipPlanId: '',
+    customDays: '10',
+    customFeeAmount: '',
+    isCustomDays: false,
     discountAmount: '',
     shift: 'full_day',
     joinDate: getTodayInput(),
@@ -55,6 +58,8 @@ export default function StudentForm({
       const assignedSeat = seats.find((s) => s.id === editData.seatId);
       setSelectedAddons(editData.addons || assignedSeat?.addons || {});
 
+      const isCustom = Boolean(editData.isCustomDays || editData.membershipPlanId === 'custom_days');
+
       setFormData({
         name: editData.name || '',
         phone: editData.phone || '',
@@ -62,7 +67,10 @@ export default function StudentForm({
         photo: editData.photo || '',
         sectionId: editData.sectionId || '',
         seatId: editData.seatId || '',
-        membershipPlanId: editData.membershipPlanId || '',
+        membershipPlanId: isCustom ? 'custom_days' : (editData.membershipPlanId || ''),
+        customDays: editData.customDays !== undefined && editData.customDays !== null ? String(editData.customDays) : '10',
+        customFeeAmount: editData.customFeeAmount !== undefined && editData.customFeeAmount !== null ? String(editData.customFeeAmount) : '',
+        isCustomDays: isCustom,
         discountAmount: editData.discountAmount !== undefined && editData.discountAmount !== null && editData.discountAmount !== 0 ? String(editData.discountAmount) : '',
         shift: editData.shift || 'full_day',
         joinDate: jDate,
@@ -81,6 +89,9 @@ export default function StudentForm({
         sectionId: sections[0]?.id || '',
         seatId: '',
         membershipPlanId: plans[0]?.id || '',
+        customDays: '10',
+        customFeeAmount: '',
+        isCustomDays: false,
         discountAmount: '',
         shift: 'full_day',
         joinDate: getTodayInput(),
@@ -94,48 +105,56 @@ export default function StudentForm({
 
   // Calculate Subscription Period & Total Price from Join Date, Plan & Selected Addons
   const getBillingCycleInfo = () => {
-    const selectedPlan = plans.find((p) => p.id === formData.membershipPlanId);
-    const duration = selectedPlan?.durationMonths || 1;
-    const planPrice = Number(selectedPlan?.price) || 0;
+    const isCustom = formData.membershipPlanId === 'custom_days' || formData.isCustomDays;
+    const selectedPlan = isCustom ? null : plans.find((p) => p.id === formData.membershipPlanId);
+
+    const isDayBased = isCustom || selectedPlan?.durationUnit === 'days' || (selectedPlan?.durationDays && !selectedPlan?.durationMonths);
+    const durationDays = isCustom ? (Number(formData.customDays) || 10) : (Number(selectedPlan?.durationDays) || 7);
+    const durationMonths = isDayBased ? 0 : (Number(selectedPlan?.durationMonths) || 1);
+
+    const planPrice = isCustom ? (Number(formData.customFeeAmount) || 0) : (Number(selectedPlan?.price) || 0);
     const discount = formData.discountAmount === '' ? 0 : Number(formData.discountAmount) || 0;
 
+    const addonDurationFactor = isDayBased ? Math.max(1, Math.round(durationDays / 30)) : durationMonths;
     const { charges: addonCharges, total: addonTotal } = calculateSeatAddonCharges(
       selectedAddons,
       configuredAddons,
-      duration
+      addonDurationFactor
     );
     const finalPrice = Math.max(0, planPrice + addonTotal - discount);
 
+    let start = new Date();
     try {
       const [y, m, d] = formData.joinDate.split('-').map(Number);
-      const start = new Date(y, m - 1, d);
-      const end = new Date(y, m - 1 + duration, d);
-
-      return {
-        startDate: start,
-        endDate: end,
-        duration,
-        planName: selectedPlan?.name || '1 Month Plan',
-        planPrice,
-        discount,
-        addonCharges,
-        addonTotal,
-        finalPrice,
-      };
-    } catch (e) {
-      const now = new Date();
-      return {
-        startDate: now,
-        endDate: new Date(now.getFullYear(), now.getMonth() + duration, now.getDate()),
-        duration,
-        planName: selectedPlan?.name || '1 Month Plan',
-        planPrice,
-        discount,
-        addonCharges,
-        addonTotal,
-        finalPrice,
-      };
+      start = new Date(y, m - 1, d);
+    } catch (_) {
+      start = new Date();
     }
+
+    const end = calculateMembershipEndDate(start, selectedPlan, isCustom ? durationDays : null);
+
+    const durationLabel = isDayBased
+      ? `${durationDays} Days (दिन)`
+      : `${durationMonths} Month${durationMonths > 1 ? 's' : ''} (महीने)`;
+
+    const planName = isCustom
+      ? `${durationDays} Days Custom Plan`
+      : (selectedPlan?.name || `${durationMonths} Month Plan`);
+
+    return {
+      startDate: start,
+      endDate: end,
+      isDayBased,
+      durationDays: isDayBased ? durationDays : null,
+      durationMonths: isDayBased ? null : durationMonths,
+      durationLabel,
+      planName,
+      planPrice,
+      discount,
+      addonCharges,
+      addonTotal,
+      finalPrice,
+    };
   };
 
   const cycleInfo = getBillingCycleInfo();
@@ -252,15 +271,23 @@ export default function StudentForm({
 
     setLoading(true);
     try {
+      const cycleInfo = getBillingCycleInfo();
       const payload = {
         ...formData,
         addons: selectedAddons,
         discountAmount: formData.discountAmount === '' ? 0 : Number(formData.discountAmount) || 0,
         seatId: formData.status === 'left' ? null : formData.seatId,
         shiftTiming: getShiftTimingString(),
-        joinDate: new Date(formData.joinDate).toISOString(),
+        joinDate: cycleInfo.startDate.toISOString(),
         membershipStart: cycleInfo.startDate.toISOString(),
         membershipEnd: cycleInfo.endDate.toISOString(),
+        isDayBased: cycleInfo.isDayBased,
+        durationDays: cycleInfo.durationDays,
+        durationMonths: cycleInfo.durationMonths,
+        durationLabel: cycleInfo.durationLabel,
+        planName: cycleInfo.planName,
+        planPrice: cycleInfo.planPrice,
+        finalPrice: cycleInfo.finalPrice,
       };
       await onSubmit(payload);
       onClose();
@@ -680,54 +707,109 @@ export default function StudentForm({
         )}
 
         {/* Membership Plan & Special Discount */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
-          <div className="sm:col-span-2">
-            <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
-              Membership Plan (सब्सक्रिप्शन प्लान) *
-            </label>
-            <select
-              value={formData.membershipPlanId}
-              onChange={(e) => setFormData({ ...formData, membershipPlanId: e.target.value })}
-              className="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl text-sm bg-white font-semibold"
-            >
-              <option value="">Select membership plan</option>
-              {plans
-                .filter((p) => p.isActive !== false)
-                .map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {p.name} — ₹{p.price} ({p.durationMonths} Month{p.durationMonths > 1 ? 's' : ''})
+        <div className="space-y-3">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
+            <div className="sm:col-span-2">
+              <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
+                Membership Plan (सब्सक्रिप्शन प्लान) *
+              </label>
+              <select
+                value={formData.membershipPlanId}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  setFormData({
+                    ...formData,
+                    membershipPlanId: val,
+                    isCustomDays: val === 'custom_days',
+                  });
+                }}
+                className="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl text-sm bg-white font-semibold focus:ring-2 focus:ring-indigo-500"
+              >
+                <option value="">Select membership plan</option>
+                <optgroup label="✨ Available Plans">
+                  {plans
+                    .filter((p) => p.isActive !== false)
+                    .map((p) => {
+                      const isDay = p.durationUnit === 'days' || (p.durationDays && !p.durationMonths);
+                      return (
+                        <option key={p.id} value={p.id}>
+                          {p.name} — ₹{p.price} ({isDay ? `🗓️ ${p.durationDays || 7} Days` : `📅 ${p.durationMonths} Month${p.durationMonths > 1 ? 's' : ''}`})
+                        </option>
+                      );
+                    })}
+                </optgroup>
+                <optgroup label="🎯 Custom Days (परीक्षा व अन्य)">
+                  <option value="custom_days">
+                    🗓️ Custom Days (कस्टम दिन - जैसे 10 दिन, 15 दिन)
                   </option>
-                ))}
-            </select>
+                </optgroup>
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1 flex items-center gap-1">
+                <Tag className="w-3.5 h-3.5 text-emerald-600" />
+                <span>Discount (छूट ₹)</span>
+              </label>
+              <input
+                type="number"
+                min="0"
+                value={formData.discountAmount}
+                onChange={(e) => setFormData({ ...formData, discountAmount: e.target.value })}
+                className="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl text-sm bg-white font-bold text-emerald-700 focus:ring-2 focus:ring-emerald-500"
+                placeholder="e.g. 100"
+              />
+            </div>
           </div>
 
-          <div>
-            <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1 flex items-center gap-1">
-              <Tag className="w-3.5 h-3.5 text-emerald-600" />
-              <span>Discount (छूट ₹)</span>
-            </label>
-            <input
-              type="number"
-              min="0"
-              value={formData.discountAmount}
-              onChange={(e) => setFormData({ ...formData, discountAmount: e.target.value })}
-              className="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl text-sm bg-white font-bold text-emerald-700 focus:ring-2 focus:ring-emerald-500"
-              placeholder="e.g. 100"
-            />
-          </div>
+          {/* Custom Days Input Block */}
+          {formData.membershipPlanId === 'custom_days' && (
+            <div className="p-3 bg-indigo-50/80 border border-indigo-200 rounded-xl grid grid-cols-1 sm:grid-cols-2 gap-3 animate-in fade-in duration-150">
+              <div>
+                <label className="block text-[11px] font-bold text-indigo-950 uppercase mb-1">
+                  Days Duration (कितने दिन पढ़ना है) *
+                </label>
+                <input
+                  type="number"
+                  min="1"
+                  required
+                  value={formData.customDays}
+                  onChange={(e) => setFormData({ ...formData, customDays: e.target.value })}
+                  placeholder="e.g. 10"
+                  className="w-full px-3 py-2 bg-white border border-indigo-300 rounded-lg font-bold text-sm text-indigo-900 focus:ring-2 focus:ring-indigo-500"
+                />
+              </div>
+              <div>
+                <label className="block text-[11px] font-bold text-indigo-950 uppercase mb-1">
+                  Total Plan Fee (कुल फीस ₹) *
+                </label>
+                <input
+                  type="number"
+                  min="0"
+                  required
+                  value={formData.customFeeAmount}
+                  onChange={(e) => setFormData({ ...formData, customFeeAmount: e.target.value })}
+                  placeholder="e.g. 400"
+                  className="w-full px-3 py-2 bg-white border border-indigo-300 rounded-lg font-bold text-sm text-indigo-900 focus:ring-2 focus:ring-indigo-500"
+                />
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Dynamic Billing Cycle & Price Preview Card */}
         <div className="p-3.5 bg-emerald-50/70 rounded-2xl border border-emerald-200 text-xs text-emerald-950 space-y-1.5">
           <div className="flex items-center justify-between">
-            <span className="font-bold block">📅 Billing Period ({cycleInfo.duration} Month{cycleInfo.duration > 1 ? 's' : ''}):</span>
+            <span className="font-bold block">
+              📅 Validity ({cycleInfo.durationLabel}):
+            </span>
             <span className="font-black bg-emerald-100 text-emerald-900 px-2.5 py-0.5 rounded-md text-xs">
-              Next Due: {formatDate(cycleInfo.endDate)}
+              Expires On: {formatDate(cycleInfo.endDate)}
             </span>
           </div>
 
           <p className="text-[11px] text-emerald-800">
-            <strong>{formatDate(cycleInfo.startDate)}</strong> से <strong>{formatDate(cycleInfo.endDate)}</strong> तक valid रहेगा।
+            <strong>{formatDate(cycleInfo.startDate)}</strong> से <strong>{formatDate(cycleInfo.endDate)}</strong> तक ({cycleInfo.durationLabel}) valid रहेगा।
           </p>
 
           <div className="pt-1 border-t border-emerald-200/60 flex items-center justify-between text-xs">

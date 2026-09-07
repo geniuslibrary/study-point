@@ -8,8 +8,8 @@ import TodayPulse from '../components/dashboard/TodayPulse';
 import ShiftDistribution from '../components/dashboard/ShiftDistribution';
 import PendingDuesAlert from '../components/dashboard/PendingDuesAlert';
 import LiveDemoTracker from '../components/dashboard/LiveDemoTracker';
-import { COLLECTIONS } from '../utils/constants';
-import { fetchCollectionData } from '../firebase/storageService';
+import { COLLECTIONS, SEAT_STATUS } from '../utils/constants';
+import { fetchCollectionData, updateDocument } from '../firebase/storageService';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { doc, getDoc } from 'firebase/firestore';
@@ -56,7 +56,7 @@ import {
   TrendingUp,
   Sliders,
 } from 'lucide-react';
-import { formatCurrency, formatDate } from '../utils/helpers';
+import { formatCurrency, formatDate, checkAndAutoReleaseExpiredMemberships } from '../utils/helpers';
 
 export default function Dashboard() {
   const { user, userRole, hasPermission } = useAuth();
@@ -137,16 +137,38 @@ export default function Dashboard() {
         fetchCollectionData(COLLECTIONS.STAFF_USERS),
       ]);
 
-      setAllStudentsList(students);
+      let currentStudents = students;
+      let currentSeats = allSeats;
+      try {
+        const released = await checkAndAutoReleaseExpiredMemberships({
+          students,
+          seats: allSeats,
+          updateDocument,
+          COLLECTIONS,
+          SEAT_STATUS,
+        });
+        if (released && released.length > 0) {
+          const [refreshedStudents, refreshedSeats] = await Promise.all([
+            fetchCollectionData(COLLECTIONS.STUDENTS),
+            fetchCollectionData(COLLECTIONS.SEATS),
+          ]);
+          currentStudents = refreshedStudents;
+          currentSeats = refreshedSeats;
+        }
+      } catch (err) {
+        console.warn('Dashboard auto-release check failed gracefully:', err);
+      }
+
+      setAllStudentsList(currentStudents);
       setAllPlansList(allPlans || []);
       setAllStaffList(allStaff || []);
 
-      const activeStudents = students.filter((s) => s.status === 'active');
+      const activeStudents = currentStudents.filter((s) => s.status === 'active');
       const occupiedSeatIds = new Set(activeStudents.map((s) => s.seatId).filter(Boolean));
 
       // Deduplicate seats to get exact physical seat count
       const uniqueSeatsMap = new Map();
-      allSeats.forEach((seat) => {
+      currentSeats.forEach((seat) => {
         const key = `${seat.sectionId}_${Number(seat.seatNumber) || seat.seatNumber}`;
         if (!uniqueSeatsMap.has(key)) uniqueSeatsMap.set(key, seat);
       });

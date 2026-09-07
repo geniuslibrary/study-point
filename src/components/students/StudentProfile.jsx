@@ -1,6 +1,6 @@
 import Modal from '../common/Modal';
 import StatusBadge from '../common/StatusBadge';
-import { formatDate, formatCurrency } from '../../utils/helpers';
+import { formatDate, formatCurrency, getMembershipRemainingDays } from '../../utils/helpers';
 import {
   Phone,
   Mail,
@@ -12,6 +12,7 @@ import {
   Sunset,
   Clock,
   Calendar,
+  CalendarPlus,
   Armchair,
   Trash2,
   Edit,
@@ -30,6 +31,7 @@ export default function StudentProfile({
   plan,
   onDeleteStudent,
   onEditStudent,
+  onExtendStudent,
   canDelete = true,
   canEdit = true,
 }) {
@@ -71,9 +73,11 @@ export default function StudentProfile({
 
   const shiftInfo = getShiftDisplay();
 
-  const planBasePrice = Number(plan?.price) || 0;
+  const planBasePrice = Number(student.planPrice || plan?.price) || 0;
   const discountAmt = Number(student.discountAmount) || 0;
-  const netMonthly = Math.max(0, planBasePrice - discountAmt);
+  const netPrice = Math.max(0, planBasePrice - discountAmt);
+  const planName = student.durationLabel || (student.isDayBased ? `${student.durationDays} Days Plan` : (plan?.name || 'Standard Monthly'));
+  const remainingInfo = getMembershipRemainingDays(student.membershipEnd);
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} title="Student Profile & Record" size="xl">
@@ -115,7 +119,20 @@ export default function StudentProfile({
             </div>
           </div>
 
-          <div className="flex items-center gap-2 self-end sm:self-auto">
+          <div className="flex flex-wrap items-center gap-2 self-end sm:self-auto">
+            {onExtendStudent && (
+              <button
+                onClick={() => {
+                  onClose();
+                  onExtendStudent(student);
+                }}
+                className="px-3 py-1.5 bg-emerald-600 text-white rounded-xl text-xs font-bold shadow-xs hover:bg-emerald-700 flex items-center gap-1.5 cursor-pointer transition-colors"
+                title="Extend Membership Days"
+              >
+                <CalendarPlus className="w-3.5 h-3.5" /> Extend Days (दिन बढ़ाएं)
+              </button>
+            )}
+
             {canEdit && onEditStudent && (
               <button
                 onClick={() => {
@@ -142,8 +159,8 @@ export default function StudentProfile({
           </div>
         </div>
 
-        {/* Detailed Grid: Section, Seat, Shift, Plan & Discount */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
+        {/* Detailed Grid: Section, Seat, Shift, Plan & Validity */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
           <div className="bg-slate-50 rounded-2xl p-3.5 border border-slate-200">
             <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Section</p>
             <p className="font-bold text-slate-900 mt-1">{section?.name || '—'}</p>
@@ -167,18 +184,32 @@ export default function StudentProfile({
           </div>
 
           <div className="bg-slate-50 rounded-2xl p-3.5 border border-slate-200">
-            <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Membership & Pricing</p>
-            <p className="font-bold text-slate-900 mt-1">{plan?.name || 'Standard Monthly'}</p>
+            <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Plan & Fee</p>
+            <p className="font-bold text-slate-900 mt-1 truncate" title={planName}>{planName}</p>
             <div className="flex flex-wrap items-baseline gap-1 mt-0.5">
               <span className="text-xs font-black text-emerald-700">
-                {formatCurrency(netMonthly)}/mo
+                {formatCurrency(netPrice)}
               </span>
               {discountAmt > 0 && (
                 <span className="text-[10px] text-rose-600 font-bold">
-                  (-₹{discountAmt} छूट)
+                  (-₹{discountAmt})
                 </span>
               )}
             </div>
+          </div>
+
+          <div className="bg-slate-50 rounded-2xl p-3.5 border border-slate-200">
+            <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Validity & Expiry</p>
+            <p className="font-extrabold text-slate-900 mt-1 text-xs">
+              {student.membershipEnd ? formatDate(student.membershipEnd) : 'Ongoing'}
+            </p>
+            {student.membershipEnd && (
+              <div className="mt-1">
+                <span className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-extrabold border ${remainingInfo.color}`}>
+                  {remainingInfo.label}
+                </span>
+              </div>
+            )}
           </div>
         </div>
 
