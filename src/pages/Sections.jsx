@@ -115,6 +115,7 @@ export default function Sections() {
       name: formData.name,
       totalSeats: totalSeatsNum,
       description: formData.description || '',
+      icon: formData.icon || 'book',
     });
 
     const seatPromises = [];
@@ -150,6 +151,7 @@ export default function Sections() {
       name: formData.name,
       description: formData.description || '',
       totalSeats: newTotalSeats,
+      icon: formData.icon || editData.icon || 'book',
     });
 
     // If new total seats is greater, add new seats!

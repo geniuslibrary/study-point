@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { ChevronDown, ChevronUp, Edit, Trash2, Building2, Users, PlusCircle, CheckCircle2, Clock, Armchair } from 'lucide-react';
 import SeatGrid from './SeatGrid';
+import { getSectionIconComponent } from './sectionIcons';
 
 export default function SectionList({
   sections = [],
@@ -64,6 +65,7 @@ export default function SectionList({
             : 0;
         const isExpanded = expandedId === section.id;
         const currentFilter = sectionFilters[section.id] || 'all';
+        const SectionIcon = getSectionIconComponent(section.icon, section.name);
 
         return (
           <div key={section.id} className="bg-white rounded-2xl shadow-xs overflow-hidden border border-gray-200 transition-shadow hover:shadow-sm">
@@ -71,7 +73,7 @@ export default function SectionList({
               <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 sm:gap-4">
                 <div className="flex items-center gap-3 min-w-0">
                   <div className="w-11 h-11 sm:w-12 sm:h-12 bg-indigo-50 border border-indigo-100 rounded-2xl flex items-center justify-center shrink-0 shadow-2xs">
-                    <Building2 className="w-5 h-5 sm:w-6 sm:h-6 text-indigo-600" />
+                    <SectionIcon className="w-5 h-5 sm:w-6 sm:h-6 text-indigo-600" />
                   </div>
                   <div className="min-w-0 flex-1">
                     <h3 className="font-extrabold text-gray-900 text-base sm:text-lg leading-tight truncate">

@@ -1,20 +1,23 @@
 import { useState, useEffect } from 'react';
 import Modal from '../common/Modal';
 import Button from '../common/Button';
+import { SECTION_ICONS, getSectionIconComponent } from './sectionIcons';
 
 export default function SectionForm({ isOpen, onClose, onSubmit, editData = null, existingSeatsCount = 0 }) {
-  const [formData, setFormData] = useState({ name: '', totalSeats: '', description: '' });
+  const [formData, setFormData] = useState({ name: '', totalSeats: '', description: '', icon: 'book' });
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     if (editData) {
+      const defaultIcon = editData.icon || (editData.name?.toLowerCase().includes('read') ? 'book' : 'building');
       setFormData({
         name: editData.name || '',
         totalSeats: editData.totalSeats !== undefined && editData.totalSeats !== null ? String(editData.totalSeats) : String(existingSeatsCount || 10),
         description: editData.description || '',
+        icon: defaultIcon,
       });
     } else {
-      setFormData({ name: '', totalSeats: '', description: '' });
+      setFormData({ name: '', totalSeats: '', description: '', icon: 'book' });
     }
   }, [editData, existingSeatsCount, isOpen]);
 
@@ -28,6 +31,7 @@ export default function SectionForm({ isOpen, onClose, onSubmit, editData = null
         ...formData,
         name: formData.name.trim(),
         totalSeats: Math.max(1, seatsNum),
+        icon: formData.icon || 'book',
       });
       onClose();
     } catch (err) {
@@ -36,6 +40,8 @@ export default function SectionForm({ isOpen, onClose, onSubmit, editData = null
       setLoading(false);
     }
   };
+
+  const SelectedIcon = getSectionIconComponent(formData.icon, formData.name);
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} title={editData ? 'Edit Section Details & Seats' : 'Add New Section'}>
@@ -50,8 +56,57 @@ export default function SectionForm({ isOpen, onClose, onSubmit, editData = null
             value={formData.name}
             onChange={(e) => setFormData({ ...formData, name: e.target.value })}
             className="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500 text-sm"
-            placeholder="e.g. Boys Section, Girls Section, AC Quiet Hall"
+            placeholder="e.g. Main Reading Hall, AC Silent Zone, Girls Cabin"
           />
+        </div>
+
+        {/* Section Icon Selection */}
+        <div>
+          <div className="flex items-center justify-between mb-1.5">
+            <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider">
+              Section Icon (आइकन चुनें)
+            </label>
+            <span className="text-[11px] text-slate-500 font-medium">Click to select icon</span>
+          </div>
+
+          <div className="grid grid-cols-4 sm:grid-cols-8 gap-2 p-2 bg-slate-50 border border-slate-200 rounded-2xl max-h-48 overflow-y-auto">
+            {SECTION_ICONS.map(({ id, label, icon: IconComp }) => {
+              const isSelected = (formData.icon || 'book') === id;
+              return (
+                <button
+                  key={id}
+                  type="button"
+                  onClick={() => setFormData({ ...formData, icon: id })}
+                  className={`p-2 rounded-xl border flex flex-col items-center justify-center gap-1 transition-all cursor-pointer ${
+                    isSelected
+                      ? 'bg-indigo-600 text-white border-indigo-600 shadow-xs ring-2 ring-indigo-300'
+                      : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-100 hover:border-slate-300'
+                  }`}
+                  title={label}
+                >
+                  <IconComp className="w-5 h-5 shrink-0" />
+                  <span className="text-[9px] font-bold truncate w-full text-center leading-none">
+                    {label.split(' ')[0]}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Live Icon Preview */}
+          <div className="flex items-center gap-3 p-2.5 mt-2 bg-indigo-50/60 border border-indigo-100 rounded-xl">
+            <div className="w-10 h-10 bg-indigo-50 border border-indigo-100 rounded-xl flex items-center justify-center shrink-0 text-indigo-600 shadow-2xs">
+              <SelectedIcon className="w-5 h-5" />
+            </div>
+            <div className="min-w-0">
+              <p className="text-[10px] text-indigo-900/60 font-semibold uppercase tracking-wider">
+                Live Preview on Section Card
+              </p>
+              <p className="text-sm font-extrabold text-indigo-950 truncate">
+                {formData.name.trim() || 'Section Name'}
+              </p>
+            </div>
+          </div>
         </div>
 
         <div>
