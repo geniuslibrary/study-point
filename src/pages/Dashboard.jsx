@@ -52,6 +52,8 @@ import {
   ProfitMarginExpenseWidget,
   AverageRevenueMetricWidget,
   StudyTimeDistributionWidget,
+  ThermalRushHeatmapWidget,
+  VisualSeatFloorMapWidget,
 } from '../components/dashboard/HighLevelGraphicalWidgets';
 import DashboardWidgetSettingsModal from '../components/dashboard/DashboardWidgetSettingsModal';
 import {
@@ -447,6 +449,8 @@ export default function Dashboard() {
   const showProfitMarginExpense = isVisible('profitMarginExpense', false, true);
   const showAverageRevenueMetric = isVisible('averageRevenueMetric', false, true);
   const showStudyTimeDistribution = isVisible('studyTimeDistribution', true);
+  const showThermalFootfallHeatmap = isVisible('thermalFootfallHeatmap', true);
+  const showVisualSeatMatrixMini = isVisible('visualSeatMatrixMini', true);
 
   const hideRevenueCard = isStaff && (staffWidgets?.hideFinancials || !staffWidgets?.revenueChart);
 
@@ -484,7 +488,9 @@ export default function Dashboard() {
     showShiftCapacityCompare ||
     showProfitMarginExpense ||
     showAverageRevenueMetric ||
-    showStudyTimeDistribution;
+    showStudyTimeDistribution ||
+    showThermalFootfallHeatmap ||
+    showVisualSeatMatrixMini;
 
   const widgetVisibilityMap = {
     quickActions: showQuickActions,
@@ -521,6 +527,8 @@ export default function Dashboard() {
     profitMarginExpense: showProfitMarginExpense,
     averageRevenueMetric: showAverageRevenueMetric,
     studyTimeDistribution: showStudyTimeDistribution,
+    thermalFootfallHeatmap: showThermalFootfallHeatmap,
+    visualSeatMatrixMini: showVisualSeatMatrixMini,
   };
 
   const renderWidgetById = (id) => {
@@ -845,6 +853,20 @@ export default function Dashboard() {
         return (
           <div key={id} className="col-span-1">
             <StudyTimeDistributionWidget students={allStudentsList} />
+          </div>
+        );
+
+      case 'thermalFootfallHeatmap':
+        return (
+          <div key={id} className="col-span-1">
+            <ThermalRushHeatmapWidget students={allStudentsList} seats={allSeatsList} />
+          </div>
+        );
+
+      case 'visualSeatMatrixMini':
+        return (
+          <div key={id} className="col-span-1">
+            <VisualSeatFloorMapWidget seats={allSeatsList} students={allStudentsList} />
           </div>
         );
 

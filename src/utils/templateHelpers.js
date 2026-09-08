@@ -223,7 +223,7 @@ export const DEFAULT_DASHBOARD_CONFIG = {
   noticeBoard: true,
   staffActivity: true,
 
-  // Group 5: Advanced Graphical Analytics & Visual Charts (10 High-Level Widgets)
+  // Group 5: Advanced Graphical Analytics & Visual Charts (High-Level Widgets)
   hourlyPeakHours: true,
   dailyCollectionBar: true,
   planPopularityDonut: true,
@@ -234,6 +234,8 @@ export const DEFAULT_DASHBOARD_CONFIG = {
   profitMarginExpense: true,
   averageRevenueMetric: true,
   studyTimeDistribution: true,
+  thermalFootfallHeatmap: true,
+  visualSeatMatrixMini: true,
 };
 
 export const DEFAULT_STAFF_DASHBOARD_WIDGETS = {
@@ -276,6 +278,8 @@ export const DEFAULT_STAFF_DASHBOARD_WIDGETS = {
   profitMarginExpense: false,
   averageRevenueMetric: false,
   studyTimeDistribution: true,
+  thermalFootfallHeatmap: true,
+  visualSeatMatrixMini: true,
 
   hideFinancials: true,
 };
@@ -289,17 +293,19 @@ export const DASHBOARD_WIDGET_OPTIONS = [
   { id: 'shiftDistribution', label: '⏰ Shift Wise Distribution (शिफ्ट विभाजन)', category: 'operations', span: 'half', desc: 'Student enrollment by Morning, Evening, and Full Day slots' },
   { id: 'quickSeatSearch', label: '🔍 Instant Seat Finder (त्वरित सीट खोजक)', category: 'operations', span: 'half', desc: 'Quickly check if a seat is vacant or assigned to whom' },
 
-  // 2. High-Level Graphical Analytics (10 Tagda Visual Widgets)
-  { id: 'hourlyPeakHours', label: '⏱️ Library Footfall & Peak Hours (लाइब्रेरी पीक आवर्स ग्राफ)', category: 'visualAnalytics', span: 'half', desc: '16-Hour visual footfall chart highlighting busy study times and quiet hours' },
-  { id: 'dailyCollectionBar', label: '📊 Daily Fee Collection Trend (दैनिक 7-दिवसीय फीस ग्राफ)', category: 'visualAnalytics', span: 'half', desc: 'Day-by-day vertical collection comparison with best day and average' },
-  { id: 'seatOccupancyGauge', label: '🎯 Live Seat Capacity Speedometer (सीट ऑक्यूपेंसी स्पीडोमीटर)', category: 'visualAnalytics', span: 'half', desc: 'Radial gauge meter showing live capacity utilization and vacant seats' },
-  { id: 'planPopularityDonut', label: '🍩 Plan Popularity Distribution (मेंबरशिप प्लान लोकप्रियता)', category: 'visualAnalytics', span: 'half', desc: 'Visual distribution chart showing student share across all membership plans' },
+  // 2. High-Level Graphical Analytics (Tagda Visual Widgets)
+  { id: 'seatOccupancyGauge', label: '🎯 Live Cockpit Capacity Speedometer (सीट स्पीडोमीटर डायल)', category: 'visualAnalytics', span: 'half', desc: 'Sports cockpit arc gauge showing live occupancy percentage and vacant seats' },
+  { id: 'hourlyPeakHours', label: '⏱️ Library Footfall & Spline Wave (लाइब्रेरी पीक आवर्स वेव ग्राफ)', category: 'visualAnalytics', span: 'half', desc: '16-Hour spline wave area chart highlighting busy study hours and quiet slots' },
+  { id: 'dailyCollectionBar', label: '📊 Daily Fee Collection Trend (दैनिक 7-दिवसीय फीस ग्राफ)', category: 'visualAnalytics', span: 'half', desc: 'Day-by-day 3D cylindrical neon bars with best day highlight and average' },
+  { id: 'thermalFootfallHeatmap', label: '🔥 7-Day Thermal Rush Heatmap (साप्ताहिक 7-दिन थर्मल हीट ग्रिड)', category: 'visualAnalytics', span: 'half', desc: 'Day x Hour thermal intensity heat grid showing exact rush timings' },
+  { id: 'visualSeatMatrixMini', label: '🪑 Live 2D Seat Floor Matrix (लाइब्रेरी 2D फ्लोर विज़ुअल मैप)', category: 'visualAnalytics', span: 'half', desc: 'Live 2D interactive floor map with pulsating LED seat indicators' },
+  { id: 'planPopularityDonut', label: '🍩 Plan Popularity Circular Donut (मेंबरशिप डोनट चार्ट)', category: 'visualAnalytics', span: 'half', desc: 'Circular SVG Donut chart showing student share across all membership plans' },
   { id: 'admissionVsExitGrowth', label: '📈 6-Month Net Student Growth (विद्यार्थी वृद्धि व एग्जिट ग्राफ)', category: 'visualAnalytics', span: 'half', desc: 'Dual-bar 6-month comparison of new admissions vs left members with retention rate' },
   { id: 'shiftCapacityCompare', label: '⚖️ Shift-Wise Capacity & Vacancy (प्रत्येक शिफ्ट में खाली सीटें)', category: 'visualAnalytics', span: 'half', desc: 'Triple comparative progress meters for Full Day, Morning, and Evening slots' },
+  { id: 'studyTimeDistribution', label: '📚 Study Time Preference Radar (समय स्लॉट प्राथमिकता रडार)', category: 'visualAnalytics', span: 'half', desc: 'SVG polygon spider radar chart for Morning, Evening, and Full Day slots' },
   { id: 'feeAgingRecovery', label: '📉 Fee Dues Aging & Recovery Funnel (बकाया फीस रिकवरी बकेट)', category: 'visualAnalytics', span: 'half', desc: '4-Tier dues aging progress bar (0-3d, 4-7d, 8-15d, 15d+) with 1-click WhatsApp recovery' },
   { id: 'profitMarginExpense', label: '💰 Net Profit & Operating Margin (कमाई, खर्च व शुद्ध मुनाफा ग्राफ)', category: 'visualAnalytics', span: 'half', desc: 'Visual split comparison of Gross Income, Expenses, and Net Margin %' },
   { id: 'averageRevenueMetric', label: '💎 ARPU & Student Lifetime Value (प्रति छात्र आय व LTV एनालिटिक्स)', category: 'visualAnalytics', span: 'half', desc: 'High-level KPI with average ticket size, student retention months, and projected MRR' },
-  { id: 'studyTimeDistribution', label: '📚 Study Time Preference Radar (समय स्लॉट प्राथमिकता ग्राफ)', category: 'visualAnalytics', span: 'half', desc: 'Student preference breakdown for Morning, Evening, Full Day, and Custom hours' },
 
   // 3. Financials & Money
   { id: 'revenueChart', label: '📊 Revenue vs Expense Trend (कमाई व खर्च ग्राफ)', category: 'financials', span: 'half', desc: '6-Month comparison between income and expenses' },
@@ -336,6 +342,8 @@ export const DEFAULT_DASHBOARD_ORDER = [
   'seatOccupancyGauge',
   'hourlyPeakHours',
   'dailyCollectionBar',
+  'thermalFootfallHeatmap',
+  'visualSeatMatrixMini',
   'shiftCapacityCompare',
   'planPopularityDonut',
   'admissionVsExitGrowth',
