@@ -20,7 +20,7 @@ import {
 } from 'lucide-react';
 import { getStoredShifts } from '../../utils/helpers';
 
-export default function PlanForm({ isOpen, onClose, onSubmit, editData }) {
+export default function PlanForm({ isOpen, onClose, onSubmit, editData, shifts = [] }) {
   const [formData, setFormData] = useState({
     name: '',
     durationUnit: 'months', // 'months' | 'days'
@@ -35,53 +35,82 @@ export default function PlanForm({ isOpen, onClose, onSubmit, editData }) {
     description: '',
   });
 
-  const storedShifts = getStoredShifts();
+  const [shiftsList, setShiftsList] = useState([]);
 
-  // Preset shifts to display
-  const shiftOptions = [
-    {
-      id: 'all',
-      label: 'All Shifts (सभी शिफ्ट्स)',
-      timing: 'Full & Half Day Compatible',
-      icon: Zap,
-      color: 'indigo',
-    },
-    {
-      id: 'full_day',
-      label: 'Full Day (पूरा दिन)',
-      timing: '6:00 AM - 11:00 PM (17 Hrs)',
-      icon: Sun,
-      color: 'amber',
-    },
-    {
-      id: 'first_half',
-      label: '1st Shift / Morning (सुबह)',
-      timing: '6:00 AM - 2:00 PM (8 Hrs)',
-      icon: Sunrise,
-      color: 'emerald',
-    },
-    {
-      id: 'second_half',
-      label: '2nd Shift / Evening (दोपहर/शाम)',
-      timing: '2:00 PM - 11:00 PM (9 Hrs)',
-      icon: Sunset,
-      color: 'purple',
-    },
-    {
-      id: 'night',
-      label: 'Night Shift (रात की शिफ्ट)',
-      timing: '10:00 PM - 6:00 AM (8 Hrs)',
-      icon: Moon,
-      color: 'rose',
-    },
-    {
-      id: '24_hours',
-      label: '24 Hours / 24x7 (दिन-रात)',
-      timing: 'Round the Clock (24x7)',
-      icon: Sparkles,
-      color: 'teal',
-    },
-  ];
+  useEffect(() => {
+    if (isOpen) {
+      const activeShifts = shifts && shifts.length > 0 ? shifts : getStoredShifts();
+      setShiftsList(activeShifts);
+    }
+  }, [isOpen, shifts]);
+
+  // Only display 'All Shifts' + the EXACT shifts configured in Settings
+  const shiftOptions = React.useMemo(() => {
+    const list = [
+      {
+        id: 'all',
+        label: 'All Shifts (सभी शिफ्ट्स)',
+        timing: 'Full & Half Day Compatible',
+        icon: Zap,
+        color: 'indigo',
+      },
+    ];
+
+    (shiftsList || []).forEach((s) => {
+      const lowerId = (s.id || '').toLowerCase();
+      const lowerLabel = (s.label || '').toLowerCase();
+
+      let Icon = Clock;
+      let color = 'blue';
+
+      if (lowerId === 'full_day' || lowerLabel.includes('full day') || lowerLabel.includes('पूरा')) {
+        Icon = Sun;
+        color = 'amber';
+      } else if (
+        lowerId === 'first_half' ||
+        lowerId === 'morning' ||
+        lowerLabel.includes('morning') ||
+        lowerLabel.includes('सुबह') ||
+        lowerLabel.includes('1st')
+      ) {
+        Icon = Sunrise;
+        color = 'emerald';
+      } else if (
+        lowerId === 'second_half' ||
+        lowerId === 'evening' ||
+        lowerLabel.includes('evening') ||
+        lowerLabel.includes('शाम') ||
+        lowerLabel.includes('2nd')
+      ) {
+        Icon = Sunset;
+        color = 'purple';
+      } else if (lowerId === 'night' || lowerLabel.includes('night') || lowerLabel.includes('रात')) {
+        Icon = Moon;
+        color = 'rose';
+      } else if (lowerLabel.includes('24') || lowerLabel.includes('round')) {
+        Icon = Sparkles;
+        color = 'teal';
+      }
+
+      let timingDisplay = s.timing;
+      if (!timingDisplay && s.start && s.end) {
+        timingDisplay = `${s.start} - ${s.end}`;
+      }
+      if (!timingDisplay) {
+        timingDisplay = s.short || 'Configured Shift Slot';
+      }
+
+      list.push({
+        id: s.id || s.label,
+        label: s.label || s.short || 'Shift Slot',
+        timing: timingDisplay,
+        icon: Icon,
+        color: color,
+      });
+    });
+
+    return list;
+  }, [shiftsList]);
 
   const commonPerks = [
     'Reserved Seat Access',
@@ -213,17 +242,26 @@ export default function PlanForm({ isOpen, onClose, onSubmit, editData }) {
                   key={idx}
                   type="button"
                   onClick={() => {
-                    setFormData((prev) => ({
-                      ...prev,
-                      name: preset.name,
-                      durationUnit: preset.unit,
-                      durationDays: preset.days || prev.durationDays,
-                      durationMonths: preset.months || prev.durationMonths,
-                      shiftType: preset.shift || prev.shiftType,
-                      price: preset.price || prev.price,
-                      isOffer: !!preset.isOffer,
-                      originalPrice: preset.origPrice || '',
-                    }));
+                    setFormData((prev) => {
+                      let targetShift = prev.shiftType;
+                      if (preset.shift) {
+                        const matched = shiftOptions.find(
+                          (opt) => opt.id === preset.shift || opt.id.toLowerCase().includes(preset.shift.toLowerCase())
+                        );
+                        if (matched) targetShift = matched.id;
+                      }
+                      return {
+                        ...prev,
+                        name: preset.name,
+                        durationUnit: preset.unit,
+                        durationDays: preset.days || prev.durationDays,
+                        durationMonths: preset.months || prev.durationMonths,
+                        shiftType: targetShift,
+                        price: preset.price || prev.price,
+                        isOffer: !!preset.isOffer,
+                        originalPrice: preset.origPrice || '',
+                      };
+                    });
                   }}
                   className="text-[11px] font-bold px-2.5 py-1 rounded-lg bg-white hover:bg-indigo-50 text-slate-700 hover:text-indigo-700 border border-slate-200 hover:border-indigo-200 transition-all cursor-pointer shadow-2xs"
                 >

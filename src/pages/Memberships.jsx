@@ -18,17 +18,22 @@ import {
   Zap,
 } from 'lucide-react';
 import { COLLECTIONS } from '../utils/constants';
+import { getDoc } from 'firebase/firestore';
 import {
   fetchCollectionData,
   createDocument,
   updateDocument,
   removeDocument,
+  getActiveTenantId,
+  getFirestoreDocRef,
 } from '../firebase/storageService';
+import { getStoredShifts } from '../utils/helpers';
 
 export default function Memberships() {
   const [plans, setPlans] = useState([]);
   const [students, setStudents] = useState([]);
   const [studentCounts, setStudentCounts] = useState({});
+  const [shifts, setShifts] = useState(getStoredShifts());
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editData, setEditData] = useState(null);
   const [deleteData, setDeleteData] = useState(null);
@@ -55,6 +60,21 @@ export default function Memberships() {
         }
       });
       setStudentCounts(counts);
+
+      // Load tenant-configured shifts from Firestore or localStorage
+      try {
+        const tenantId = getActiveTenantId();
+        const shKey = `studypoint_${tenantId}_shifts`;
+        const shiftDoc = await getDoc(getFirestoreDocRef(COLLECTIONS.SETTINGS, 'shiftTimings'));
+        if (shiftDoc && shiftDoc.exists() && shiftDoc.data().shifts) {
+          setShifts(shiftDoc.data().shifts);
+          localStorage.setItem(shKey, JSON.stringify(shiftDoc.data().shifts));
+        } else {
+          setShifts(getStoredShifts());
+        }
+      } catch (_) {
+        setShifts(getStoredShifts());
+      }
     } catch (error) {
       console.error('Error fetching plans data:', error);
     } finally {
@@ -340,6 +360,7 @@ export default function Memberships() {
           onEdit={handleEdit}
           onDelete={handleDeleteClick}
           onToggle={handleToggle}
+          shifts={shifts}
         />
       </div>
 
@@ -348,6 +369,7 @@ export default function Memberships() {
         onClose={() => setIsFormOpen(false)}
         onSubmit={handleFormSubmit}
         editData={editData}
+        shifts={shifts}
       />
 
       <ConfirmDialog

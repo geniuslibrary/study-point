@@ -20,7 +20,7 @@ import {
 } from 'lucide-react';
 import { formatCurrency } from '../../utils/helpers';
 
-export default function PlanList({ plans, studentCounts, onEdit, onDelete, onToggle }) {
+export default function PlanList({ plans, studentCounts, onEdit, onDelete, onToggle, shifts = [] }) {
   if (!plans || plans.length === 0) {
     return (
       <div className="text-center py-16 bg-white rounded-3xl border border-slate-200/80 shadow-xs p-8 max-w-lg mx-auto">
@@ -36,6 +36,61 @@ export default function PlanList({ plans, studentCounts, onEdit, onDelete, onTog
   }
 
   const getShiftBadge = (shiftType) => {
+    if (!shiftType || shiftType === 'all') {
+      return (
+        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-xs font-extrabold bg-indigo-50 text-indigo-900 border border-indigo-200/90 shadow-2xs">
+          <Zap className="w-3.5 h-3.5 text-indigo-600" />
+          <span>All Shifts (सभी शिफ्ट्स)</span>
+        </span>
+      );
+    }
+
+    // Check in shifts prop or stored shifts
+    const allShifts = shifts.length > 0 ? shifts : [];
+    const custom = allShifts.find((s) => s.id === shiftType || s.label === shiftType);
+
+    if (custom) {
+      let Icon = Clock;
+      let colorClass = 'bg-blue-50 text-blue-900 border-blue-200/90';
+      let iconColor = 'text-blue-600';
+
+      const lowerId = (custom.id || '').toLowerCase();
+      const lowerLabel = (custom.label || '').toLowerCase();
+
+      if (lowerId === 'full_day' || lowerLabel.includes('full day') || lowerLabel.includes('पूरा')) {
+        Icon = Sun;
+        colorClass = 'bg-amber-50 text-amber-900 border-amber-200/90';
+        iconColor = 'text-amber-600';
+      } else if (
+        lowerId === 'first_half' ||
+        lowerId === 'morning' ||
+        lowerLabel.includes('morning') ||
+        lowerLabel.includes('सुबह') ||
+        lowerLabel.includes('1st')
+      ) {
+        Icon = Sunrise;
+        colorClass = 'bg-emerald-50 text-emerald-900 border-emerald-200/90';
+        iconColor = 'text-emerald-600';
+      } else if (
+        lowerId === 'second_half' ||
+        lowerId === 'evening' ||
+        lowerLabel.includes('evening') ||
+        lowerLabel.includes('शाम') ||
+        lowerLabel.includes('2nd')
+      ) {
+        Icon = Sunset;
+        colorClass = 'bg-purple-50 text-purple-900 border-purple-200/90';
+        iconColor = 'text-purple-600';
+      }
+
+      return (
+        <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-xs font-extrabold border shadow-2xs ${colorClass}`}>
+          <Icon className={`w-3.5 h-3.5 ${iconColor}`} />
+          <span>{custom.label} {custom.timing ? `(${custom.timing})` : ''}</span>
+        </span>
+      );
+    }
+
     switch (shiftType) {
       case 'full_day':
         return (
@@ -76,9 +131,9 @@ export default function PlanList({ plans, studentCounts, onEdit, onDelete, onTog
         );
       default:
         return (
-          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-xs font-extrabold bg-indigo-50 text-indigo-900 border border-indigo-200/90 shadow-2xs">
-            <Zap className="w-3.5 h-3.5 text-indigo-600" />
-            <span>All Shifts (सभी शिफ्ट्स)</span>
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-xs font-extrabold bg-blue-50 text-blue-900 border border-blue-200/90 shadow-2xs">
+            <Clock className="w-3.5 h-3.5 text-blue-600" />
+            <span>{shiftType}</span>
           </span>
         );
     }

@@ -1,5 +1,6 @@
 import { SHIFTS } from './constants';
 import { getActiveTenantId } from '../firebase/storageService';
+export { getActiveTenantId };
 
 export const formatCurrency = (amount) => {
   const safeNum = Number(amount) || 0;
