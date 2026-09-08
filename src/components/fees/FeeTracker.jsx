@@ -417,17 +417,26 @@ export default function FeeTracker({
                           <span>Overdue ({Math.abs(diffDays)}d)</span>
                         </span>
                       </div>
+                    ) : isEndingSoon ? (
+                      <div>
+                        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-black bg-amber-50 text-amber-900 border border-amber-300 shadow-2xs">
+                          <Clock className="w-3 h-3 text-amber-600 shrink-0" />
+                          <span>
+                            {diffDays === 0 ? 'Ending Today' : `Ending in (${diffDays}d left)`}
+                          </span>
+                        </span>
+                      </div>
                     ) : (
                       <div>
                         <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-amber-50 text-amber-800 border border-amber-200">
                           {diffDays === 0
-                            ? 'Expired Today'
+                            ? 'Ending Today'
                             : diffDays === -1
                             ? 'Expired (1d Grace)'
                             : diffDays === -2
                             ? 'Expired (2d Grace)'
                             : diffDays > 0
-                            ? `Pending (${diffDays}d left)`
+                            ? `Ending in (${diffDays}d left)`
                             : 'Expired'}
                         </span>
                       </div>
@@ -537,9 +546,14 @@ export default function FeeTracker({
                   <span className="px-2 py-0.5 rounded-full text-xs font-black bg-rose-50 text-rose-700 border border-rose-200 flex items-center gap-1">
                     <AlertCircle className="w-3 h-3 text-rose-600" /> Overdue ({Math.abs(diffDays)}d)
                   </span>
+                ) : isEndingSoon ? (
+                  <span className="px-2 py-0.5 rounded-full text-xs font-black bg-amber-50 text-amber-900 border border-amber-300 flex items-center gap-1">
+                    <Clock className="w-3 h-3 text-amber-600 shrink-0" />
+                    <span>{diffDays === 0 ? 'Ending Today' : `Ending in (${diffDays}d left)`}</span>
+                  </span>
                 ) : (
                   <span className="px-2 py-0.5 rounded-full text-xs font-bold bg-amber-50 text-amber-800 border border-amber-200">
-                    {diffDays === 0 ? 'Expired Today' : diffDays === -1 ? 'Expired (1d)' : diffDays === -2 ? 'Expired (2d)' : diffDays > 0 ? `Pending (${diffDays}d)` : 'Expired'}
+                    {diffDays === 0 ? 'Ending Today' : diffDays === -1 ? 'Expired (1d)' : diffDays === -2 ? 'Expired (2d)' : diffDays > 0 ? `Ending in (${diffDays}d left)` : 'Expired'}
                   </span>
                 )}
               </div>
