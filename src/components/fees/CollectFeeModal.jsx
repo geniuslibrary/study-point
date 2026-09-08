@@ -344,42 +344,62 @@ export default function CollectFeeModal({
       if (shareWhatsApp) {
         const cleanPhone = (student?.phone || '').replace(/\D/g, '');
         const phoneWithCountry = cleanPhone.length === 10 ? `91${cleanPhone}` : cleanPhone;
-        
-        const libraryTitle = getTenantItem('library_name', 'Study Point Library');
-        const validityText = (validityStart && validityEnd)
-          ? `${formatDate(validityStart)} to ${formatDate(validityEnd)}`
-          : (activePlan.durationMonths ? `${activePlan.durationMonths} Month(s)` : `${activePlan.durationDays || 10} Day(s)`);
 
-        let addonSummary = '';
-        if (Object.keys(addonCharges).length > 0) {
-          addonSummary = Object.entries(addonCharges)
-            .map(([n, a]) => `🔒 *${n} Add-on:* ₹${a} (${durationLabel})\n`)
-            .join('');
+        if (!phoneWithCountry || phoneWithCountry.length < 10) {
+          alert('WhatsApp share ke liye student ka valid phone number hona chahiye!');
+        } else {
+          const libraryTitle = getTenantItem('library_name', 'Study Point Library');
+          const validityText = (validityStart && validityEnd)
+            ? `${formatDate(validityStart)} to ${formatDate(validityEnd)}`
+            : (activePlan.durationMonths ? `${activePlan.durationMonths} Month(s)` : `${activePlan.durationDays || 10} Day(s)`);
+
+          const receiptNo = `REC-${Date.now().toString().slice(-6)}`;
+          const displaySeatNumber = seat?.seatNumber ? `#${seat.seatNumber}` : '—';
+
+          let addonSummary = '';
+          if (Object.keys(addonCharges).length > 0) {
+            addonSummary = Object.entries(addonCharges)
+              .map(([n, a]) => `🔒 *${n} Add-on:* ₹${a} (${durationLabel})\n`)
+              .join('');
+          }
+
+          const tenantId = getActiveTenantId();
+          const tenantParam = tenantId && tenantId !== 'genius_root' ? `?tenant=${tenantId}` : '';
+          // Use student.id for receipt URL (fee.id is not available at this point)
+          const receiptLookupId = fee?.id || student?.id || '';
+          const onlineReceiptUrl = receiptLookupId
+            ? `${window.location.origin}/receipt/${receiptLookupId}${tenantParam}`
+            : '';
+
+          const currentTemplates = getActiveTemplates();
+
+          let message = renderTemplate(currentTemplates.feeReceipt?.template, {
+            student_name: student?.name || 'Student',
+            library_name: libraryTitle.toUpperCase(),
+            amount: totalPayable,
+            receipt_no: receiptNo,
+            plan_name: activePlan.name,
+            validity_period: validityText,
+            seat_number: displaySeatNumber,
+            shift: student?.shiftTiming || 'Full Day',
+            payment_mode: (paymentMode || 'CASH').toUpperCase(),
+          });
+
+          // Fallback message if template is empty or not configured
+          if (!message || message.trim().length < 10) {
+            message = `🎓 *${libraryTitle.toUpperCase()}*\n\n✅ *Fee Receipt — ${student?.name || 'Student'}*\n\n📋 *Plan:* ${activePlan.name}\n💰 *Amount Paid:* ₹${totalPayable}\n🪑 *Seat:* ${displaySeatNumber}\n⏰ *Shift:* ${student?.shiftTiming || 'Full Day'}\n📅 *Validity:* ${validityText}\n💳 *Payment:* ${(paymentMode || 'CASH').toUpperCase()}\n🧾 *Receipt No:* ${receiptNo}`;
+          }
+
+          if (addonSummary) message += `\n${addonSummary}`;
+          if (discount > 0) message += `\n🏷️ *Discount:* -₹${discount}`;
+          if (onlineReceiptUrl) {
+            message += `\n\n📄 *View Receipt Online:*\n👉 ${onlineReceiptUrl}`;
+          }
+          message += `\n\nThank you for studying at ${libraryTitle}! 🙏`;
+
+          const waUrl = `https://api.whatsapp.com/send?phone=${phoneWithCountry}&text=${encodeURIComponent(message)}`;
+          window.open(waUrl, '_blank', 'noopener,noreferrer');
         }
-
-        const tenantId = getActiveTenantId();
-        const tenantParam = tenantId && tenantId !== 'genius_root' ? `?tenant=${tenantId}` : '';
-        const onlineReceiptUrl = `${window.location.origin}/receipt/${fee?.id}${tenantParam}`;
-        const currentTemplates = getActiveTemplates();
-
-        let message = renderTemplate(currentTemplates.feeReceipt?.template, {
-          student_name: student?.name || 'Student',
-          library_name: libraryTitle.toUpperCase(),
-          amount: totalPayable,
-          receipt_no: receiptNo,
-          plan_name: activePlan.name,
-          validity_period: validityText,
-          seat_number: displaySeatNumber,
-          shift: student?.shiftTiming || 'Shift',
-          payment_mode: (paymentMode || 'CASH').toUpperCase(),
-        });
-
-        if (addonSummary) message += `\n${addonSummary}`;
-        if (discount > 0) message += `🏷️ *Discount:* -₹${discount}\n`;
-        message += `\n\n📄 *View & Download Official PDF Receipt:* \n👉 ${onlineReceiptUrl}\n\nThank you for studying at ${libraryTitle}! 🙏`;
-
-        const waUrl = `https://api.whatsapp.com/send?phone=${phoneWithCountry}&text=${encodeURIComponent(message)}`;
-        window.open(waUrl, '_blank', 'noopener,noreferrer');
       }
 
       onClose();
