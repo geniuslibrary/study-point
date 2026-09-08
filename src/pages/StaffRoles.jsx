@@ -34,12 +34,6 @@ import {
   Receipt,
   Settings,
   Plus,
-  Image,
-  Camera,
-  Calendar,
-  UserX,
-  FileText,
-  ExternalLink,
 } from 'lucide-react';
 import { COLLECTIONS, PERMISSION_MODULES, ROLE_PRESETS } from '../utils/constants';
 import {
@@ -48,7 +42,6 @@ import {
   updateDocument,
   removeDocument,
 } from '../firebase/storageService';
-import { compressImageFile, formatDate } from '../utils/helpers';
 import {
   DEFAULT_STAFF_DASHBOARD_WIDGETS,
   DASHBOARD_WIDGET_OPTIONS,
@@ -134,7 +127,6 @@ export default function StaffRoles() {
     isOwner: true,
   });
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState('staff'); // 'staff' | 'roles'
 
   // Staff modal states
   const [showModal, setShowModal] = useState(false);
@@ -156,9 +148,6 @@ export default function StaffRoles() {
   const [toastMessage, setToastMessage] = useState('');
   const [visiblePasswords, setVisiblePasswords] = useState({});
   const [copiedId, setCopiedId] = useState(null);
-  const [previewAadhar, setPreviewAadhar] = useState(null);
-  const [isCompressingPhoto, setIsCompressingPhoto] = useState(false);
-  const [isCompressingAadhar, setIsCompressingAadhar] = useState(false);
 
   // Staff Form states
   const [formData, setFormData] = useState({
@@ -166,10 +155,6 @@ export default function StaffRoles() {
     email: '',
     password: '',
     phone: '',
-    photo: '',
-    aadharPhoto: '',
-    monthlySalary: '',
-    startDate: new Date().toISOString().split('T')[0],
     role: 'role_receptionist',
     roleLabel: '🛎️ Receptionist',
     status: 'active',
@@ -224,38 +209,6 @@ export default function StaffRoles() {
     return roleId || 'Staff';
   };
 
-  const handleStaffPhotoChange = async (e) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    setIsCompressingPhoto(true);
-    try {
-      const compressed = await compressImageFile(file, 480, 0.86);
-      setFormData((prev) => ({ ...prev, photo: compressed }));
-    } catch (err) {
-      console.error('Error compressing staff photo:', err);
-      showToast('फोटो लोड नहीं हो सकी, कृपया दोबारा प्रयास करें');
-    } finally {
-      setIsCompressingPhoto(false);
-      try { e.target.value = ''; } catch (_) {}
-    }
-  };
-
-  const handleStaffAadharChange = async (e) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    setIsCompressingAadhar(true);
-    try {
-      const compressed = await compressImageFile(file, 900, 0.86);
-      setFormData((prev) => ({ ...prev, aadharPhoto: compressed }));
-    } catch (err) {
-      console.error('Error compressing aadhar photo:', err);
-      showToast('आधार कार्ड फोटो लोड नहीं हो सकी');
-    } finally {
-      setIsCompressingAadhar(false);
-      try { e.target.value = ''; } catch (_) {}
-    }
-  };
-
   // Staff Modal Handlers
   const handleOpenAdd = () => {
     setEditStaff(null);
@@ -265,10 +218,6 @@ export default function StaffRoles() {
       email: '',
       password: '',
       phone: '',
-      photo: '',
-      aadharPhoto: '',
-      monthlySalary: '',
-      startDate: new Date().toISOString().split('T')[0],
       role: defaultRole.id,
       roleLabel: defaultRole.label || `${defaultRole.emoji || '💼'} ${defaultRole.name}`,
       status: 'active',
@@ -294,17 +243,11 @@ export default function StaffRoles() {
     const initialRoleLabel = staff.roleLabel || getRoleLabel(initialRole, staff.roleLabel);
     const fallbackPerms = matchedRole.permissions || ROLE_PRESETS.receptionist.permissions;
 
-    const initialStartDate = staff.startDate || (staff.createdAt?.seconds ? new Date(staff.createdAt.seconds * 1000).toISOString().split('T')[0] : new Date().toISOString().split('T')[0]);
-
     setFormData({
       name: staff.name || '',
       email: staff.email || '',
       password: staff.password || '',
       phone: staff.phone || '',
-      photo: staff.photo || '',
-      aadharPhoto: staff.aadharPhoto || '',
-      monthlySalary: staff.monthlySalary !== undefined && staff.monthlySalary !== null ? String(staff.monthlySalary) : '',
-      startDate: initialStartDate,
       role: initialRole,
       roleLabel: initialRoleLabel,
       status: staff.status || 'active',
@@ -371,24 +314,6 @@ export default function StaffRoles() {
     });
   };
 
-  const handleQuickToggleStatus = async (staff, targetStatus) => {
-    try {
-      await updateDocument(COLLECTIONS.STAFF_USERS, staff.id, {
-        status: targetStatus,
-        leftDate: targetStatus === 'left' ? new Date().toISOString() : null,
-      });
-      showToast(
-        targetStatus === 'left'
-          ? `${staff.name} marked as Left (Monthly salary auto-generation stopped)`
-          : `${staff.name} re-activated as active staff`
-      );
-      await fetchData();
-    } catch (err) {
-      console.error(err);
-      showToast('Error updating staff status');
-    }
-  };
-
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!formData.name.trim() || !formData.email.trim() || !formData.password.trim()) {
@@ -396,21 +321,12 @@ export default function StaffRoles() {
       return;
     }
 
-    const payload = {
-      ...formData,
-      monthlySalary: formData.monthlySalary !== '' ? Number(formData.monthlySalary) || 0 : 0,
-      startDate: formData.startDate || new Date().toISOString().split('T')[0],
-      photo: formData.photo || '',
-      aadharPhoto: formData.aadharPhoto || '',
-      leftDate: formData.status === 'left' ? (editStaff?.leftDate || new Date().toISOString()) : null,
-    };
-
     try {
       if (editStaff) {
-        await updateDocument(COLLECTIONS.STAFF_USERS, editStaff.id, payload);
+        await updateDocument(COLLECTIONS.STAFF_USERS, editStaff.id, formData);
         showToast(`Staff member "${formData.name}" updated successfully!`);
       } else {
-        await createDocument(COLLECTIONS.STAFF_USERS, payload);
+        await createDocument(COLLECTIONS.STAFF_USERS, formData);
         showToast(`New staff member "${formData.name}" created successfully!`);
       }
       setShowModal(false);
@@ -600,26 +516,21 @@ export default function StaffRoles() {
           <div>
             <h1 className="text-2xl font-bold text-gray-900">Staff & Role Permissions</h1>
             <p className="text-gray-500 text-sm mt-0.5">
-              {activeTab === 'staff'
-                ? 'स्टाफ सदस्य, वेतन (Salary), आधार कार्ड, उपस्थिति व लॉगिन क्रेडेंशियल्स'
-                : 'भूमिकाएं (Role Templates), मॉड्यूल अनुमतियाँ (Permissions) व डैशबोर्ड एक्सेस'}
+              Manage staff accounts, edit role templates & configure module permissions
             </p>
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
-            {activeTab === 'staff' ? (
-              <Button icon={<UserPlus className="w-4 h-4" />} onClick={handleOpenAdd}>
-                + Add New Staff Member
-              </Button>
-            ) : (
-              <Button
-                variant="primary"
-                icon={<Sparkles className="w-4 h-4 text-white" />}
-                onClick={handleOpenAddRole}
-              >
-                + Create New Role
-              </Button>
-            )}
+            <Button
+              variant="secondary"
+              icon={<Sparkles className="w-4 h-4 text-purple-600" />}
+              onClick={handleOpenAddRole}
+            >
+              + Create New Role
+            </Button>
+            <Button icon={<UserPlus className="w-4 h-4" />} onClick={handleOpenAdd}>
+              Add New Staff Member
+            </Button>
           </div>
         </div>
 
@@ -630,173 +541,79 @@ export default function StaffRoles() {
           </div>
         )}
 
-        {/* 2 Navigation Tabs: Staff and Role Permissions */}
-        <div className="flex border-b border-gray-200 gap-2">
-          <button
-            type="button"
-            onClick={() => setActiveTab('staff')}
-            className={`flex items-center gap-2 py-3 px-5 text-sm font-bold border-b-2 transition-all cursor-pointer ${
-              activeTab === 'staff'
-                ? 'border-indigo-600 text-indigo-600 bg-indigo-50/50 rounded-t-xl'
-                : 'border-transparent text-gray-500 hover:text-gray-800 hover:border-gray-300'
-            }`}
-          >
-            <Users className="w-4 h-4" />
-            <span>Staff (स्टाफ)</span>
-            <span
-              className={`text-xs px-2 py-0.5 rounded-full font-extrabold ${
-                activeTab === 'staff' ? 'bg-indigo-100 text-indigo-700' : 'bg-gray-100 text-gray-600'
-              }`}
-            >
-              {staffList.length}
-            </span>
-          </button>
+        {/* Roles Presets Banner - All Roles are Editable & Updatable */}
+        <div className="space-y-2.5">
+          <div className="flex items-center justify-between">
+            <h3 className="font-bold text-gray-900 text-sm flex items-center gap-2">
+              <ShieldCheck className="w-4 h-4 text-indigo-600" />
+              <span>Configured Roles & Permissions ({rolesList.length + 1})</span>
+            </h3>
+          </div>
 
-          <button
-            type="button"
-            onClick={() => setActiveTab('roles')}
-            className={`flex items-center gap-2 py-3 px-5 text-sm font-bold border-b-2 transition-all cursor-pointer ${
-              activeTab === 'roles'
-                ? 'border-indigo-600 text-indigo-600 bg-indigo-50/50 rounded-t-xl'
-                : 'border-transparent text-gray-500 hover:text-gray-800 hover:border-gray-300'
-            }`}
-          >
-            <ShieldCheck className="w-4 h-4" />
-            <span>Role Permissions (रोल परमिशन)</span>
-            <span
-              className={`text-xs px-2 py-0.5 rounded-full font-extrabold ${
-                activeTab === 'roles' ? 'bg-indigo-100 text-indigo-700' : 'bg-gray-100 text-gray-600'
-              }`}
-            >
-              {rolesList.length + 1}
-            </span>
-          </button>
-        </div>
-
-        {/* TAB 2 CONTENT: Role Permissions */}
-        {activeTab === 'roles' && (
-          <div className="space-y-4">
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 bg-white p-4 rounded-2xl border border-slate-200 shadow-2xs">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center font-bold">
-                  <ShieldCheck className="w-5 h-5" />
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3.5">
+            {/* Owner Master Card (Now Fully Editable & Updatable) */}
+            <div className="bg-white p-4 rounded-2xl border border-indigo-100 shadow-2xs space-y-1 flex flex-col justify-between hover:border-indigo-300 transition-all">
+              <div>
+                <div className="flex items-center justify-between gap-1">
+                  <div className="flex items-center gap-2 font-bold text-gray-900 text-sm">
+                    <span className="text-base">{ownerRole.emoji || '👑'}</span>
+                    <span className="truncate">{ownerRole.name}</span>
+                  </div>
+                  <div className="flex items-center gap-1 shrink-0">
+                    <button
+                      onClick={() => handleOpenEditRole(ownerRole)}
+                      className="p-1.5 text-indigo-600 hover:bg-indigo-50 rounded-lg cursor-pointer transition-colors"
+                      title="Edit Owner Role & Permissions"
+                    >
+                      <Edit size={14} />
+                    </button>
+                  </div>
                 </div>
-                <div>
-                  <h3 className="font-bold text-gray-900 text-sm">Configured Roles & Permissions</h3>
-                  <p className="text-xs text-gray-500">
-                    Roles define permissions templates for staff members. Edit any role to modify permissions.
-                  </p>
-                </div>
+                <p className="text-xs text-gray-500 leading-relaxed mt-1 line-clamp-2">
+                  {ownerRole.description || 'Full access to all revenue, expenses, audit reports & library settings.'}
+                </p>
               </div>
-
-              <Button
-                variant="secondary"
-                icon={<Sparkles className="w-4 h-4 text-purple-600" />}
-                onClick={handleOpenAddRole}
-                size="sm"
-              >
-                + Create New Role
-              </Button>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {/* Owner Master Card */}
-              <div className="bg-white p-5 rounded-2xl border border-indigo-100 shadow-2xs space-y-3 flex flex-col justify-between hover:border-indigo-300 transition-all">
-                <div className="space-y-2">
+            {/* All Configured Roles with Full Edit & Delete Options */}
+            {rolesList.map((r) => (
+              <div
+                key={r.id}
+                className="bg-white p-4 rounded-2xl border border-slate-200 shadow-2xs space-y-1 flex flex-col justify-between hover:border-indigo-300 transition-all"
+              >
+                <div>
                   <div className="flex items-center justify-between gap-1">
-                    <div className="flex items-center gap-2 font-bold text-gray-900 text-base">
-                      <span className="text-xl">{ownerRole.emoji || '👑'}</span>
-                      <span className="truncate">{ownerRole.name}</span>
+                    <div className="flex items-center gap-2 font-bold text-gray-900 text-sm">
+                      <span className="text-base">{r.emoji || '💼'}</span>
+                      <span className="truncate">{r.name}</span>
                     </div>
                     <div className="flex items-center gap-1 shrink-0">
                       <button
-                        onClick={() => handleOpenEditRole(ownerRole)}
+                        onClick={() => handleOpenEditRole(r)}
                         className="p-1.5 text-indigo-600 hover:bg-indigo-50 rounded-lg cursor-pointer transition-colors"
-                        title="Edit Owner Role & Permissions"
+                        title="Edit Role & Permissions"
                       >
-                        <Edit size={16} />
+                        <Edit size={14} />
+                      </button>
+                      <button
+                        onClick={() => setDeleteRoleTarget(r)}
+                        className="p-1.5 text-rose-600 hover:bg-rose-50 rounded-lg cursor-pointer transition-colors"
+                        title="Delete Role"
+                      >
+                        <Trash2 size={14} />
                       </button>
                     </div>
                   </div>
-                  <p className="text-xs text-gray-500 leading-relaxed">
-                    {ownerRole.description || 'Full access to all revenue, expenses, audit reports & library settings.'}
+                  <p className="text-xs text-gray-500 leading-relaxed mt-1 line-clamp-2">
+                    {r.description || 'Configured staff role template'}
                   </p>
                 </div>
-
-                <div className="pt-3 border-t border-slate-100">
-                  <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block mb-1.5">
-                    Module Access:
-                  </span>
-                  <span className="inline-flex items-center gap-1 text-[11px] font-bold px-2.5 py-1 rounded-lg bg-indigo-50 text-indigo-700 border border-indigo-100">
-                    👑 Full Access (Super Admin)
-                  </span>
-                </div>
               </div>
-
-              {/* All Configured Roles */}
-              {rolesList.map((r) => {
-                const activeRolePerms = getActivePermissionLabels(r.permissions);
-                return (
-                  <div
-                    key={r.id}
-                    className="bg-white p-5 rounded-2xl border border-slate-200 shadow-2xs space-y-3 flex flex-col justify-between hover:border-indigo-300 transition-all"
-                  >
-                    <div className="space-y-2">
-                      <div className="flex items-center justify-between gap-1">
-                        <div className="flex items-center gap-2 font-bold text-gray-900 text-base">
-                          <span className="text-xl">{r.emoji || '💼'}</span>
-                          <span className="truncate">{r.name}</span>
-                        </div>
-                        <div className="flex items-center gap-1 shrink-0">
-                          <button
-                            onClick={() => handleOpenEditRole(r)}
-                            className="p-1.5 text-indigo-600 hover:bg-indigo-50 rounded-lg cursor-pointer transition-colors"
-                            title="Edit Role & Permissions"
-                          >
-                            <Edit size={16} />
-                          </button>
-                          <button
-                            onClick={() => setDeleteRoleTarget(r)}
-                            className="p-1.5 text-rose-600 hover:bg-rose-50 rounded-lg cursor-pointer transition-colors"
-                            title="Delete Role"
-                          >
-                            <Trash2 size={16} />
-                          </button>
-                        </div>
-                      </div>
-                      <p className="text-xs text-gray-500 leading-relaxed">
-                        {r.description || 'Configured staff role template'}
-                      </p>
-                    </div>
-
-                    <div className="pt-3 border-t border-slate-100">
-                      <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block mb-1.5">
-                        Allowed Modules ({activeRolePerms.length}):
-                      </span>
-                      <div className="flex flex-wrap gap-1 max-h-24 overflow-y-auto">
-                        {activeRolePerms.length > 0 ? (
-                          activeRolePerms.map((p) => (
-                            <span
-                              key={p.id}
-                              className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-800 border border-emerald-100"
-                            >
-                              {p.module}
-                            </span>
-                          ))
-                        ) : (
-                          <span className="text-[10px] font-bold text-slate-400 italic">No modules granted</span>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
+            ))}
           </div>
-        )}
+        </div>
 
-        {/* TAB 1 CONTENT: Staff Members */}
-        {activeTab === 'staff' && (
+        {/* Staff Members List Cards */}
         <div className="space-y-4">
           <div className="flex items-center justify-between">
             <h3 className="font-bold text-gray-900 text-base">
@@ -820,17 +637,9 @@ export default function StaffRoles() {
                     {/* Top Row: Avatar, Name, Role & Action Buttons */}
                     <div className="flex items-start justify-between gap-3">
                       <div className="flex items-center gap-3 min-w-0">
-                        {staff.photo ? (
-                          <img
-                            src={staff.photo}
-                            alt={staff.name}
-                            className="w-12 h-12 rounded-2xl object-cover border border-indigo-200 shrink-0 shadow-2xs"
-                          />
-                        ) : (
-                          <div className="w-12 h-12 rounded-2xl bg-indigo-50 border border-indigo-100 text-indigo-700 flex items-center justify-center font-black text-lg shrink-0">
-                            {staff.name?.charAt(0)?.toUpperCase() || 'S'}
-                          </div>
-                        )}
+                        <div className="w-12 h-12 rounded-2xl bg-indigo-50 border border-indigo-100 text-indigo-700 flex items-center justify-center font-black text-lg shrink-0">
+                          {staff.name?.charAt(0)?.toUpperCase() || 'S'}
+                        </div>
                         <div className="min-w-0">
                           <div className="flex flex-wrap items-center gap-2">
                             <h4 className="font-extrabold text-slate-900 text-base leading-tight truncate">
@@ -838,14 +647,12 @@ export default function StaffRoles() {
                             </h4>
                             <span
                               className={`text-[10px] font-black uppercase px-2 py-0.5 rounded-full ${
-                                staff.status === 'left'
-                                  ? 'bg-rose-100 text-rose-700 border border-rose-200'
-                                  : staff.status === 'inactive'
-                                  ? 'bg-slate-100 text-slate-600 border border-slate-200'
-                                  : 'bg-emerald-100 text-emerald-800 border border-emerald-200'
+                                staff.status !== 'inactive'
+                                  ? 'bg-emerald-100 text-emerald-800 border border-emerald-200'
+                                  : 'bg-rose-100 text-rose-700 border border-rose-200'
                               }`}
                             >
-                              {staff.status === 'left' ? '🔴 Left (छोड़ दिया)' : staff.status === 'inactive' ? '⚪ Inactive' : '🟢 Active'}
+                              {staff.status !== 'inactive' ? 'Active' : 'Inactive'}
                             </span>
                           </div>
 
@@ -853,40 +660,6 @@ export default function StaffRoles() {
                             <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-lg text-xs font-bold bg-indigo-50 text-indigo-700 border border-indigo-200">
                               {displayRole}
                             </span>
-                            {Number(staff.monthlySalary) > 0 && (
-                              <span
-                                className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-lg text-xs font-bold border ${
-                                  staff.status === 'left'
-                                    ? 'bg-slate-100 text-slate-500 border-slate-200 line-through'
-                                    : 'bg-emerald-50 text-emerald-800 border-emerald-200'
-                                }`}
-                              >
-                                <IndianRupee className="w-3 h-3" />
-                                <span>₹{Number(staff.monthlySalary).toLocaleString('en-IN')}/month</span>
-                                {staff.status === 'left' ? (
-                                  <span className="text-[9px] no-underline font-normal text-rose-600">(Salary Stopped)</span>
-                                ) : (
-                                  <span className="text-[9px] font-normal text-emerald-600">(Auto-adds)</span>
-                                )}
-                              </span>
-                            )}
-                            {staff.startDate && (
-                              <span className="text-xs text-slate-500 font-medium flex items-center gap-1">
-                                <Calendar className="w-3 h-3 text-slate-400" />
-                                <span>Start: {formatDate(staff.startDate)}</span>
-                              </span>
-                            )}
-                            {staff.aadharPhoto && (
-                              <button
-                                type="button"
-                                onClick={() => setPreviewAadhar(staff.aadharPhoto)}
-                                className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-xs font-bold bg-blue-50 text-blue-700 border border-blue-200 hover:bg-blue-100 cursor-pointer transition-colors"
-                                title="View staff Aadhaar card photo"
-                              >
-                                <FileText className="w-3 h-3" />
-                                <span>Aadhaar Photo</span>
-                              </button>
-                            )}
                             {staff.phone && (
                               <span className="text-xs text-slate-500 font-medium">
                                 📞 {staff.phone}
@@ -896,27 +669,8 @@ export default function StaffRoles() {
                         </div>
                       </div>
 
-                      {/* Status Toggle, Edit & Delete Buttons */}
+                      {/* Edit & Delete Buttons */}
                       <div className="flex items-center gap-1 shrink-0">
-                        {staff.status === 'left' ? (
-                          <button
-                            type="button"
-                            onClick={() => handleQuickToggleStatus(staff, 'active')}
-                            className="px-2.5 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 rounded-xl text-xs font-bold transition-colors cursor-pointer flex items-center gap-1"
-                            title="Re-activate staff (resumes monthly salary in Expenses)"
-                          >
-                            <span>🟢 Re-activate</span>
-                          </button>
-                        ) : (
-                          <button
-                            type="button"
-                            onClick={() => handleQuickToggleStatus(staff, 'left')}
-                            className="px-2.5 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 rounded-xl text-xs font-bold transition-colors cursor-pointer flex items-center gap-1"
-                            title="Mark staff as Left (stops monthly salary from automatically adding to expenses)"
-                          >
-                            <span>🚪 Mark Left</span>
-                          </button>
-                        )}
                         <button
                           onClick={() => handleOpenEdit(staff)}
                           className="p-2 text-indigo-600 hover:bg-indigo-50 rounded-xl transition-colors cursor-pointer"
@@ -1018,7 +772,6 @@ export default function StaffRoles() {
             </div>
           )}
         </div>
-      )}
       </div>
 
       {/* Add / Edit Staff Modal */}
@@ -1097,97 +850,8 @@ export default function StaffRoles() {
             </div>
           </div>
 
-          {/* Staff Photo & Aadhaar Card Upload Row */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 p-3.5 bg-gradient-to-r from-slate-50 to-indigo-50/40 rounded-2xl border border-indigo-100">
-            {/* 1. Staff Profile Photo */}
-            <div className="flex items-center gap-3 bg-white p-3 rounded-xl border border-slate-200">
-              <div className="relative w-16 h-16 rounded-xl overflow-hidden bg-slate-100 border border-slate-300 flex items-center justify-center shrink-0">
-                {formData.photo ? (
-                  <img src={formData.photo} alt="Staff" className="w-full h-full object-cover" />
-                ) : (
-                  <User className="w-7 h-7 text-slate-400" />
-                )}
-                {isCompressingPhoto && (
-                  <div className="absolute inset-0 bg-black/60 flex items-center justify-center text-white text-[9px] font-bold">
-                    ...
-                  </div>
-                )}
-              </div>
-              <div className="min-w-0 flex-1 space-y-1">
-                <span className="block text-xs font-bold text-slate-800 uppercase tracking-wider">
-                  Staff Photo (स्टाफ फोटो)
-                </span>
-                <p className="text-[10px] text-slate-500">गैलरी या कैमरे से फोटो चुनें</p>
-                <div className="flex items-center gap-2 pt-0.5">
-                  <label className="cursor-pointer inline-flex items-center gap-1 px-2.5 py-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-lg text-xs font-bold border border-indigo-200 transition-colors">
-                    <Camera size={12} />
-                    <span>{formData.photo ? 'Change' : 'Upload'}</span>
-                    <input
-                      type="file"
-                      accept="image/*"
-                      onChange={handleStaffPhotoChange}
-                      className="hidden"
-                    />
-                  </label>
-                  {formData.photo && (
-                    <button
-                      type="button"
-                      onClick={() => setFormData((prev) => ({ ...prev, photo: '' }))}
-                      className="text-xs text-rose-600 hover:text-rose-800 font-bold cursor-pointer"
-                    >
-                      Remove
-                    </button>
-                  )}
-                </div>
-              </div>
-            </div>
-
-            {/* 2. Aadhaar Card Photo */}
-            <div className="flex items-center gap-3 bg-white p-3 rounded-xl border border-slate-200">
-              <div className="relative w-16 h-16 rounded-xl overflow-hidden bg-slate-100 border border-slate-300 flex items-center justify-center shrink-0">
-                {formData.aadharPhoto ? (
-                  <img src={formData.aadharPhoto} alt="Aadhaar" className="w-full h-full object-cover" />
-                ) : (
-                  <FileText className="w-7 h-7 text-blue-400" />
-                )}
-                {isCompressingAadhar && (
-                  <div className="absolute inset-0 bg-black/60 flex items-center justify-center text-white text-[9px] font-bold">
-                    ...
-                  </div>
-                )}
-              </div>
-              <div className="min-w-0 flex-1 space-y-1">
-                <span className="block text-xs font-bold text-slate-800 uppercase tracking-wider">
-                  Aadhaar Card (आधार कार्ड)
-                </span>
-                <p className="text-[10px] text-slate-500">आधार कार्ड की साफ फोटो अपलोड करें</p>
-                <div className="flex items-center gap-2 pt-0.5">
-                  <label className="cursor-pointer inline-flex items-center gap-1 px-2.5 py-1 bg-blue-50 hover:bg-blue-100 text-blue-700 rounded-lg text-xs font-bold border border-blue-200 transition-colors">
-                    <FileText size={12} />
-                    <span>{formData.aadharPhoto ? 'Change' : 'Upload Aadhaar'}</span>
-                    <input
-                      type="file"
-                      accept="image/*"
-                      onChange={handleStaffAadharChange}
-                      className="hidden"
-                    />
-                  </label>
-                  {formData.aadharPhoto && (
-                    <button
-                      type="button"
-                      onClick={() => setFormData((prev) => ({ ...prev, aadharPhoto: '' }))}
-                      className="text-xs text-rose-600 hover:text-rose-800 font-bold cursor-pointer"
-                    >
-                      Remove
-                    </button>
-                  )}
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Login Email, Password, Salary, Start Date & Account Status */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 bg-slate-50 p-3.5 rounded-2xl border border-slate-200">
+          {/* Login Email, Password & Account Status */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 bg-slate-50 p-3.5 rounded-2xl border border-slate-200">
             <div>
               <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1 flex items-center gap-1">
                 <Mail className="w-3.5 h-3.5 text-indigo-600" />
@@ -1220,54 +884,19 @@ export default function StaffRoles() {
 
             <div>
               <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1 flex items-center gap-1">
-                <IndianRupee className="w-3.5 h-3.5 text-emerald-600" />
-                <span>Monthly Salary (मासिक वेतन ₹)</span>
-              </label>
-              <input
-                type="number"
-                min="0"
-                value={formData.monthlySalary}
-                onChange={(e) => setFormData({ ...formData, monthlySalary: e.target.value })}
-                placeholder="e.g. 5000"
-                className="w-full px-3 py-2 border border-slate-300 rounded-xl text-xs bg-white font-bold text-emerald-800 focus:ring-2 focus:ring-indigo-500"
-              />
-            </div>
-
-            <div>
-              <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1 flex items-center gap-1">
-                <Calendar className="w-3.5 h-3.5 text-indigo-600" />
-                <span>Starting Date (शुरुआत की तारीख) *</span>
-              </label>
-              <input
-                type="date"
-                required
-                value={formData.startDate}
-                onChange={(e) => setFormData({ ...formData, startDate: e.target.value })}
-                className="w-full px-3 py-2 border border-slate-300 rounded-xl text-xs bg-white font-bold text-slate-800 focus:ring-2 focus:ring-indigo-500"
-              />
-            </div>
-
-            <div>
-              <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1 flex items-center gap-1">
                 <ShieldCheck className="w-3.5 h-3.5 text-indigo-600" />
-                <span>Account Status (कार्यरत / छोड़ दिया)</span>
+                <span>Account Status</span>
               </label>
               <select
                 value={formData.status}
                 onChange={(e) => setFormData({ ...formData, status: e.target.value })}
                 className="w-full px-3 py-2 border border-slate-300 rounded-xl text-xs bg-white font-bold text-slate-800 focus:ring-2 focus:ring-indigo-500"
               >
-                <option value="active">🟢 Active (कार्यरत - सैलरी चालू)</option>
-                <option value="left">🔴 Left (छोड़ दिया - सैलरी बंद)</option>
+                <option value="active">🟢 Active (चालू)</option>
+                <option value="inactive">🔴 Inactive (बंद)</option>
               </select>
             </div>
           </div>
-
-          {Number(formData.monthlySalary) > 0 && formData.status !== 'left' && (
-            <p className="text-[11px] text-emerald-800 bg-emerald-50 px-3.5 py-2 rounded-xl border border-emerald-200 font-semibold leading-relaxed">
-              💡 यह वेतन <strong>₹{Number(formData.monthlySalary).toLocaleString('en-IN')}/month</strong> तारीख <strong>{formData.startDate}</strong> से हर महीने <strong>Expenses & Utility</strong> में स्वतः (automatically) सैलरी खर्च के रूप में जुड़ेगा। जब तक आप 'Left' न करें। अगर कोई छुट्टी मारे, तो उस महीने के Expenses में जाकर कटौती (deduction) एडिट कर सकते हैं।
-            </p>
-          )}
 
           {/* Granular Module-by-Module Permission Matrix */}
           <div>
@@ -1624,31 +1253,6 @@ export default function StaffRoles() {
         confirmText="Delete Role"
         variant="danger"
       />
-
-      {/* Aadhaar Card Photo Preview Modal */}
-      <Modal
-        isOpen={!!previewAadhar}
-        onClose={() => setPreviewAadhar(null)}
-        title="Staff Aadhaar Card Photo (आधार कार्ड)"
-        size="md"
-      >
-        <div className="space-y-4 text-center">
-          <div className="max-h-[70vh] overflow-auto rounded-xl border border-slate-200 bg-slate-50 p-2 flex items-center justify-center">
-            {previewAadhar && (
-              <img
-                src={previewAadhar}
-                alt="Aadhaar Card"
-                className="max-h-[65vh] w-auto max-w-full rounded-lg object-contain shadow-sm"
-              />
-            )}
-          </div>
-          <div className="flex justify-end">
-            <Button variant="secondary" onClick={() => setPreviewAadhar(null)}>
-              Close
-            </Button>
-          </div>
-        </div>
-      </Modal>
     </Layout>
   );
 }
