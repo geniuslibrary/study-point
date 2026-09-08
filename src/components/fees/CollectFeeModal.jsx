@@ -464,13 +464,9 @@ export default function CollectFeeModal({
             >
               <optgroup label="📋 Standard / Pre-configured Plans">
                 {plans.map((p) => {
-                  const isDay = p.durationUnit === 'days' || (p.durationDays && !p.durationMonths);
-                  const durText = isDay
-                    ? `${p.durationDays || 7} Days (दिन)`
-                    : `${p.durationMonths || 1} Month${(p.durationMonths || 1) > 1 ? 's' : ''}`;
                   return (
                     <option key={p.id} value={p.id}>
-                      {p.name} — ₹{p.price} ({durText})
+                      {p.name} — ₹{p.price}
                     </option>
                   );
                 })}

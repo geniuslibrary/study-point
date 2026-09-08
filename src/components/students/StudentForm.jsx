@@ -839,7 +839,7 @@ export default function StudentForm({
                       const isDay = p.durationUnit === 'days' || (p.durationDays && !p.durationMonths);
                       return (
                         <option key={p.id} value={p.id}>
-                          {p.name} — ₹{p.price} ({isDay ? `🗓️ ${p.durationDays || 7} Days` : `📅 ${p.durationMonths} Month${p.durationMonths > 1 ? 's' : ''}`})
+                          {p.name} — ₹{p.price}
                         </option>
                       );
                     })}
