@@ -58,40 +58,50 @@ export default function SectionList({
 
         return (
           <div key={section.id} className="bg-white rounded-2xl shadow-xs overflow-hidden border border-gray-200 transition-shadow hover:shadow-sm">
-            <div className="p-4 sm:p-6">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                <div className="flex items-center gap-3.5">
-                  <div className="w-12 h-12 bg-indigo-50 border border-indigo-100 rounded-2xl flex items-center justify-center shrink-0 shadow-2xs">
-                    <Building2 className="w-6 h-6 text-indigo-600" />
+            <div className="p-4 sm:p-5">
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 sm:gap-4">
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className="w-11 h-11 sm:w-12 sm:h-12 bg-indigo-50 border border-indigo-100 rounded-2xl flex items-center justify-center shrink-0 shadow-2xs">
+                    <Building2 className="w-5 h-5 sm:w-6 sm:h-6 text-indigo-600" />
                   </div>
-                  <div>
-                    <h3 className="font-bold text-gray-900 text-lg leading-tight">{section.name}</h3>
-                    <div className="flex flex-wrap items-center gap-2 text-xs text-gray-500 mt-1">
-                      <span className="font-bold text-gray-800 bg-gray-100 px-2 py-0.5 rounded">
-                        {sectionSeats.length} Physical Seats
+                  <div className="min-w-0 flex-1">
+                    <h3 className="font-extrabold text-gray-900 text-base sm:text-lg leading-tight truncate">
+                      {section.name}
+                    </h3>
+                    <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 text-[11px] sm:text-xs text-gray-500 mt-1">
+                      <span className="font-bold text-gray-800 bg-slate-100 px-2 py-0.5 rounded-md">
+                        {sectionSeats.length} Seats
                       </span>
-                      <span>•</span>
-                      <span className="text-emerald-700 font-bold bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200/60">
-                        {availableSeats} Available (खाली)
+                      <span className="text-emerald-700 font-bold bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200/60">
+                        {availableSeats} Available
                       </span>
-                      <span>•</span>
-                      <span className="text-indigo-700 font-semibold flex items-center gap-1">
-                        <Users className="w-3.5 h-3.5" />
-                        {totalStudentsInSection} Active Students
+                      {fullyOccupiedSeats > 0 && (
+                        <span className="text-indigo-700 font-bold bg-indigo-50 px-2 py-0.5 rounded-md border border-indigo-200/60">
+                          {fullyOccupiedSeats} Full
+                        </span>
+                      )}
+                      {partiallyOccupiedSeats > 0 && (
+                        <span className="text-amber-700 font-bold bg-amber-50 px-2 py-0.5 rounded-md border border-amber-200/60">
+                          {partiallyOccupiedSeats} Partial
+                        </span>
+                      )}
+                      <span className="text-slate-600 font-semibold flex items-center gap-1">
+                        <Users className="w-3.5 h-3.5 text-slate-400" />
+                        {totalStudentsInSection} Students
                       </span>
                     </div>
                   </div>
                 </div>
 
-                <div className="flex flex-wrap items-center gap-2 self-start sm:self-center">
-                  {/* Quick Add Seat Button */}
+                {/* Responsive Action Buttons Bar */}
+                <div className="grid grid-cols-4 sm:flex sm:items-center gap-1.5 w-full md:w-auto pt-2 md:pt-0 border-t md:border-t-0 border-slate-100">
                   <button
                     onClick={() => onAddSeat && onAddSeat(section.id)}
-                    className="px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 rounded-xl text-xs font-bold transition-all flex items-center gap-1 cursor-pointer"
+                    className="px-2 sm:px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1 cursor-pointer"
                     title="Add 1 new seat to this section"
                   >
-                    <PlusCircle className="w-3.5 h-3.5 text-indigo-600" />
-                    <span>+ Add Seat</span>
+                    <PlusCircle className="w-3.5 h-3.5 text-indigo-600 shrink-0" />
+                    <span>+ Seat</span>
                   </button>
 
                   <Button
@@ -100,6 +110,7 @@ export default function SectionList({
                     icon={<Edit className="w-3.5 h-3.5 text-gray-600" />}
                     onClick={() => onEdit(section)}
                     title="Edit Section Name & Total Seats"
+                    className="justify-center"
                   >
                     Edit
                   </Button>
@@ -109,29 +120,29 @@ export default function SectionList({
                     icon={<Trash2 className="w-3.5 h-3.5 text-red-500" />}
                     onClick={() => onDelete(section)}
                     title="Delete Section"
+                    className="justify-center hover:bg-rose-50 border border-transparent hover:border-rose-100 rounded-xl"
                   />
                   <button
                     onClick={() => setExpandedId(isExpanded ? null : section.id)}
-                    className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-colors flex items-center gap-1.5 border cursor-pointer ${
+                    className={`px-2 sm:px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1 border cursor-pointer ${
                       isExpanded
                         ? 'bg-indigo-600 text-white border-indigo-600 shadow-2xs'
-                        : 'bg-slate-50 hover:bg-slate-100 text-slate-700 border-slate-200'
+                        : 'bg-slate-100 hover:bg-slate-200 text-slate-800 border-slate-200'
                     }`}
                   >
-                    <span>{isExpanded ? 'Hide Seats Matrix' : 'View Seats Matrix'}</span>
-                    {isExpanded ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+                    <span>{isExpanded ? 'Hide' : 'Seats'}</span>
+                    {isExpanded ? <ChevronUp className="w-3.5 h-3.5 shrink-0" /> : <ChevronDown className="w-3.5 h-3.5 shrink-0" />}
                   </button>
                 </div>
               </div>
 
-
               {/* Progress Bar with Live Badges */}
-              <div className="mt-3 bg-slate-50/80 rounded-xl p-3 border border-slate-100">
+              <div className="mt-3 bg-slate-50/80 rounded-xl p-2.5 sm:p-3 border border-slate-100">
                 <div className="flex flex-wrap items-center justify-between gap-1 text-xs text-slate-600 mb-1.5 font-semibold">
-                  <div className="flex items-center gap-2">
-                    <span>Occupancy Rate:</span>
+                  <div className="flex items-center gap-1.5">
+                    <span>Occupancy:</span>
                     <span
-                      className={`px-2 py-0.5 rounded-full text-[11px] font-extrabold border ${
+                      className={`px-2 py-0.2 rounded-full text-[10px] sm:text-[11px] font-extrabold border ${
                         percentage >= 85
                           ? 'bg-rose-50 text-rose-700 border-rose-200'
                           : percentage >= 50
@@ -142,13 +153,13 @@ export default function SectionList({
                       {percentage}% Booked
                     </span>
                   </div>
-                  <span className="text-[11px] text-slate-500 font-medium">
-                    <strong className="text-emerald-700">{availableSeats} vacant</strong> of {sectionSeats.length} seats
+                  <span className="text-[11px] text-slate-500">
+                    <strong className="text-emerald-700">{availableSeats} available</strong> of {sectionSeats.length} seats
                   </span>
                 </div>
-                <div className="w-full bg-slate-200/70 rounded-full h-2.5 overflow-hidden">
+                <div className="w-full bg-slate-200/70 rounded-full h-2 overflow-hidden">
                   <div
-                    className={`h-2.5 rounded-full transition-all duration-500 ${
+                    className={`h-2 rounded-full transition-all duration-500 ${
                       percentage >= 85
                         ? 'bg-rose-500'
                         : percentage >= 50
