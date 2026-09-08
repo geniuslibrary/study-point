@@ -91,24 +91,15 @@ export default function SectionList({
                   </div>
                 </div>
 
-                {/* Responsive Action Buttons Bar */}
-                <div className="grid grid-cols-4 sm:flex sm:items-center gap-1.5 w-full md:w-auto pt-2 md:pt-0 border-t md:border-t-0 border-slate-100">
-                  <button
-                    onClick={() => onAddSeat && onAddSeat(section.id)}
-                    className="px-2 sm:px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1 cursor-pointer"
-                    title="Add 1 new seat to this section"
-                  >
-                    <PlusCircle className="w-3.5 h-3.5 text-indigo-600 shrink-0" />
-                    <span>+ Seat</span>
-                  </button>
-
+                {/* Action Buttons Bar */}
+                <div className="flex items-center justify-end gap-1.5 w-full md:w-auto pt-2 md:pt-0 border-t md:border-t-0 border-slate-100">
                   <Button
                     variant="secondary"
                     size="sm"
                     icon={<Edit className="w-3.5 h-3.5 text-gray-600" />}
                     onClick={() => onEdit(section)}
                     title="Edit Section Name & Total Seats"
-                    className="justify-center"
+                    className="justify-center text-xs"
                   >
                     Edit
                   </Button>
@@ -122,7 +113,7 @@ export default function SectionList({
                   />
                   <button
                     onClick={() => setExpandedId(isExpanded ? null : section.id)}
-                    className={`px-2 sm:px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1 border cursor-pointer ${
+                    className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 border cursor-pointer ${
                       isExpanded
                         ? 'bg-indigo-600 text-white border-indigo-600 shadow-2xs'
                         : 'bg-slate-100 hover:bg-slate-200 text-slate-800 border-slate-200'
@@ -134,87 +125,97 @@ export default function SectionList({
                 </div>
               </div>
 
-              {/* The 4 Interactive Filter Pills - Placed UPPAR (Top) */}
-              <div className="flex items-center gap-1.5 sm:gap-2 overflow-x-auto no-scrollbar pt-3 mt-3 border-t border-slate-100">
+              {/* The 4 Interactive Filter Pills - Responsive Grid */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-3 mt-3 border-t border-slate-100">
+                {/* All Seats */}
                 <button
                   type="button"
                   onClick={() => handleFilterClick(section.id, 'all')}
-                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 shrink-0 whitespace-nowrap ${
+                  className={`p-2 sm:p-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center justify-between gap-1.5 shadow-2xs ${
                     currentFilter === 'all' && isExpanded
-                      ? 'bg-slate-900 text-white shadow-xs ring-2 ring-slate-900/20'
-                      : 'bg-slate-100 text-slate-700 hover:bg-slate-200 border border-slate-200'
+                      ? 'bg-slate-900 text-white ring-2 ring-slate-900/30'
+                      : 'bg-slate-50 hover:bg-slate-100 text-slate-700 border border-slate-200/90'
                   }`}
                   title="Show all seats"
                 >
-                  <span>All Seats</span>
+                  <span className="truncate">All Seats</span>
                   <span
-                    className={`px-1.5 py-0.2 rounded-md text-[10px] font-black ${
-                      currentFilter === 'all' && isExpanded ? 'bg-slate-700 text-white' : 'bg-slate-200 text-slate-700'
+                    className={`px-2 py-0.5 rounded-lg text-xs font-black shrink-0 ${
+                      currentFilter === 'all' && isExpanded ? 'bg-slate-700 text-white' : 'bg-slate-200 text-slate-800'
                     }`}
                   >
                     {sectionSeats.length}
                   </span>
                 </button>
 
+                {/* Available */}
                 <button
                   type="button"
                   onClick={() => handleFilterClick(section.id, 'available')}
-                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 shrink-0 whitespace-nowrap ${
+                  className={`p-2 sm:p-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center justify-between gap-1.5 shadow-2xs ${
                     currentFilter === 'available' && isExpanded
-                      ? 'bg-emerald-600 text-white shadow-xs ring-2 ring-emerald-600/20'
-                      : 'bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200'
+                      ? 'bg-emerald-600 text-white ring-2 ring-emerald-600/30'
+                      : 'bg-emerald-50/80 hover:bg-emerald-100 text-emerald-800 border border-emerald-200/80'
                   }`}
-                  title="Filter and view vacant available seats"
+                  title="Filter vacant available seats"
                 >
-                  <span className="w-2 h-2 rounded-full bg-emerald-400 shrink-0"></span>
-                  <span>Available (खाली)</span>
+                  <div className="flex items-center gap-1.5 min-w-0">
+                    <span className="w-2 h-2 rounded-full bg-emerald-500 shrink-0"></span>
+                    <span className="truncate">Available (खाली)</span>
+                  </div>
                   <span
-                    className={`px-1.5 py-0.2 rounded-md text-[10px] font-black ${
+                    className={`px-2 py-0.5 rounded-lg text-xs font-black shrink-0 ${
                       currentFilter === 'available' && isExpanded
                         ? 'bg-emerald-700 text-white'
-                        : 'bg-emerald-200/80 text-emerald-900'
+                        : 'bg-emerald-200/80 text-emerald-950'
                     }`}
                   >
                     {availableSeats}
                   </span>
                 </button>
 
+                {/* Shift Free */}
                 <button
                   type="button"
                   onClick={() => handleFilterClick(section.id, 'partial')}
-                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 shrink-0 whitespace-nowrap ${
+                  className={`p-2 sm:p-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center justify-between gap-1.5 shadow-2xs ${
                     currentFilter === 'partial' && isExpanded
-                      ? 'bg-amber-500 text-white shadow-xs ring-2 ring-amber-500/20'
-                      : 'bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200'
+                      ? 'bg-amber-500 text-white ring-2 ring-amber-500/30'
+                      : 'bg-amber-50/80 hover:bg-amber-100 text-amber-800 border border-amber-200/80'
                   }`}
-                  title="Filter and view seats with open shifts"
+                  title="Filter seats with free shift"
                 >
-                  <span className="w-2 h-2 rounded-full bg-amber-400 shrink-0"></span>
-                  <span>Shift Free (शिफ्ट)</span>
+                  <div className="flex items-center gap-1.5 min-w-0">
+                    <span className="w-2 h-2 rounded-full bg-amber-500 shrink-0"></span>
+                    <span className="truncate">Shift Free (शिफ्ट)</span>
+                  </div>
                   <span
-                    className={`px-1.5 py-0.2 rounded-md text-[10px] font-black ${
-                      currentFilter === 'partial' && isExpanded ? 'bg-amber-600 text-white' : 'bg-amber-200/80 text-amber-900'
+                    className={`px-2 py-0.5 rounded-lg text-xs font-black shrink-0 ${
+                      currentFilter === 'partial' && isExpanded ? 'bg-amber-600 text-white' : 'bg-amber-200/80 text-amber-950'
                     }`}
                   >
                     {partiallyOccupiedSeats}
                   </span>
                 </button>
 
+                {/* Full */}
                 <button
                   type="button"
                   onClick={() => handleFilterClick(section.id, 'occupied')}
-                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 shrink-0 whitespace-nowrap ${
+                  className={`p-2 sm:p-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center justify-between gap-1.5 shadow-2xs ${
                     currentFilter === 'occupied' && isExpanded
-                      ? 'bg-indigo-600 text-white shadow-xs ring-2 ring-indigo-600/20'
-                      : 'bg-indigo-50 hover:bg-indigo-100 text-indigo-800 border border-indigo-200'
+                      ? 'bg-indigo-600 text-white ring-2 ring-indigo-600/30'
+                      : 'bg-indigo-50/80 hover:bg-indigo-100 text-indigo-800 border border-indigo-200/80'
                   }`}
-                  title="Filter and view fully occupied seats"
+                  title="Filter fully occupied seats"
                 >
-                  <span className="w-2 h-2 rounded-full bg-indigo-400 shrink-0"></span>
-                  <span>Full (भरी)</span>
+                  <div className="flex items-center gap-1.5 min-w-0">
+                    <span className="w-2 h-2 rounded-full bg-indigo-500 shrink-0"></span>
+                    <span className="truncate">Full (भरी)</span>
+                  </div>
                   <span
-                    className={`px-1.5 py-0.2 rounded-md text-[10px] font-black ${
-                      currentFilter === 'occupied' && isExpanded ? 'bg-indigo-700 text-white' : 'bg-indigo-200/80 text-indigo-900'
+                    className={`px-2 py-0.5 rounded-lg text-xs font-black shrink-0 ${
+                      currentFilter === 'occupied' && isExpanded ? 'bg-indigo-700 text-white' : 'bg-indigo-200/80 text-indigo-950'
                     }`}
                   >
                     {fullyOccupiedSeats}
