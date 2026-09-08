@@ -566,8 +566,8 @@ export default function ExpenseForm({ isOpen, onClose, onSubmit, editData, staff
             </div>
           </div>
 
-          {/* Recurrence Toggle for General, Additional & Salary Expenses */}
-          {(formMode === 'general' || formMode === 'additional' || formMode === 'salary') && (
+          {/* Recurrence Toggle for General & Additional Expenses (Staff Salary has its own automatic monthly schedule) */}
+          {(formMode === 'general' || formMode === 'additional') && (
             <div className="bg-slate-50 p-3 rounded-xl border border-slate-200 mt-2">
               <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-2">
                 Expense Frequency (आवृत्ति)
@@ -596,7 +596,7 @@ export default function ExpenseForm({ isOpen, onClose, onSubmit, editData, staff
               </div>
               {formData.isRecurring && (
                 <p className="text-[11px] font-medium text-indigo-600 mt-1.5 flex items-center gap-1">
-                  <Sparkles size={12} /> {formMode === 'salary' ? 'यह सैलरी हर महीने Expenses में स्वतः जुड़ेगी जब तक Staff Active रहे।' : 'This expense will automatically be added every month on this date.'}
+                  <Sparkles size={12} /> This expense will automatically be added every month on this date.
                 </p>
               )}
             </div>
