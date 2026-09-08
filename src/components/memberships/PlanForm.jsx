@@ -127,10 +127,14 @@ export default function PlanForm({ isOpen, onClose, onSubmit, editData, shifts =
       }
     });
 
-    // Also include any features saved earlier in editData
+    // Also include any features saved earlier in editData (excluding legacy dummy perks)
     (formData.features || []).forEach((f) => {
       const trimmed = f?.trim();
-      if (trimmed && !names.includes(trimmed)) {
+      if (
+        trimmed &&
+        !names.includes(trimmed) &&
+        !['Reserved Seat Access', 'Pin-Drop Silence Zone', 'AC & Power Backup', 'Fully Air Conditioned', 'Power Backup & RO Water', 'Locker Facility Support'].includes(trimmed)
+      ) {
         names.push(trimmed);
       }
     });
@@ -176,7 +180,13 @@ export default function PlanForm({ isOpen, onClose, onSubmit, editData, shifts =
         shiftType: editData.shiftType === 'morning' ? 'first_half' : editData.shiftType === 'evening' ? 'second_half' : editData.shiftType || 'all',
         isOffer: !!editData.isOffer,
         isActive: editData.isActive !== false,
-        features: Array.isArray(editData.features) ? editData.features : [],
+        features: Array.isArray(editData.features)
+          ? editData.features.filter(
+              (f) =>
+                f &&
+                !['Reserved Seat Access', 'Pin-Drop Silence Zone', 'AC & Power Backup', 'Fully Air Conditioned', 'Power Backup & RO Water', 'Locker Facility Support'].includes(f)
+            )
+          : [],
         description: editData.description || '',
       });
     } else {

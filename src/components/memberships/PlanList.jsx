@@ -157,10 +157,13 @@ export default function PlanList({ plans, studentCounts, onEdit, onDelete, onTog
         const effectiveDays = isDays ? Number(plan.durationDays) || 1 : (Number(plan.durationMonths) || 1) * 30;
         const perDayCost = effectiveDays > 0 && priceNum > 0 ? Math.round(priceNum / effectiveDays) : null;
 
-        const featuresList =
-          Array.isArray(plan.features) && plan.features.length > 0
-            ? plan.features
-            : ['Reserved Seat Access', 'High-Speed WiFi', 'AC & Power Backup'];
+        const featuresList = Array.isArray(plan.features)
+          ? plan.features.filter(
+              (f) =>
+                f &&
+                !['Reserved Seat Access', 'Pin-Drop Silence Zone', 'AC & Power Backup'].includes(f)
+            )
+          : [];
 
         return (
           <div
@@ -264,24 +267,26 @@ export default function PlanList({ plans, studentCounts, onEdit, onDelete, onTog
                 </div>
 
                 {/* Features & Perks List */}
-                <div className="space-y-1.5 mb-4">
-                  <p className="text-[11px] font-extrabold text-slate-400 uppercase tracking-wider mb-2">
-                    Included Benefits
-                  </p>
-                  {featuresList.slice(0, 3).map((feat, i) => (
-                    <div key={i} className="flex items-center gap-2 text-xs text-slate-700 font-medium">
-                      <div className="w-4 h-4 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center shrink-0">
-                        <Check className="w-2.5 h-2.5 stroke-[3]" />
-                      </div>
-                      <span className="truncate">{feat}</span>
-                    </div>
-                  ))}
-                  {featuresList.length > 3 && (
-                    <p className="text-[11px] text-slate-400 font-bold pl-6">
-                      +{featuresList.length - 3} more perks
+                {featuresList.length > 0 && (
+                  <div className="space-y-1.5 mb-4">
+                    <p className="text-[11px] font-extrabold text-slate-400 uppercase tracking-wider mb-2">
+                      Included Benefits
                     </p>
-                  )}
-                </div>
+                    {featuresList.slice(0, 4).map((feat, i) => (
+                      <div key={i} className="flex items-center gap-2 text-xs text-slate-700 font-medium">
+                        <div className="w-4 h-4 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center shrink-0">
+                          <Check className="w-2.5 h-2.5 stroke-[3]" />
+                        </div>
+                        <span className="truncate">{feat}</span>
+                      </div>
+                    ))}
+                    {featuresList.length > 4 && (
+                      <p className="text-[11px] text-slate-400 font-bold pl-6">
+                        +{featuresList.length - 4} more perks
+                      </p>
+                    )}
+                  </div>
+                )}
               </div>
 
               {/* Bottom Actions & Student Count Bar */}
