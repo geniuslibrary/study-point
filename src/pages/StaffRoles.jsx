@@ -1182,33 +1182,21 @@ export default function StaffRoles() {
                           )
                         )}
 
-                        {/* Action Buttons: Add to Expenses & Active/Left toggle */}
-                        <div className="pt-2 border-t border-slate-100 flex flex-wrap items-center gap-2">
-                          {!isLeft && Number(staff.salary) > 0 && (
-                            <button
-                              type="button"
-                              onClick={() => handleAddStaffSalaryToExpense(staff)}
-                              className="flex-1 inline-flex items-center justify-center gap-1 px-2.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold shadow-2xs transition-colors cursor-pointer"
-                              title="Record this month's salary in Expenses right now"
-                            >
-                              <IndianRupee size={13} />
-                              <span>Add to Expenses</span>
-                            </button>
-                          )}
-
+                        {/* Action Buttons: Active / Left Status Toggle */}
+                        <div className="pt-2 border-t border-slate-100">
                           {isLeft ? (
                             <button
                               type="button"
                               onClick={() => handleQuickToggleStaffStatus(staff, 'active')}
-                              className="flex-1 inline-flex items-center justify-center gap-1 px-2.5 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 rounded-xl text-xs font-bold transition-colors cursor-pointer"
+                              className="w-full inline-flex items-center justify-center gap-1.5 px-3 py-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 rounded-xl text-xs font-bold transition-colors cursor-pointer"
                             >
-                              <span>🟢 Reactivate (चालू करें)</span>
+                              <span>🟢 Reactivate Staff (चालू करें)</span>
                             </button>
                           ) : (
                             <button
                               type="button"
                               onClick={() => handleQuickToggleStaffStatus(staff, 'left')}
-                              className="inline-flex items-center justify-center gap-1 px-2.5 py-1.5 bg-slate-100 hover:bg-rose-50 text-slate-700 hover:text-rose-700 border border-slate-200 hover:border-rose-200 rounded-xl text-xs font-bold transition-colors cursor-pointer"
+                              className="w-full inline-flex items-center justify-center gap-1.5 px-3 py-2 bg-slate-50 hover:bg-rose-50 text-slate-700 hover:text-rose-700 border border-slate-200 hover:border-rose-200 rounded-xl text-xs font-bold transition-colors cursor-pointer"
                               title="Mark this staff as Left"
                             >
                               <span>🚪 Mark Left (छोड़ दिया)</span>
