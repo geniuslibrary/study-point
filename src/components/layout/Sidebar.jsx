@@ -15,6 +15,7 @@ import {
   LogOut,
   Sparkles,
   Zap,
+  Megaphone,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { getUserDisplayName } from '../../utils/helpers';
@@ -30,13 +31,18 @@ const Sidebar = ({ isOpen, setIsOpen, onLogout }) => {
     { name: 'Fees & Receipts', path: '/fees', icon: IndianRupee, module: 'fees' },
     { name: 'Reports (Daily/Monthly)', path: '/reports', icon: BarChart3, module: 'reports' },
     { name: 'Memberships & Plans', path: '/memberships', icon: CreditCard, module: 'memberships' },
+    { name: 'Offer & Broadcast', path: '/offers', icon: Megaphone, module: 'offers' },
     { name: 'Expenses & Utility', path: '/expenses', icon: Receipt, module: 'expenses' },
     { name: 'Staff & Roles', path: '/staff', icon: ShieldCheck, module: 'staff' },
     { name: 'Customization', path: '/customization', icon: Sliders, module: 'settings' },
     { name: 'Settings', path: '/settings', icon: Settings, module: 'settings' },
   ];
 
-  const allowedNavItems = allNavItems.filter((item) => hasPermission(item.module, 'view'));
+  const allowedNavItems = allNavItems.filter(
+    (item) =>
+      hasPermission(item.module, 'view') ||
+      (item.module === 'offers' && (user?.role === 'owner' || hasPermission('memberships', 'view')))
+  );
 
   return (
     <>

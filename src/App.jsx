@@ -13,6 +13,7 @@ import Reports from './pages/Reports';
 import Memberships from './pages/Memberships';
 import Expenses from './pages/Expenses';
 import StaffRoles from './pages/StaffRoles';
+import OffersBroadcast from './pages/OffersBroadcast';
 import Settings from './pages/Settings';
 import Customization from './pages/Customization';
 import PublicReceipt from './pages/PublicReceipt';
@@ -44,6 +45,7 @@ const ProtectedRoute = ({ children, requiredModule = null }) => {
       { module: 'fees', path: '/fees' },
       { module: 'reports', path: '/reports' },
       { module: 'memberships', path: '/memberships' },
+      { module: 'offers', path: '/offers' },
       { module: 'expenses', path: '/expenses' },
       { module: 'staff', path: '/staff' },
       { module: 'settings', path: '/settings' },
@@ -132,6 +134,16 @@ function AppRoutes() {
           </ProtectedRoute>
         }
       />
+      <Route
+        path="/offers"
+        element={
+          <ProtectedRoute requiredModule="offers">
+            <OffersBroadcast />
+          </ProtectedRoute>
+        }
+      />
+      <Route path="/broadcast" element={<Navigate to="/offers" replace />} />
+      <Route path="/podcast" element={<Navigate to="/offers" replace />} />
       <Route
         path="/expenses"
         element={

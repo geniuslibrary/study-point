@@ -106,6 +106,7 @@ export const PERMISSION_MODULES = [
   { id: 'fees', label: 'Fees & Receipts', actions: ['view', 'create', 'edit', 'delete'] },
   { id: 'reports', label: 'Daily & Monthly Reports', actions: ['view'] },
   { id: 'memberships', label: 'Membership Plans & Offers', actions: ['view', 'create', 'edit', 'delete'] },
+  { id: 'offers', label: 'Offer & Broadcast', actions: ['view', 'create', 'edit', 'delete'] },
   { id: 'expenses', label: 'Expenses & Financials', actions: ['view', 'create', 'edit', 'delete'] },
   { id: 'settings', label: 'Library Settings', actions: ['view', 'edit'] },
   { id: 'staff', label: 'Staff & Role Management', actions: ['view', 'create', 'edit', 'delete'] },
