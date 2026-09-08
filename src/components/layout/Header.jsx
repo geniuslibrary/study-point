@@ -16,7 +16,7 @@ const getHeaderRoleBadge = (user) => {
   return user.role;
 };
 
-const Header = ({ title, onMenuClick, onLogout }) => {
+const Header = ({ title, onMenuClick }) => {
   const { user, logout } = useAuth();
   const [notificationOpen, setNotificationOpen] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
@@ -77,7 +77,7 @@ const Header = ({ title, onMenuClick, onLogout }) => {
 
   return (
     <>
-      <header className="sticky top-0 z-30 bg-white/95 backdrop-blur-md h-16 border-b border-gray-200 shadow-2xs px-3 sm:px-6 lg:px-8 flex items-center justify-between shrink-0">
+      <header className="sticky top-0 z-30 bg-white h-16 border-b border-gray-200 shadow-2xs px-4 sm:px-6 lg:px-8 flex items-center justify-between">
         <div className="flex items-center gap-3.5">
           <button
             onClick={onMenuClick}
@@ -86,14 +86,14 @@ const Header = ({ title, onMenuClick, onLogout }) => {
           >
             <Menu className="w-5 h-5" />
           </button>
-          <h1 className="text-base sm:text-xl font-bold text-gray-900 leading-tight truncate">{title}</h1>
+          <h1 className="text-lg sm:text-xl font-bold text-gray-900 leading-tight">{title}</h1>
         </div>
 
-        <div className="flex items-center gap-2 sm:gap-3">
+        <div className="flex items-center gap-3">
           {/* Notification Bell Button */}
           <button
             onClick={() => setNotificationOpen(!notificationOpen)}
-            className="p-2 sm:p-2.5 text-gray-600 hover:text-indigo-600 hover:bg-indigo-50/80 rounded-xl relative transition-colors cursor-pointer"
+            className="p-2.5 text-gray-600 hover:text-indigo-600 hover:bg-indigo-50/80 rounded-xl relative transition-colors cursor-pointer"
             title="Open Notifications & 3-Day Expiry Alerts"
           >
             <Bell className="w-5 h-5" />
@@ -106,11 +106,11 @@ const Header = ({ title, onMenuClick, onLogout }) => {
 
           {/* User Role Badge & Profile */}
           <div className="flex items-center gap-2 pl-2 border-l border-gray-200">
-            <div className="w-8 sm:w-9 h-8 sm:h-9 bg-indigo-100/90 text-indigo-700 rounded-xl flex items-center justify-center font-bold text-xs shadow-2xs shrink-0">
+            <div className="w-9 h-9 bg-indigo-100/90 text-indigo-700 rounded-xl flex items-center justify-center font-bold text-xs shadow-2xs">
               {getUserDisplayName(user).charAt(0).toUpperCase() || 'U'}
             </div>
             <div className="hidden md:block text-left">
-              <p className="text-xs font-bold text-gray-900 leading-tight truncate max-w-[120px]">
+              <p className="text-xs font-bold text-gray-900 leading-tight">
                 {getUserDisplayName(user)}
               </p>
               <span className="text-[10px] font-bold bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded-md border border-indigo-100 mt-0.5 inline-block">
@@ -118,17 +118,6 @@ const Header = ({ title, onMenuClick, onLogout }) => {
               </span>
             </div>
           </div>
-
-          {/* Direct Sign Out Button in Header */}
-          <button
-            type="button"
-            onClick={onLogout || logout}
-            className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 sm:py-2 text-xs font-bold text-rose-600 hover:text-white hover:bg-rose-600 bg-rose-50/80 border border-rose-200/90 rounded-xl transition-all shadow-2xs cursor-pointer ml-1 active:scale-95 shrink-0"
-            title="Sign Out / Logout"
-          >
-            <LogOut className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline">Sign Out</span>
-          </button>
         </div>
       </header>
 

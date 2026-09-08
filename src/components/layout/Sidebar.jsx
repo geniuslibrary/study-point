@@ -56,9 +56,9 @@ const Sidebar = ({ isOpen, setIsOpen, onLogout }) => {
 
       {/* Modern Sleek Sidebar */}
       <aside
-        className={`fixed inset-y-0 left-0 z-50 w-64 bg-white/95 backdrop-blur-md border-r border-slate-200/80 transform transition-transform duration-200 ease-in-out flex flex-col shadow-xl lg:shadow-none h-screen shrink-0 ${
+        className={`fixed inset-y-0 left-0 z-50 w-64 bg-white/95 backdrop-blur-md border-r border-slate-200/80 transform transition-transform duration-200 ease-in-out flex flex-col shadow-xl lg:shadow-none ${
           isOpen ? 'translate-x-0' : '-translate-x-full'
-        } lg:translate-x-0 lg:sticky lg:top-0`}
+        } lg:translate-x-0 lg:static`}
       >
         {/* Brand Header */}
         <div className="flex items-center gap-3 px-6 h-20 border-b border-slate-100 bg-gradient-to-r from-indigo-50/50 via-purple-50/20 to-transparent">
