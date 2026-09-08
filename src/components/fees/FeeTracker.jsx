@@ -202,7 +202,7 @@ export default function FeeTracker({
         {/* Filters Row */}
         <div className="flex flex-wrap items-center gap-2 pt-1">
           {/* Month Dropdown */}
-          <div className="flex items-center gap-1.5 bg-white px-3 py-1.5 rounded-xl border border-slate-200 shadow-2xs">
+          <div className="h-8 flex items-center gap-1.5 bg-white px-3 rounded-xl border border-slate-200 shadow-2xs">
             <Calendar className="w-3.5 h-3.5 text-slate-400" />
             <select
               value={selectedMonth || ''}
@@ -218,42 +218,44 @@ export default function FeeTracker({
             </select>
           </div>
 
-          {/* Status Filter Buttons with Live Counts */}
-          <div className="flex flex-wrap items-center bg-white p-1 rounded-xl border border-slate-200 shadow-2xs gap-1">
+          {/* Clean Status Filter Pills */}
+          <div className="flex flex-wrap items-center gap-1.5">
             {[
-              { id: 'all', label: 'All Status', count: statusCounts.all },
-              { id: 'paid', label: '🟢 Paid', count: statusCounts.paid },
-              { id: 'ending_soon', label: '⏳ Ending Soon (0-3 Days)', count: statusCounts.ending_soon },
-              { id: 'pending', label: '🟡 Membership Expired (0-2 Days)', count: statusCounts.pending },
-              { id: 'overdue', label: '🔴 Overdue (>2 Days)', count: statusCounts.overdue },
-            ].map((st) => (
-              <button
-                key={st.id}
-                type="button"
-                onClick={() => setStatusFilter(st.id)}
-                className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
-                  statusFilter === st.id
-                    ? 'bg-indigo-600 text-white shadow-xs'
-                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
-                }`}
-              >
-                <span>{st.label}</span>
-                <span
-                  className={`text-[10px] px-1.5 py-0.2 rounded-full font-black ${
-                    statusFilter === st.id
-                      ? 'bg-indigo-700/90 text-white'
-                      : 'bg-slate-100 text-slate-600'
+              { id: 'all', label: 'All', count: statusCounts.all, dot: 'bg-slate-400', active: 'bg-slate-900 text-white' },
+              { id: 'paid', label: 'Paid', count: statusCounts.paid, dot: 'bg-emerald-500', active: 'bg-emerald-600 text-white' },
+              { id: 'ending_soon', label: 'Ending Soon', count: statusCounts.ending_soon, dot: 'bg-amber-500', active: 'bg-amber-500 text-white' },
+              { id: 'pending', label: 'Expired', count: statusCounts.pending, dot: 'bg-orange-500', active: 'bg-orange-600 text-white' },
+              { id: 'overdue', label: 'Overdue', count: statusCounts.overdue, dot: 'bg-rose-500', active: 'bg-rose-600 text-white' },
+            ].map((st) => {
+              const isActive = statusFilter === st.id;
+              return (
+                <button
+                  key={st.id}
+                  type="button"
+                  onClick={() => setStatusFilter(st.id)}
+                  className={`h-8 px-2.5 sm:px-3 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 shadow-2xs border ${
+                    isActive
+                      ? `${st.active} border-transparent shadow-xs`
+                      : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50 hover:border-slate-300'
                   }`}
                 >
-                  {st.count}
-                </span>
-              </button>
-            ))}
+                  <span className={`w-2 h-2 rounded-full ${isActive ? 'bg-white' : st.dot} shrink-0`} />
+                  <span>{st.label}</span>
+                  <span
+                    className={`text-[11px] px-1.5 py-0.2 rounded-full font-black ${
+                      isActive ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-700'
+                    }`}
+                  >
+                    {st.count}
+                  </span>
+                </button>
+              );
+            })}
           </div>
 
           {/* Section Filter Dropdown */}
           {sections.length > 0 && (
-            <div className="flex items-center gap-1.5 bg-white px-3 py-1.5 rounded-xl border border-slate-200 shadow-2xs">
+            <div className="h-8 flex items-center gap-1.5 bg-white px-3 rounded-xl border border-slate-200 shadow-2xs">
               <Layers className="w-3.5 h-3.5 text-slate-400" />
               <select
                 value={sectionFilter}
