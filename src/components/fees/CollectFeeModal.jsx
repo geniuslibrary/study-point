@@ -290,12 +290,15 @@ export default function CollectFeeModal({
     }
   };
 
-  // Calculate Addon Charges dynamically
+  // Calculate Addon Charges dynamically (respecting plan included features)
+  const planPerks = activePlan?.features || student?.planFeatures || student?.includedBenefits || [];
+  const studentOrSeatAddons = { ...(seat?.addons || {}), ...(student?.addons || {}) };
   const addonDurationFactor = isDayPlan ? Math.max(1, Math.round(durationDays / 30)) : durationMonths;
-  const { charges: addonCharges, total: addonTotal } = calculateSeatAddonCharges(
-    seat?.addons,
+  const { charges: addonCharges, total: addonTotal, includedCharges } = calculateSeatAddonCharges(
+    studentOrSeatAddons,
     addonPricing && addonPricing.length > 0 ? addonPricing : getStoredAddons(),
-    addonDurationFactor
+    addonDurationFactor,
+    planPerks
   );
 
   const discount = discountAmount === '' ? 0 : Number(discountAmount) || 0;
@@ -323,6 +326,8 @@ export default function CollectFeeModal({
         baseFee: planPrice,
         discountAmount: discount,
         addonCharges,
+        includedCharges,
+        planFeatures: planPerks,
         paymentMode,
         notes,
         planId: activePlan.id,
@@ -555,6 +560,18 @@ export default function CollectFeeModal({
             <span className="text-slate-600 font-medium">{activePlan.name} ({durationLabel})</span>
             <span className="font-bold text-slate-900">{formatCurrency(planPrice)}</span>
           </div>
+
+          {planPerks.length > 0 && (
+            <div className="flex items-center justify-between text-emerald-800 bg-emerald-50/70 p-2 rounded-xl border border-emerald-200">
+              <span className="font-bold flex items-center gap-1.5 text-[11px] flex-wrap">
+                <span>🎁 Plan Included (फ्री सुविधाएं):</span>
+                <span className="font-extrabold bg-emerald-100 text-emerald-900 px-1.5 py-0.5 rounded border border-emerald-300">
+                  {planPerks.join(', ')}
+                </span>
+              </span>
+              <span className="font-extrabold text-emerald-700 text-xs shrink-0">₹0 (Free)</span>
+            </div>
+          )}
 
           {Object.entries(addonCharges).map(([name, charge]) => (
             <div key={name} className="flex justify-between">
