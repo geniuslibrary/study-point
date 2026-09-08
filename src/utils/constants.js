@@ -10,6 +10,7 @@ export const COLLECTIONS = {
   STAFF_USERS: 'staffUsers',
   ROLE_PRESETS: 'rolePresets',
   VISITORS: 'visitors',
+  STAFF_MEMBERS: 'staffMembers',
 };
 
 export const SHIFTS = [

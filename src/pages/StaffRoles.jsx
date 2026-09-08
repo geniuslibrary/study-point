@@ -34,6 +34,9 @@ import {
   Receipt,
   Settings,
   Plus,
+  Camera,
+  Calendar,
+  FileText,
 } from 'lucide-react';
 import { COLLECTIONS, PERMISSION_MODULES, ROLE_PRESETS } from '../utils/constants';
 import {
@@ -42,6 +45,7 @@ import {
   updateDocument,
   removeDocument,
 } from '../firebase/storageService';
+import { compressImageFile, formatDate, formatCurrency } from '../utils/helpers';
 import {
   DEFAULT_STAFF_DASHBOARD_WIDGETS,
   DASHBOARD_WIDGET_OPTIONS,
@@ -127,6 +131,24 @@ export default function StaffRoles() {
     isOwner: true,
   });
   const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState('roles'); // 'roles' (Tab 1: Role & Permission) | 'staff' (Tab 2: Staff)
+
+  // Tab 2: Staff Members State
+  const [staffMembers, setStaffMembers] = useState([]);
+  const [showStaffModal, setShowStaffModal] = useState(false);
+  const [editStaffMember, setEditStaffMember] = useState(null);
+  const [deleteStaffTarget, setDeleteStaffTarget] = useState(null);
+  const [staffMemberFormData, setStaffMemberFormData] = useState({
+    name: '',
+    phone: '',
+    salary: '',
+    joinDate: new Date().toISOString().split('T')[0],
+    photo: '',
+    aadharPhoto: '',
+  });
+  const [previewAadhar, setPreviewAadhar] = useState(null);
+  const [isCompressingPhoto, setIsCompressingPhoto] = useState(false);
+  const [isCompressingAadhar, setIsCompressingAadhar] = useState(false);
 
   // Staff modal states
   const [showModal, setShowModal] = useState(false);
@@ -165,9 +187,10 @@ export default function StaffRoles() {
   const fetchData = async () => {
     setLoading(true);
     try {
-      const [staffData, rolesData] = await Promise.all([
+      const [staffData, rolesData, staffMembersData] = await Promise.all([
         fetchCollectionData(COLLECTIONS.STAFF_USERS),
         fetchCollectionData(COLLECTIONS.ROLE_PRESETS),
+        fetchCollectionData(COLLECTIONS.STAFF_MEMBERS),
       ]);
 
       const ownerDoc = rolesData.find((r) => r.id === 'role_owner' || r.isOwner);
@@ -188,10 +211,124 @@ export default function StaffRoles() {
 
       setStaffList(staffData);
       setRolesList(regularRoles);
+      setStaffMembers(staffMembersData || []);
     } catch (e) {
       console.error('Error fetching staff data:', e);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchStaffMembersData = async () => {
+    try {
+      const data = await fetchCollectionData(COLLECTIONS.STAFF_MEMBERS);
+      setStaffMembers(data || []);
+    } catch (err) {
+      console.error('Error fetching staff members:', err);
+    }
+  };
+
+  // Tab 2 Staff Member Handlers
+  const handleStaffPhotoChange = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setIsCompressingPhoto(true);
+    try {
+      const compressed = await compressImageFile(file, 480, 0.86);
+      setStaffMemberFormData((prev) => ({ ...prev, photo: compressed }));
+    } catch (err) {
+      console.error('Error compressing staff photo:', err);
+      showToast('फोटो लोड नहीं हो सकी');
+    } finally {
+      setIsCompressingPhoto(false);
+      try { e.target.value = ''; } catch (_) {}
+    }
+  };
+
+  const handleStaffAadharChange = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setIsCompressingAadhar(true);
+    try {
+      const compressed = await compressImageFile(file, 900, 0.86);
+      setStaffMemberFormData((prev) => ({ ...prev, aadharPhoto: compressed }));
+    } catch (err) {
+      console.error('Error compressing aadhar photo:', err);
+      showToast('आधार कार्ड फोटो लोड नहीं हो सकी');
+    } finally {
+      setIsCompressingAadhar(false);
+      try { e.target.value = ''; } catch (_) {}
+    }
+  };
+
+  const handleOpenAddStaffMember = () => {
+    setEditStaffMember(null);
+    setStaffMemberFormData({
+      name: '',
+      phone: '',
+      salary: '',
+      joinDate: new Date().toISOString().split('T')[0],
+      photo: '',
+      aadharPhoto: '',
+    });
+    setShowStaffModal(true);
+  };
+
+  const handleOpenEditStaffMember = (staff) => {
+    setEditStaffMember(staff);
+    setStaffMemberFormData({
+      name: staff.name || '',
+      phone: staff.phone || '',
+      salary: staff.salary !== undefined && staff.salary !== null ? String(staff.salary) : '',
+      joinDate: staff.joinDate || new Date().toISOString().split('T')[0],
+      photo: staff.photo || '',
+      aadharPhoto: staff.aadharPhoto || '',
+    });
+    setShowStaffModal(true);
+  };
+
+  const handleStaffMemberSubmit = async (e) => {
+    e.preventDefault();
+    if (!staffMemberFormData.name.trim()) {
+      showToast('कृपया स्टाफ का नाम दर्ज करें');
+      return;
+    }
+
+    const payload = {
+      name: staffMemberFormData.name.trim(),
+      phone: staffMemberFormData.phone.trim(),
+      salary: staffMemberFormData.salary !== '' ? Number(staffMemberFormData.salary) || 0 : 0,
+      joinDate: staffMemberFormData.joinDate || new Date().toISOString().split('T')[0],
+      photo: staffMemberFormData.photo || '',
+      aadharPhoto: staffMemberFormData.aadharPhoto || '',
+    };
+
+    try {
+      if (editStaffMember) {
+        await updateDocument(COLLECTIONS.STAFF_MEMBERS, editStaffMember.id, payload);
+        showToast(`Staff "${payload.name}" updated successfully!`);
+      } else {
+        await createDocument(COLLECTIONS.STAFF_MEMBERS, payload);
+        showToast(`New staff "${payload.name}" added successfully!`);
+      }
+      setShowStaffModal(false);
+      await fetchStaffMembersData();
+    } catch (err) {
+      console.error(err);
+      showToast('Error saving staff member: ' + err.message);
+    }
+  };
+
+  const handleDeleteStaffMemberConfirm = async () => {
+    if (!deleteStaffTarget) return;
+    try {
+      await removeDocument(COLLECTIONS.STAFF_MEMBERS, deleteStaffTarget.id);
+      setDeleteStaffTarget(null);
+      await fetchStaffMembersData();
+      showToast('Staff member deleted');
+    } catch (e) {
+      console.error(e);
+      showToast('Error deleting staff member');
     }
   };
 
@@ -511,10 +648,49 @@ export default function StaffRoles() {
   return (
     <Layout title="Staff & Role Permissions">
       <div className="space-y-6">
-        {/* Header Bar */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900">Staff & Role Permissions</h1>
+        {/* Navigation Tabs Bar */}
+        <div className="flex border-b border-gray-200 gap-2">
+          <button
+            type="button"
+            onClick={() => setActiveTab('roles')}
+            className={`flex items-center gap-2 py-3 px-5 text-sm font-bold border-b-2 transition-all cursor-pointer ${
+              activeTab === 'roles'
+                ? 'border-indigo-600 text-indigo-600 bg-indigo-50/50 rounded-t-xl'
+                : 'border-transparent text-gray-500 hover:text-gray-800 hover:border-gray-300'
+            }`}
+          >
+            <ShieldCheck className="w-4 h-4" />
+            <span>Role & Permission</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setActiveTab('staff')}
+            className={`flex items-center gap-2 py-3 px-5 text-sm font-bold border-b-2 transition-all cursor-pointer ${
+              activeTab === 'staff'
+                ? 'border-indigo-600 text-indigo-600 bg-indigo-50/50 rounded-t-xl'
+                : 'border-transparent text-gray-500 hover:text-gray-800 hover:border-gray-300'
+            }`}
+          >
+            <Users className="w-4 h-4" />
+            <span>Staff</span>
+            <span
+              className={`text-xs px-2 py-0.5 rounded-full font-extrabold ${
+                activeTab === 'staff' ? 'bg-indigo-100 text-indigo-700' : 'bg-gray-100 text-gray-600'
+              }`}
+            >
+              {staffMembers.length}
+            </span>
+          </button>
+        </div>
+
+        {/* TAB 1: Role & Permission */}
+        {activeTab === 'roles' && (
+          <div className="space-y-6">
+            {/* Header Bar */}
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+              <div>
+                <h1 className="text-2xl font-bold text-gray-900">Role & Permission</h1>
             <p className="text-gray-500 text-sm mt-0.5">
               Manage staff accounts, edit role templates & configure module permissions
             </p>
@@ -772,6 +948,153 @@ export default function StaffRoles() {
             </div>
           )}
         </div>
+      </div>
+    )}
+
+        {/* TAB 2: Staff */}
+        {activeTab === 'staff' && (
+          <div className="space-y-6">
+            {/* Header Bar for Staff */}
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+              <div>
+                <h1 className="text-2xl font-bold text-gray-900">Staff Members</h1>
+                <p className="text-gray-500 text-sm mt-0.5">
+                  स्टाफ की फोटो, मोबाइल नंबर, आधार कार्ड, मासिक वेतन व जॉइनिंग डेट प्रबंधित करें
+                </p>
+              </div>
+
+              <Button
+                icon={<UserPlus className="w-4 h-4" />}
+                onClick={handleOpenAddStaffMember}
+              >
+                + Add Staff
+              </Button>
+            </div>
+
+            {/* Staff Members List */}
+            {staffMembers.length > 0 ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {staffMembers.map((staff) => {
+                  const joinDay = staff.joinDate ? parseInt(staff.joinDate.split('-')[2], 10) : null;
+                  return (
+                    <div
+                      key={staff.id}
+                      className="bg-white rounded-2xl p-5 border border-slate-200 shadow-xs space-y-4 hover:border-indigo-300 transition-all flex flex-col justify-between"
+                    >
+                      <div className="space-y-3">
+                        {/* Top: Photo, Name, Phone & Actions */}
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="flex items-center gap-3 min-w-0">
+                            {staff.photo ? (
+                              <img
+                                src={staff.photo}
+                                alt={staff.name}
+                                className="w-14 h-14 rounded-2xl object-cover border border-indigo-200 shrink-0 shadow-2xs"
+                              />
+                            ) : (
+                              <div className="w-14 h-14 rounded-2xl bg-indigo-50 border border-indigo-100 text-indigo-700 flex items-center justify-center font-black text-xl shrink-0">
+                                {staff.name?.charAt(0)?.toUpperCase() || 'S'}
+                              </div>
+                            )}
+                            <div className="min-w-0">
+                              <h4 className="font-extrabold text-slate-900 text-base leading-tight truncate">
+                                {staff.name}
+                              </h4>
+                              {staff.phone ? (
+                                <p className="text-xs text-slate-500 flex items-center gap-1 mt-1 font-medium">
+                                  <Phone size={12} className="text-slate-400" />
+                                  <span>{staff.phone}</span>
+                                </p>
+                              ) : (
+                                <p className="text-xs text-slate-400 mt-1 italic">No phone</p>
+                              )}
+                            </div>
+                          </div>
+
+                          <div className="flex items-center gap-1 shrink-0">
+                            <button
+                              type="button"
+                              onClick={() => handleOpenEditStaffMember(staff)}
+                              className="p-1.5 text-indigo-600 hover:bg-indigo-50 rounded-lg cursor-pointer transition-colors"
+                              title="Edit Staff"
+                            >
+                              <Edit size={16} />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setDeleteStaffTarget(staff)}
+                              className="p-1.5 text-rose-600 hover:bg-rose-50 rounded-lg cursor-pointer transition-colors"
+                              title="Delete Staff"
+                            >
+                              <Trash2 size={16} />
+                            </button>
+                          </div>
+                        </div>
+
+                        {/* Salary & Joining Date row */}
+                        <div className="grid grid-cols-2 gap-2 bg-slate-50 p-2.5 rounded-xl border border-slate-200/80 text-xs">
+                          <div>
+                            <span className="text-[10px] font-bold text-slate-400 uppercase block">Monthly Salary:</span>
+                            <span className="font-extrabold text-emerald-700 text-sm">
+                              {staff.salary ? formatCurrency(staff.salary) : '—'}
+                            </span>
+                          </div>
+                          <div>
+                            <span className="text-[10px] font-bold text-slate-400 uppercase block">Joining Date:</span>
+                            <span className="font-bold text-slate-800 text-xs flex items-center gap-1">
+                              <Calendar size={12} className="text-indigo-600" />
+                              <span>{formatDate(staff.joinDate)}</span>
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* Aadhaar card button */}
+                        <div>
+                          {staff.aadharPhoto ? (
+                            <button
+                              type="button"
+                              onClick={() => setPreviewAadhar(staff.aadharPhoto)}
+                              className="w-full inline-flex items-center justify-center gap-1.5 px-3 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-800 border border-blue-200 rounded-xl text-xs font-bold transition-colors cursor-pointer"
+                            >
+                              <FileText size={14} className="text-blue-600" />
+                              <span>Aadhaar Card (Click to View)</span>
+                            </button>
+                          ) : (
+                            <span className="text-xs text-slate-400 italic block text-center py-1 bg-slate-50 rounded-xl border border-dashed border-slate-200">
+                              Aadhaar photo not uploaded
+                            </span>
+                          )}
+                        </div>
+
+                        {/* Expense auto-sync note */}
+                        {Number(staff.salary) > 0 && (
+                          <div className="bg-emerald-50/70 p-2 rounded-xl border border-emerald-100 text-[11px] text-emerald-800 font-medium leading-relaxed">
+                            🔄 हर महीने {joinDay ? `${joinDay} तारीख` : 'जॉइनिंग डेट'} को Expenses में स्वतः जुड़ेगा।
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="p-12 bg-white rounded-2xl border border-slate-200 text-center space-y-3">
+                <div className="w-14 h-14 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center mx-auto">
+                  <Users size={26} />
+                </div>
+                <h4 className="font-bold text-slate-800 text-base">No Staff Members Added Yet</h4>
+                <p className="text-xs text-slate-400 max-w-sm mx-auto">
+                  Click <strong>"+ Add Staff"</strong> to register staff with photo, mobile number, Aadhaar card, monthly salary & joining date.
+                </p>
+                <div className="pt-2">
+                  <Button icon={<UserPlus className="w-4 h-4" />} onClick={handleOpenAddStaffMember}>
+                    + Add Staff
+                  </Button>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Add / Edit Staff Modal */}
@@ -1253,6 +1576,216 @@ export default function StaffRoles() {
         confirmText="Delete Role"
         variant="danger"
       />
+
+      {/* Tab 2: Add / Edit Staff Member Modal */}
+      <Modal
+        isOpen={showStaffModal}
+        onClose={() => setShowStaffModal(false)}
+        title={editStaffMember ? `Edit Staff: ${editStaffMember.name}` : 'Add New Staff Member (स्टाफ जोड़ें)'}
+        size="md"
+      >
+        <form onSubmit={handleStaffMemberSubmit} className="space-y-4">
+          {/* Photo & Aadhaar uploads */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-3 bg-slate-50 rounded-2xl border border-slate-200">
+            {/* Staff Photo */}
+            <div className="flex items-center gap-3 bg-white p-2.5 rounded-xl border border-slate-200">
+              <div className="relative w-14 h-14 rounded-xl overflow-hidden bg-slate-100 border border-slate-300 flex items-center justify-center shrink-0">
+                {staffMemberFormData.photo ? (
+                  <img src={staffMemberFormData.photo} alt="Staff" className="w-full h-full object-cover" />
+                ) : (
+                  <User className="w-6 h-6 text-slate-400" />
+                )}
+                {isCompressingPhoto && (
+                  <div className="absolute inset-0 bg-black/60 flex items-center justify-center text-white text-[9px] font-bold">
+                    ...
+                  </div>
+                )}
+              </div>
+              <div className="min-w-0 flex-1 space-y-1">
+                <span className="block text-xs font-bold text-slate-800">
+                  Staff Photo
+                </span>
+                <div className="flex items-center gap-2">
+                  <label className="cursor-pointer inline-flex items-center gap-1 px-2 py-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-lg text-xs font-bold border border-indigo-200 transition-colors">
+                    <Camera size={12} />
+                    <span>{staffMemberFormData.photo ? 'Change' : 'Upload'}</span>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={handleStaffPhotoChange}
+                      className="hidden"
+                    />
+                  </label>
+                  {staffMemberFormData.photo && (
+                    <button
+                      type="button"
+                      onClick={() => setStaffMemberFormData((prev) => ({ ...prev, photo: '' }))}
+                      className="text-xs text-rose-600 hover:text-rose-800 font-bold cursor-pointer"
+                    >
+                      Remove
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Aadhaar Photo */}
+            <div className="flex items-center gap-3 bg-white p-2.5 rounded-xl border border-slate-200">
+              <div className="relative w-14 h-14 rounded-xl overflow-hidden bg-slate-100 border border-slate-300 flex items-center justify-center shrink-0">
+                {staffMemberFormData.aadharPhoto ? (
+                  <img src={staffMemberFormData.aadharPhoto} alt="Aadhaar" className="w-full h-full object-cover" />
+                ) : (
+                  <FileText className="w-6 h-6 text-blue-400" />
+                )}
+                {isCompressingAadhar && (
+                  <div className="absolute inset-0 bg-black/60 flex items-center justify-center text-white text-[9px] font-bold">
+                    ...
+                  </div>
+                )}
+              </div>
+              <div className="min-w-0 flex-1 space-y-1">
+                <span className="block text-xs font-bold text-slate-800">
+                  Aadhaar Card
+                </span>
+                <div className="flex items-center gap-2">
+                  <label className="cursor-pointer inline-flex items-center gap-1 px-2 py-1 bg-blue-50 hover:bg-blue-100 text-blue-700 rounded-lg text-xs font-bold border border-blue-200 transition-colors">
+                    <FileText size={12} />
+                    <span>{staffMemberFormData.aadharPhoto ? 'Change' : 'Upload'}</span>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={handleStaffAadharChange}
+                      className="hidden"
+                    />
+                  </label>
+                  {staffMemberFormData.aadharPhoto && (
+                    <button
+                      type="button"
+                      onClick={() => setStaffMemberFormData((prev) => ({ ...prev, aadharPhoto: '' }))}
+                      className="text-xs text-rose-600 hover:text-rose-800 font-bold cursor-pointer"
+                    >
+                      Remove
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Name & Mobile Number */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
+                Staff Name (स्टाफ का नाम) *
+              </label>
+              <input
+                type="text"
+                required
+                value={staffMemberFormData.name}
+                onChange={(e) => setStaffMemberFormData({ ...staffMemberFormData, name: e.target.value })}
+                placeholder="e.g. Ramesh Kumar"
+                className="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 font-medium"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
+                Mobile Number (मोबाइल नंबर)
+              </label>
+              <input
+                type="tel"
+                value={staffMemberFormData.phone}
+                onChange={(e) => setStaffMemberFormData({ ...staffMemberFormData, phone: e.target.value })}
+                placeholder="e.g. 9876543210"
+                className="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 font-medium"
+              />
+            </div>
+          </div>
+
+          {/* Monthly Salary & Join Date */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1 flex items-center gap-1">
+                <IndianRupee size={13} className="text-emerald-600" />
+                <span>Monthly Salary (मासिक वेतन ₹)</span>
+              </label>
+              <input
+                type="number"
+                min="0"
+                value={staffMemberFormData.salary}
+                onChange={(e) => setStaffMemberFormData({ ...staffMemberFormData, salary: e.target.value })}
+                placeholder="e.g. 5000"
+                className="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 font-bold text-emerald-800"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1 flex items-center gap-1">
+                <Calendar size={13} className="text-indigo-600" />
+                <span>Joining Date (जॉइनिंग तारीख) *</span>
+              </label>
+              <input
+                type="date"
+                required
+                value={staffMemberFormData.joinDate}
+                onChange={(e) => setStaffMemberFormData({ ...staffMemberFormData, joinDate: e.target.value })}
+                className="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 font-bold text-slate-800"
+              />
+            </div>
+          </div>
+
+          {Number(staffMemberFormData.salary) > 0 && staffMemberFormData.joinDate && (
+            <div className="p-3 bg-indigo-50 text-indigo-900 rounded-xl border border-indigo-200 text-xs font-medium leading-relaxed">
+              💡 यह वेतन <strong>₹{Number(staffMemberFormData.salary).toLocaleString('en-IN')}/month</strong> हर महीने <strong>{staffMemberFormData.joinDate.split('-')[2]} तारीख</strong> को Expenses & Utility में स्वतः (automatically) सैलरी खर्च के रूप में जुड़ेगा।
+            </div>
+          )}
+
+          <div className="flex justify-end gap-3 pt-3 border-t border-slate-100">
+            <Button variant="secondary" onClick={() => setShowStaffModal(false)} type="button">
+              Cancel
+            </Button>
+            <Button variant="primary" type="submit">
+              {editStaffMember ? 'Update Staff' : 'Save Staff'}
+            </Button>
+          </div>
+        </form>
+      </Modal>
+
+      {/* Delete Staff Member Confirm Dialog */}
+      <ConfirmDialog
+        isOpen={!!deleteStaffTarget}
+        onClose={() => setDeleteStaffTarget(null)}
+        onConfirm={handleDeleteStaffMemberConfirm}
+        title="Delete Staff Member"
+        message={`Are you sure you want to remove "${deleteStaffTarget?.name}"?`}
+        confirmText="Delete"
+        variant="danger"
+      />
+
+      {/* Aadhaar Card Photo Preview Modal */}
+      <Modal
+        isOpen={!!previewAadhar}
+        onClose={() => setPreviewAadhar(null)}
+        title="Aadhaar Card Photo (आधार कार्ड)"
+        size="md"
+      >
+        <div className="space-y-4 text-center">
+          <div className="max-h-[70vh] overflow-auto rounded-xl border border-slate-200 bg-slate-50 p-2 flex items-center justify-center">
+            {previewAadhar && (
+              <img
+                src={previewAadhar}
+                alt="Aadhaar Card"
+                className="max-h-[65vh] w-auto max-w-full rounded-lg object-contain shadow-sm"
+              />
+            )}
+          </div>
+          <div className="flex justify-end">
+            <Button variant="secondary" onClick={() => setPreviewAadhar(null)}>
+              Close
+            </Button>
+          </div>
+        </div>
+      </Modal>
     </Layout>
   );
 }

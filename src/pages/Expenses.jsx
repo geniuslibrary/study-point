@@ -36,13 +36,15 @@ export default function Expenses() {
   const fetchData = async () => {
     setLoading(true);
     try {
-      const [expensesData, feesData, staffData] = await Promise.all([
+      const [expensesData, feesData, staffUsersData, staffMembersData] = await Promise.all([
         fetchCollectionData(COLLECTIONS.EXPENSES),
         fetchCollectionData(COLLECTIONS.FEES),
         fetchCollectionData(COLLECTIONS.STAFF_USERS),
+        fetchCollectionData(COLLECTIONS.STAFF_MEMBERS),
       ]);
 
-      setStaffList(staffData || []);
+      const combinedStaff = [...(staffMembersData || []), ...(staffUsersData || [])];
+      setStaffList(combinedStaff);
 
       // 1. Auto-Sync Recurring General Expenses
       let hasNewRecurring = false;
@@ -84,17 +86,17 @@ export default function Expenses() {
         }
       }
 
-      // 2. Auto-Sync Staff Monthly Salaries from Starting Date (unless staff left)
+      // 2. Auto-Sync Staff Monthly Salaries based on Join Date & Day
       let hasNewStaffSalary = false;
-      for (const staff of (staffData || [])) {
-        const salary = Number(staff.monthlySalary) || 0;
+      for (const staff of combinedStaff) {
+        const salary = Number(staff.salary || staff.monthlySalary) || 0;
         if (salary <= 0) continue;
 
-        // Check starting date/month
-        const staffStartDate = staff.startDate || (staff.createdAt?.seconds ? new Date(staff.createdAt.seconds * 1000).toISOString().split('T')[0] : null);
-        const startMonth = staffStartDate ? staffStartDate.substring(0, 7) : null;
+        // Check starting/joining date & month
+        const staffJoinDate = staff.joinDate || staff.startDate || (staff.createdAt?.seconds ? new Date(staff.createdAt.seconds * 1000).toISOString().split('T')[0] : null);
+        const startMonth = staffJoinDate ? staffJoinDate.substring(0, 7) : null;
 
-        // If selectedMonth is before the staff's start month, do not generate
+        // If selectedMonth is before the staff's joining month, do not generate
         if (startMonth && selectedMonth < startMonth) {
           continue;
         }
@@ -109,6 +111,19 @@ export default function Expenses() {
             continue;
           }
         }
+
+        // Calculate specific date based on joining day
+        let joinDay = 1;
+        if (staffJoinDate) {
+          const parts = staffJoinDate.split('-');
+          if (parts.length >= 3) {
+            joinDay = parseInt(parts[2], 10) || 1;
+          }
+        }
+        const [selYear, selMonthNum] = selectedMonth.split('-').map(Number);
+        const maxDaysInMonth = new Date(selYear, selMonthNum, 0).getDate();
+        const actualDay = Math.min(joinDay, maxDaysInMonth);
+        const expenseDateStr = `${selectedMonth}-${String(actualDay).padStart(2, '0')}`;
 
         // Check if salary expense already exists for this staff in selectedMonth
         const alreadyHasSalary = expensesData.some((exp) => {
@@ -135,9 +150,9 @@ export default function Expenses() {
           const newSalaryExpense = {
             category: 'Staff Salary',
             amount: salary,
-            date: `${selectedMonth}-01`,
+            date: expenseDateStr,
             month: selectedMonth,
-            description: `Staff Salary: ${staff.name} (${staff.roleLabel || staff.role || 'Staff'}) [Auto-Scheduled]`,
+            description: `Staff Salary: ${staff.name} [Auto-Scheduled]`,
             expenseType: 'salary',
             staffId: staff.id,
             isStaffSalaryAuto: true,
