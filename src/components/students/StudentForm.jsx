@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import Modal from '../common/Modal';
 import Button from '../common/Button';
 import CameraCaptureModal from '../common/CameraCaptureModal';
-import { Sun, Sunrise, Sunset, Clock, Armchair, AlertCircle, Calendar, UserX, CheckCircle, Tag, IndianRupee, Lock, Camera, Upload, X, Trash2, User, Image, Check, Sparkles } from 'lucide-react';
+import { Sun, Sunrise, Sunset, Clock, Armchair, AlertCircle, Calendar, UserX, CheckCircle, Tag, IndianRupee, Lock, Camera, Upload, X, Trash2, User, Image, Check, Sparkles, Mail, CreditCard } from 'lucide-react';
 import { formatDate, formatCurrency, getStoredShifts, calculateSeatAddonCharges, getStoredAddons, compressImageFile, calculateMembershipEndDate } from '../../utils/helpers';
 
 export default function StudentForm({
@@ -28,6 +28,7 @@ export default function StudentForm({
     name: '',
     phone: '',
     email: '',
+    aadharCard: '',
     photo: '',
     sectionId: '',
     seatId: '',
@@ -67,6 +68,7 @@ export default function StudentForm({
         name: editData.name || '',
         phone: editData.phone || '',
         email: editData.email || '',
+        aadharCard: editData.aadharCard || editData.aadhar || editData.aadhaar || '',
         photo: editData.photo || '',
         sectionId: editData.sectionId || '',
         seatId: editData.seatId || '',
@@ -88,6 +90,7 @@ export default function StudentForm({
         name: '',
         phone: '',
         email: '',
+        aadharCard: '',
         photo: '',
         sectionId: sections[0]?.id || '',
         seatId: '',
@@ -509,6 +512,51 @@ export default function StudentForm({
               onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
               className="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500 text-sm"
               placeholder="e.g. 9876543210"
+            />
+          </div>
+        </div>
+
+        {/* Optional Info: Aadhaar Card & Email */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+          <div>
+            <div className="flex items-center justify-between mb-1">
+              <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1">
+                <CreditCard className="w-3.5 h-3.5 text-slate-400" />
+                <span>Aadhaar Card (आधार कार्ड)</span>
+              </label>
+              <span className="text-[10px] font-bold text-slate-500 bg-slate-100 px-2 py-0.5 rounded-md border border-slate-200">
+                Optional (वैकल्पिक)
+              </span>
+            </div>
+            <input
+              type="text"
+              maxLength="12"
+              value={formData.aadharCard}
+              onChange={(e) => {
+                const val = e.target.value.replace(/[^0-9]/g, '').slice(0, 12);
+                setFormData({ ...formData, aadharCard: val });
+              }}
+              className="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500 text-sm tracking-wider"
+              placeholder="12-digit Aadhaar Number (वैकल्पिक)"
+            />
+          </div>
+
+          <div>
+            <div className="flex items-center justify-between mb-1">
+              <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1">
+                <Mail className="w-3.5 h-3.5 text-slate-400" />
+                <span>Email Address (ईमेल)</span>
+              </label>
+              <span className="text-[10px] font-bold text-slate-500 bg-slate-100 px-2 py-0.5 rounded-md border border-slate-200">
+                Optional (वैकल्पिक)
+              </span>
+            </div>
+            <input
+              type="email"
+              value={formData.email}
+              onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+              className="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500 text-sm"
+              placeholder="e.g. student@gmail.com (वैकल्पिक)"
             />
           </div>
         </div>

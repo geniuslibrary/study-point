@@ -21,6 +21,7 @@ import {
   Gift,
   CheckCircle2,
   Sparkles,
+  CreditCard,
 } from 'lucide-react';
 import Button from '../common/Button';
 
@@ -113,6 +114,11 @@ export default function StudentProfile({
                 {student.email && (
                   <span className="flex items-center gap-1 text-slate-500">
                     <Mail className="w-3.5 h-3.5 text-slate-400" /> {student.email}
+                  </span>
+                )}
+                {(student.aadharCard || student.aadhar) && (
+                  <span className="flex items-center gap-1 text-slate-500 font-medium">
+                    <CreditCard className="w-3.5 h-3.5 text-slate-400" /> Aadhaar: {student.aadharCard || student.aadhar}
                   </span>
                 )}
                 <span className="flex items-center gap-1 text-slate-400">
