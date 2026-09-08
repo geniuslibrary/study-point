@@ -490,26 +490,26 @@ export default function NotificationPanel({ isOpen, onClose }) {
                         </div>
 
                         {/* Action Buttons */}
-                        <div className="mt-2.5 pt-2 border-t border-gray-200/60 flex items-center justify-end gap-1.5">
+                        <div className="mt-2.5 pt-2 border-t border-gray-200/60 flex flex-wrap items-center justify-end gap-1.5">
                           <button
                             onClick={() => handleDemoWhatsApp(demo)}
-                            className={`px-2.5 py-1 text-white rounded-lg text-xs font-bold transition-all flex items-center gap-1 shadow-2xs cursor-pointer ${
+                            className={`px-2.5 py-1 text-white rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1 shadow-2xs cursor-pointer whitespace-nowrap ${
                               reminderInfo?.isToday
                                 ? 'bg-emerald-700 hover:bg-emerald-800 ring-1 ring-emerald-400'
                                 : 'bg-emerald-600 hover:bg-emerald-700'
                             }`}
                             title={reminderInfo?.isToday ? 'Follow-up already sent today. Click to resend' : 'Send WhatsApp Follow-up / Offer'}
                           >
-                            <MessageSquare className="w-3.5 h-3.5" />
-                            <span>{reminderInfo?.isToday ? 'Resend WhatsApp' : 'WhatsApp Follow-up'}</span>
+                            <MessageSquare className="w-3.5 h-3.5 shrink-0" />
+                            <span>{reminderInfo?.isToday ? 'Resend' : 'WhatsApp'}</span>
                           </button>
 
                           <button
                             onClick={() => handleAdmitDemoStudent(demo)}
-                            className="px-2.5 py-1 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-bold transition-all flex items-center gap-1 shadow-2xs cursor-pointer"
+                            className="px-2.5 py-1 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1 shadow-2xs cursor-pointer whitespace-nowrap"
                             title="Admit as Regular Student"
                           >
-                            <UserPlus className="w-3.5 h-3.5" />
+                            <UserPlus className="w-3.5 h-3.5 shrink-0" />
                             <span>Admit Student</span>
                           </button>
 
@@ -619,18 +619,18 @@ export default function NotificationPanel({ isOpen, onClose }) {
                         </div>
 
                         {/* Action Buttons */}
-                        <div className="mt-2.5 pt-2 border-t border-gray-200/60 flex items-center justify-end gap-2">
+                        <div className="mt-2.5 pt-2 border-t border-gray-200/60 flex flex-wrap items-center justify-end gap-2">
                           <button
                             onClick={() => handleWhatsAppReminder(st, 'expiry')}
-                            className={`px-2.5 py-1 text-white rounded-lg text-xs font-bold transition-all flex items-center gap-1 shadow-2xs cursor-pointer ${
+                            className={`px-2.5 py-1 text-white rounded-lg text-xs font-bold transition-all flex items-center gap-1 shadow-2xs cursor-pointer whitespace-nowrap ${
                               reminderInfo?.isToday
                                 ? 'bg-emerald-700 hover:bg-emerald-800 ring-1 ring-emerald-400'
                                 : 'bg-green-600 hover:bg-green-700'
                             }`}
                             title={reminderInfo?.isToday ? 'Reminder already sent today. Click to resend' : 'Send pre-filled WhatsApp renewal reminder'}
                           >
-                            <MessageSquare className="w-3.5 h-3.5" />
-                            <span>{reminderInfo?.isToday ? 'Resend Reminder' : 'WhatsApp Reminder'}</span>
+                            <MessageSquare className="w-3.5 h-3.5 shrink-0" />
+                            <span>{reminderInfo?.isToday ? 'Resend' : 'WhatsApp'}</span>
                           </button>
 
                           <button
@@ -643,9 +643,9 @@ export default function NotificationPanel({ isOpen, onClose }) {
                                 },
                               });
                             }}
-                            className="px-2.5 py-1 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-bold transition-all flex items-center gap-1 shadow-2xs cursor-pointer"
+                            className="px-2.5 py-1 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-bold transition-all flex items-center gap-1 shadow-2xs cursor-pointer whitespace-nowrap"
                           >
-                            <IndianRupee className="w-3.5 h-3.5" />
+                            <IndianRupee className="w-3.5 h-3.5 shrink-0" />
                             <span>Collect Fee</span>
                           </button>
                         </div>
