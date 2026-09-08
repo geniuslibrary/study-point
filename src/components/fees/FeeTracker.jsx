@@ -486,10 +486,10 @@ export default function FeeTracker({
                         <button
                           onClick={() => onMarkLeft(fee, student, seats.find((s) => s.id === student?.seatId))}
                           className="px-2.5 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 rounded-xl text-xs font-bold flex items-center gap-1 transition-all cursor-pointer shadow-2xs"
-                          title="Mark Student Left & Free Seat"
+                          title="Student Left & Free Seat"
                         >
                           <UserX className="w-3.5 h-3.5 text-rose-600" />
-                          <span>Left & Free Seat</span>
+                          <span>Left</span>
                         </button>
                       )}
                     </div>
@@ -634,10 +634,10 @@ export default function FeeTracker({
                   {isOverdue && student?.status !== 'left' && onMarkLeft && (
                     <button
                       onClick={() => onMarkLeft(fee, student, seats.find((s) => s.id === student?.seatId))}
-                      className="px-2.5 py-1.5 bg-rose-600 text-white rounded-xl text-xs font-bold flex items-center gap-1 shadow-xs cursor-pointer"
+                      className="px-2.5 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 rounded-xl text-xs font-bold flex items-center gap-1 shadow-2xs cursor-pointer"
                     >
-                      <UserX className="w-3.5 h-3.5" />
-                      <span>Left & Free Seat</span>
+                      <UserX className="w-3.5 h-3.5 text-rose-600" />
+                      <span>Left</span>
                     </button>
                   )}
                 </div>

@@ -4,7 +4,7 @@ import Layout from '../components/layout/Layout';
 import FeeTracker from '../components/fees/FeeTracker';
 import CollectFeeModal from '../components/fees/CollectFeeModal';
 import FeeReceipt from '../components/fees/FeeReceipt';
-import ConfirmDialog from '../components/common/ConfirmDialog';
+import StudentLeftOverdueModal from '../components/fees/StudentLeftOverdueModal';
 import Button from '../components/common/Button';
 import {
   IndianRupee,
@@ -548,14 +548,17 @@ export default function Fees() {
         seat={receiptSeat}
       />
 
-      <ConfirmDialog
+      <StudentLeftOverdueModal
         isOpen={!!leftConfirmTarget}
         onClose={() => setLeftConfirmTarget(null)}
-        onConfirm={handleConfirmMarkLeft}
-        title="Student ko Left mark karein aur Seat free karein?"
-        message={`Kya aap sure hain ki "${leftConfirmTarget?.student?.name}" ko Left mark karna hai? Isse student status "Left" ho jayega aur unki Seat #${leftConfirmTarget?.seat?.seatNumber || '—'} turant FREE (Available) ho jayegi.`}
-        confirmText="Haan, Left & Free Seat"
-        variant="danger"
+        target={leftConfirmTarget}
+        onConfirmLeft={handleConfirmMarkLeft}
+        onRenew={() => {
+          if (!leftConfirmTarget) return;
+          const targetFee = leftConfirmTarget.fee;
+          setLeftConfirmTarget(null);
+          setCollectFee(targetFee);
+        }}
         loading={markingLeftLoading}
       />
     </Layout>
