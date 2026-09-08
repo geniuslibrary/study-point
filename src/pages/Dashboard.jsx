@@ -42,6 +42,19 @@ import {
   LeftStudentsAuditWidget,
 } from '../components/dashboard/DashboardExtraWidgets';
 import {
+  HourlyPeakHoursWidget,
+  DailyCollectionBarWidget,
+  PlanPopularityDonutWidget,
+  AdmissionVsExitGrowthWidget,
+  SeatOccupancyGaugeWidget,
+  FeeAgingRecoveryWidget,
+  ShiftCapacityCompareWidget,
+  ProfitMarginExpenseWidget,
+  AverageRevenueMetricWidget,
+  StudyTimeDistributionWidget,
+} from '../components/dashboard/HighLevelGraphicalWidgets';
+import DashboardWidgetSettingsModal from '../components/dashboard/DashboardWidgetSettingsModal';
+import {
   Users,
   UserPlus,
   UserCheck,
@@ -67,6 +80,7 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true);
   const [dashConfig, setDashConfig] = useState(getActiveDashboardConfig());
   const [widgetOrder, setWidgetOrder] = useState(getActiveDashboardOrder());
+  const [isWidgetSettingsOpen, setIsWidgetSettingsOpen] = useState(false);
 
   const [stats, setStats] = useState({
     totalStudents: 0,
@@ -422,6 +436,18 @@ export default function Dashboard() {
   const showNoticeBoard = isVisible('noticeBoard', true);
   const showStaffActivity = isVisible('staffActivity', true);
 
+  // Group 5: High-Level Graphical & Visual Analytics
+  const showHourlyPeakHours = isVisible('hourlyPeakHours', true);
+  const showDailyCollectionBar = isVisible('dailyCollectionBar', false, true);
+  const showPlanPopularityDonut = isVisible('planPopularityDonut', true);
+  const showAdmissionVsExitGrowth = isVisible('admissionVsExitGrowth', true);
+  const showSeatOccupancyGauge = isVisible('seatOccupancyGauge', true);
+  const showFeeAgingRecovery = isVisible('feeAgingRecovery', true);
+  const showShiftCapacityCompare = isVisible('shiftCapacityCompare', true);
+  const showProfitMarginExpense = isVisible('profitMarginExpense', false, true);
+  const showAverageRevenueMetric = isVisible('averageRevenueMetric', false, true);
+  const showStudyTimeDistribution = isVisible('studyTimeDistribution', true);
+
   const hideRevenueCard = isStaff && (staffWidgets?.hideFinancials || !staffWidgets?.revenueChart);
 
   const anyWidgetVisible =
@@ -448,7 +474,17 @@ export default function Dashboard() {
     showLeftStudentsAudit ||
     showNoticeBoard ||
     showStaffActivity ||
-    showRecentActivity;
+    showRecentActivity ||
+    showHourlyPeakHours ||
+    showDailyCollectionBar ||
+    showPlanPopularityDonut ||
+    showAdmissionVsExitGrowth ||
+    showSeatOccupancyGauge ||
+    showFeeAgingRecovery ||
+    showShiftCapacityCompare ||
+    showProfitMarginExpense ||
+    showAverageRevenueMetric ||
+    showStudyTimeDistribution;
 
   const widgetVisibilityMap = {
     quickActions: showQuickActions,
@@ -475,6 +511,16 @@ export default function Dashboard() {
     noticeBoard: showNoticeBoard,
     staffActivity: showStaffActivity,
     recentActivity: showRecentActivity,
+    hourlyPeakHours: showHourlyPeakHours,
+    dailyCollectionBar: showDailyCollectionBar,
+    planPopularityDonut: showPlanPopularityDonut,
+    admissionVsExitGrowth: showAdmissionVsExitGrowth,
+    seatOccupancyGauge: showSeatOccupancyGauge,
+    feeAgingRecovery: showFeeAgingRecovery,
+    shiftCapacityCompare: showShiftCapacityCompare,
+    profitMarginExpense: showProfitMarginExpense,
+    averageRevenueMetric: showAverageRevenueMetric,
+    studyTimeDistribution: showStudyTimeDistribution,
   };
 
   const renderWidgetById = (id) => {
@@ -731,6 +777,77 @@ export default function Dashboard() {
           </div>
         );
 
+      // High-Level Graphical Widgets (10 Advanced Visualizations)
+      case 'hourlyPeakHours':
+        return (
+          <div key={id} className="col-span-1">
+            <HourlyPeakHoursWidget students={allStudentsList} seats={allSeatsList} />
+          </div>
+        );
+
+      case 'dailyCollectionBar':
+        return (
+          <div key={id} className="col-span-1">
+            <DailyCollectionBarWidget fees={recentFees} />
+          </div>
+        );
+
+      case 'seatOccupancyGauge':
+        return (
+          <div key={id} className="col-span-1">
+            <SeatOccupancyGaugeWidget seats={allSeatsList} students={allStudentsList} />
+          </div>
+        );
+
+      case 'planPopularityDonut':
+        return (
+          <div key={id} className="col-span-1">
+            <PlanPopularityDonutWidget students={allStudentsList} plans={allPlansList} />
+          </div>
+        );
+
+      case 'admissionVsExitGrowth':
+        return (
+          <div key={id} className="col-span-1">
+            <AdmissionVsExitGrowthWidget students={allStudentsList} />
+          </div>
+        );
+
+      case 'shiftCapacityCompare':
+        return (
+          <div key={id} className="col-span-1">
+            <ShiftCapacityCompareWidget seats={allSeatsList} students={allStudentsList} />
+          </div>
+        );
+
+      case 'feeAgingRecovery':
+        return (
+          <div key={id} className="col-span-1">
+            <FeeAgingRecoveryWidget students={allStudentsList} fees={recentFees} />
+          </div>
+        );
+
+      case 'profitMarginExpense':
+        return (
+          <div key={id} className="col-span-1">
+            <ProfitMarginExpenseWidget revenue={stats.revenue} expenses={monthExpensesList} />
+          </div>
+        );
+
+      case 'averageRevenueMetric':
+        return (
+          <div key={id} className="col-span-1">
+            <AverageRevenueMetricWidget students={allStudentsList} revenue={stats.revenue} />
+          </div>
+        );
+
+      case 'studyTimeDistribution':
+        return (
+          <div key={id} className="col-span-1">
+            <StudyTimeDistributionWidget students={allStudentsList} />
+          </div>
+        );
+
       default:
         return null;
     }
@@ -766,34 +883,42 @@ export default function Dashboard() {
               </p>
             </div>
 
-            {/* Quick Action Shortcuts inside Banner (only shown if quickActions enabled) */}
-            {showQuickActions && (
-              <div className="flex flex-wrap items-center gap-2.5 pt-1 md:pt-0">
-                {hasPermission('students', 'create') && (
-                  <button
-                    onClick={() => navigate('/students')}
-                    className="px-4 py-2.5 bg-white text-indigo-950 hover:bg-indigo-50 active:scale-95 rounded-2xl text-xs font-black transition-all shadow-md flex items-center gap-2 cursor-pointer"
-                  >
-                    <UserPlus className="w-4 h-4 text-indigo-600" />
-                    <span>+ New Admission</span>
-                  </button>
-                )}
+            {/* Quick Action Shortcuts inside Banner */}
+            <div className="flex flex-wrap items-center gap-2.5 pt-1 md:pt-0">
+              {showQuickActions && hasPermission('students', 'create') && (
+                <button
+                  onClick={() => navigate('/students')}
+                  className="px-4 py-2.5 bg-white text-indigo-950 hover:bg-indigo-50 active:scale-95 rounded-2xl text-xs font-black transition-all shadow-md flex items-center gap-2 cursor-pointer"
+                >
+                  <UserPlus className="w-4 h-4 text-indigo-600" />
+                  <span>+ New Admission</span>
+                </button>
+              )}
 
-                {hasPermission('fees', 'create') && (
-                  <button
-                    onClick={() => navigate('/fees')}
-                    className="px-4 py-2.5 bg-indigo-500/30 hover:bg-indigo-500/50 active:scale-95 text-white border border-white/20 rounded-2xl text-xs font-black transition-all shadow-md flex items-center gap-2 backdrop-blur-md cursor-pointer"
-                  >
-                    <IndianRupee className="w-4 h-4 text-emerald-400" />
-                    <span>Collect Fee</span>
-                  </button>
-                )}
-              </div>
-            )}
+              {showQuickActions && hasPermission('fees', 'create') && (
+                <button
+                  onClick={() => navigate('/fees')}
+                  className="px-4 py-2.5 bg-indigo-500/30 hover:bg-indigo-500/50 active:scale-95 text-white border border-white/20 rounded-2xl text-xs font-black transition-all shadow-md flex items-center gap-2 backdrop-blur-md cursor-pointer"
+                >
+                  <IndianRupee className="w-4 h-4 text-emerald-400" />
+                  <span>Collect Fee</span>
+                </button>
+              )}
+
+              {/* 1-Click Widget Visibility Customizer Trigger */}
+              <button
+                onClick={() => setIsWidgetSettingsOpen(true)}
+                className="px-3.5 py-2.5 bg-white/15 hover:bg-white/25 active:scale-95 text-white border border-white/20 rounded-2xl text-xs font-bold transition-all shadow-xs flex items-center gap-1.5 cursor-pointer backdrop-blur-md"
+                title="Customize Dashboard Widgets Visibility"
+              >
+                <Sliders className="w-3.5 h-3.5 text-indigo-200" />
+                <span>Widgets (विजेट्स)</span>
+              </button>
+            </div>
           </div>
         </div>
 
-        {/* Empty State Banner if all 24 widgets are hidden */}
+        {/* Empty State Banner if all widgets are hidden */}
         {!anyWidgetVisible && (
           <div className="bg-white rounded-3xl p-8 sm:p-12 border border-slate-200/80 shadow-xs text-center flex flex-col items-center justify-center max-w-lg mx-auto my-6">
             <div className="w-16 h-16 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center mb-4">
@@ -801,14 +926,14 @@ export default function Dashboard() {
             </div>
             <h3 className="text-lg font-bold text-gray-900 mb-1">Sabhi Widgets Disable Hain</h3>
             <p className="text-xs sm:text-sm text-gray-500 mb-5 leading-relaxed">
-              Aapne Customization page se dashboard ke sabhi widgets ko disable kar rakha hai. Dashboard par widgets dekhne ke liye Customization me jaakar widgets ON karein.
+              Aapne dashboard ke sabhi widgets ko disable kar rakha hai. Widgets ko ON karne ke liye niche diye gaye button par click karein.
             </p>
             <button
-              onClick={() => navigate('/customization')}
+              onClick={() => setIsWidgetSettingsOpen(true)}
               className="px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold shadow-md cursor-pointer transition-all flex items-center gap-2"
             >
               <Sliders className="w-4 h-4" />
-              <span>Customization Kholiye (Enable Widgets)</span>
+              <span>Widgets Settings Kholiye (Enable Widgets)</span>
             </button>
           </div>
         )}
@@ -822,6 +947,14 @@ export default function Dashboard() {
             })}
           </div>
         )}
+
+        {/* Quick Dashboard Widget Settings Modal */}
+        <DashboardWidgetSettingsModal
+          isOpen={isWidgetSettingsOpen}
+          onClose={() => setIsWidgetSettingsOpen(false)}
+          currentConfig={dashConfig}
+          onSave={(newCfg) => setDashConfig(newCfg)}
+        />
 
       </div>
     </Layout>

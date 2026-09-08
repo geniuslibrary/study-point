@@ -222,6 +222,18 @@ export const DEFAULT_DASHBOARD_CONFIG = {
   remindersCounter: true,
   noticeBoard: true,
   staffActivity: true,
+
+  // Group 5: Advanced Graphical Analytics & Visual Charts (10 High-Level Widgets)
+  hourlyPeakHours: true,
+  dailyCollectionBar: true,
+  planPopularityDonut: true,
+  admissionVsExitGrowth: true,
+  seatOccupancyGauge: true,
+  feeAgingRecovery: true,
+  shiftCapacityCompare: true,
+  profitMarginExpense: true,
+  averageRevenueMetric: true,
+  studyTimeDistribution: true,
 };
 
 export const DEFAULT_STAFF_DASHBOARD_WIDGETS = {
@@ -253,6 +265,18 @@ export const DEFAULT_STAFF_DASHBOARD_WIDGETS = {
   noticeBoard: true,
   staffActivity: true,
 
+  // Graphical widgets for staff
+  hourlyPeakHours: true,
+  dailyCollectionBar: false,
+  planPopularityDonut: true,
+  admissionVsExitGrowth: true,
+  seatOccupancyGauge: true,
+  feeAgingRecovery: true,
+  shiftCapacityCompare: true,
+  profitMarginExpense: false,
+  averageRevenueMetric: false,
+  studyTimeDistribution: true,
+
   hideFinancials: true,
 };
 
@@ -265,7 +289,19 @@ export const DASHBOARD_WIDGET_OPTIONS = [
   { id: 'shiftDistribution', label: '⏰ Shift Wise Distribution (शिफ्ट विभाजन)', category: 'operations', span: 'half', desc: 'Student enrollment by Morning, Evening, and Full Day slots' },
   { id: 'quickSeatSearch', label: '🔍 Instant Seat Finder (त्वरित सीट खोजक)', category: 'operations', span: 'half', desc: 'Quickly check if a seat is vacant or assigned to whom' },
 
-  // 2. Financials & Money
+  // 2. High-Level Graphical Analytics (10 Tagda Visual Widgets)
+  { id: 'hourlyPeakHours', label: '⏱️ Library Footfall & Peak Hours (लाइब्रेरी पीक आवर्स ग्राफ)', category: 'visualAnalytics', span: 'half', desc: '16-Hour visual footfall chart highlighting busy study times and quiet hours' },
+  { id: 'dailyCollectionBar', label: '📊 Daily Fee Collection Trend (दैनिक 7-दिवसीय फीस ग्राफ)', category: 'visualAnalytics', span: 'half', desc: 'Day-by-day vertical collection comparison with best day and average' },
+  { id: 'seatOccupancyGauge', label: '🎯 Live Seat Capacity Speedometer (सीट ऑक्यूपेंसी स्पीडोमीटर)', category: 'visualAnalytics', span: 'half', desc: 'Radial gauge meter showing live capacity utilization and vacant seats' },
+  { id: 'planPopularityDonut', label: '🍩 Plan Popularity Distribution (मेंबरशिप प्लान लोकप्रियता)', category: 'visualAnalytics', span: 'half', desc: 'Visual distribution chart showing student share across all membership plans' },
+  { id: 'admissionVsExitGrowth', label: '📈 6-Month Net Student Growth (विद्यार्थी वृद्धि व एग्जिट ग्राफ)', category: 'visualAnalytics', span: 'half', desc: 'Dual-bar 6-month comparison of new admissions vs left members with retention rate' },
+  { id: 'shiftCapacityCompare', label: '⚖️ Shift-Wise Capacity & Vacancy (प्रत्येक शिफ्ट में खाली सीटें)', category: 'visualAnalytics', span: 'half', desc: 'Triple comparative progress meters for Full Day, Morning, and Evening slots' },
+  { id: 'feeAgingRecovery', label: '📉 Fee Dues Aging & Recovery Funnel (बकाया फीस रिकवरी बकेट)', category: 'visualAnalytics', span: 'half', desc: '4-Tier dues aging progress bar (0-3d, 4-7d, 8-15d, 15d+) with 1-click WhatsApp recovery' },
+  { id: 'profitMarginExpense', label: '💰 Net Profit & Operating Margin (कमाई, खर्च व शुद्ध मुनाफा ग्राफ)', category: 'visualAnalytics', span: 'half', desc: 'Visual split comparison of Gross Income, Expenses, and Net Margin %' },
+  { id: 'averageRevenueMetric', label: '💎 ARPU & Student Lifetime Value (प्रति छात्र आय व LTV एनालिटिक्स)', category: 'visualAnalytics', span: 'half', desc: 'High-level KPI with average ticket size, student retention months, and projected MRR' },
+  { id: 'studyTimeDistribution', label: '📚 Study Time Preference Radar (समय स्लॉट प्राथमिकता ग्राफ)', category: 'visualAnalytics', span: 'half', desc: 'Student preference breakdown for Morning, Evening, Full Day, and Custom hours' },
+
+  // 3. Financials & Money
   { id: 'revenueChart', label: '📊 Revenue vs Expense Trend (कमाई व खर्च ग्राफ)', category: 'financials', span: 'half', desc: '6-Month comparison between income and expenses' },
   { id: 'cashRegister', label: '💵 Counter Cash Register (काउंटर कैश इन हैंड)', category: 'financials', span: 'half', desc: 'Today cash fees minus cash expenses in counter drawer' },
   { id: 'paymentModesPie', label: '📱 Payment Mode Breakdown (पेमेंट माध्यम UPI/Cash/Bank)', category: 'financials', span: 'half', desc: 'Percentage & volume of UPI, Cash and Bank collections' },
@@ -274,7 +310,7 @@ export const DASHBOARD_WIDGET_OPTIONS = [
   { id: 'recentActivity', label: '📜 Recent Fee Collections Log (हालिया फीस लिस्ट)', category: 'financials', span: 'full', desc: 'Real-time payment audit stream of latest receipts' },
   { id: 'feeCalculator', label: '🧮 Quick Fee & Discount Calculator (त्वरित फीस कैलकुलेटर)', category: 'financials', span: 'half', desc: 'Instant pricing quoting with plan, addons and discount' },
 
-  // 3. Students, Leads & Recoveries
+  // 4. Students, Leads & Recoveries
   { id: 'pendingDuesAlert', label: '🚨 Urgent Fee Follow-Ups (बकाया फीस अलर्ट)', category: 'students', span: 'half', desc: 'Unpaid dues list with 1-click WhatsApp payment reminders' },
   { id: 'expiringMemberships', label: '⏳ Expiring in Next 7 Days (आगामी समाप्ति अलर्ट)', category: 'students', span: 'half', desc: 'Students whose memberships expire this week with WhatsApp reminder' },
   { id: 'demoTracker', label: '🎯 Live Demo & Trial Tracker (डेमो ट्रैकर)', category: 'students', span: 'half', desc: 'Prospective students currently on trial seats' },
@@ -283,7 +319,7 @@ export const DASHBOARD_WIDGET_OPTIONS = [
   { id: 'topMembers', label: '⭐ Long-Term Members (दीर्घकालिक सदस्य)', category: 'students', span: 'half', desc: 'Students enrolled in 3M, 6M, or 1Yr multi-month plans' },
   { id: 'leftStudentsAudit', label: '🚪 Recently Departed Students (छोड़ चुके विद्यार्थी)', category: 'students', span: 'half', desc: 'Log of recently inactive/left students with exit dates' },
 
-  // 4. Facilities, Reminders & Team
+  // 5. Facilities, Reminders & Team
   { id: 'addonUtilization', label: '🔐 Lockers & Facilities (लॉकर व सुविधाएं)', category: 'facilities', span: 'half', desc: 'Assigned vs available lockers and addon revenue' },
   { id: 'remindersCounter', label: '💬 WhatsApp Reminders Today (आज भेजे गए रिमाइंडर)', category: 'facilities', span: 'half', desc: 'Total automated WhatsApp reminders dispatched today' },
   { id: 'noticeBoard', label: '📌 Digital Notice Board (लाइब्रेरी नोटिस बोर्ड)', category: 'facilities', span: 'half', desc: 'Daily announcement and broadcast notes for staff/students' },
@@ -297,15 +333,25 @@ export const DEFAULT_DASHBOARD_ORDER = [
   'quickActions',
   'todayPulse',
   'coreStats',
+  'seatOccupancyGauge',
+  'hourlyPeakHours',
+  'dailyCollectionBar',
+  'shiftCapacityCompare',
+  'planPopularityDonut',
+  'admissionVsExitGrowth',
   'quickSeatSearch',
   'occupancyOverview',
   'revenueChart',
+  'profitMarginExpense',
+  'averageRevenueMetric',
   'monthlyTarget',
   'cashRegister',
   'paymentModesPie',
   'expenseCategories',
+  'feeAgingRecovery',
   'feeCalculator',
   'pendingDuesAlert',
+  'studyTimeDistribution',
   'expiringMemberships',
   'demoTracker',
   'newInquiries',
@@ -412,4 +458,19 @@ export const getActiveDashboardOrder = () => {
     }
   } catch (e) {}
   return DEFAULT_DASHBOARD_ORDER;
+};
+
+// Aliases and setters for widgets modal
+export const DEFAULT_DASHBOARD_WIDGETS = DEFAULT_DASHBOARD_CONFIG;
+
+export const setCustomDashboardConfig = (config) => {
+  try {
+    const key = getDashboardConfigStorageKey();
+    localStorage.setItem(key, JSON.stringify(config));
+    if (getActiveTenantId() === 'genius_root') {
+      localStorage.setItem(DASHBOARD_CONFIG_STORAGE_KEY, JSON.stringify(config));
+    }
+  } catch (e) {
+    console.error('Failed to save dashboard config:', e);
+  }
 };
