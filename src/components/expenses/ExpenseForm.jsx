@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import Modal from '../common/Modal';
 import Button from '../common/Button';
 import { EXPENSE_CATEGORIES } from '../../utils/constants';
-import { Zap, Users, Receipt, Wrench, Calculator, Sparkles } from 'lucide-react';
+import { Zap, Users, Receipt, Wrench, Sparkles } from 'lucide-react';
 import { formatCurrency } from '../../utils/helpers';
 
 export default function ExpenseForm({ isOpen, onClose, onSubmit, editData, staffList = [] }) {
@@ -242,7 +242,7 @@ export default function ExpenseForm({ isOpen, onClose, onSubmit, editData, staff
       <div className="space-y-4">
         {/* Expense Mode Switcher */}
         {!editData && (
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 bg-gray-100 p-1.5 rounded-xl text-xs font-bold">
+          <div className="grid grid-cols-3 gap-2 bg-gray-100 p-1.5 rounded-xl text-xs font-bold">
             <button
               type="button"
               onClick={() => {
@@ -273,22 +273,6 @@ export default function ExpenseForm({ isOpen, onClose, onSubmit, editData, staff
             >
               <Zap className="w-3.5 h-3.5" />
               <span>⚡ Electricity</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => {
-                setFormMode('salary');
-                setFormData((prev) => ({ ...prev, category: 'Staff Salary' }));
-              }}
-              className={`py-2 px-2 rounded-lg flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
-                formMode === 'salary'
-                  ? 'bg-blue-600 text-white shadow-xs'
-                  : 'text-gray-600 hover:text-gray-900'
-              }`}
-            >
-              <Users className="w-3.5 h-3.5" />
-              <span>👥 Staff Salary</span>
             </button>
 
             <button
@@ -441,42 +425,6 @@ export default function ExpenseForm({ isOpen, onClose, onSubmit, editData, staff
                 </span>
               </div>
 
-              {staffList && staffList.length > 0 && !editData && (
-                <div>
-                  <label className="block text-[11px] font-bold text-blue-900 mb-1">
-                    Select Existing Staff (स्टाफ सदस्य चुनें - नाम व सैलरी अपने-आप भरेगी):
-                  </label>
-                  <select
-                    value={salaryData.staffId || ''}
-                    onChange={(e) => {
-                      const selectedId = e.target.value;
-                      const foundStaff = staffList.find((s) => s.id === selectedId);
-                      if (foundStaff) {
-                        setSalaryData((prev) => ({
-                          ...prev,
-                          staffId: foundStaff.id,
-                          staffName: foundStaff.name || '',
-                          role: foundStaff.roleLabel || foundStaff.role || 'Staff',
-                          baseSalary: foundStaff.monthlySalary ? String(foundStaff.monthlySalary) : prev.baseSalary,
-                        }));
-                      } else {
-                        setSalaryData((prev) => ({ ...prev, staffId: '' }));
-                      }
-                    }}
-                    className="w-full px-3 py-2 bg-white border border-blue-300 rounded-lg text-xs font-bold text-blue-900 focus:ring-2 focus:ring-blue-500"
-                  >
-                    <option value="">-- Choose from Staff & Roles (or enter below) --</option>
-                    {staffList
-                      .filter((s) => s.status !== 'left')
-                      .map((s) => (
-                        <option key={s.id} value={s.id}>
-                          {s.name} ({s.roleLabel || s.role || 'Staff'}) {s.monthlySalary ? `— ₹${s.monthlySalary}/month` : ''}
-                        </option>
-                      ))}
-                  </select>
-                </div>
-              )}
-
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="block text-[11px] font-bold text-gray-700 mb-1">
@@ -592,7 +540,9 @@ export default function ExpenseForm({ isOpen, onClose, onSubmit, editData, staff
                   onChange={handleChange}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white focus:ring-2 focus:ring-indigo-500"
                 >
-                  {EXPENSE_CATEGORIES.map((cat) => (
+                  {EXPENSE_CATEGORIES.filter(
+                    (cat) => cat !== 'Staff Salary' || editData?.category === 'Staff Salary'
+                  ).map((cat) => (
                     <option key={cat} value={cat}>
                       {cat}
                     </option>
