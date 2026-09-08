@@ -1,4 +1,5 @@
 import { SHIFTS } from './constants';
+import { getActiveTenantId } from '../firebase/storageService';
 
 export const formatCurrency = (amount) => {
   const safeNum = Number(amount) || 0;
@@ -84,6 +85,16 @@ export const daysUntil = (date) => {
 
 export const getStoredAddons = () => {
   try {
+    let tenantId = 'genius_root';
+    try {
+      tenantId = getActiveTenantId();
+    } catch (_) {}
+    const tenantKey = `studypoint_${tenantId}_addons`;
+    const localTenant = localStorage.getItem(tenantKey);
+    if (localTenant) {
+      const parsed = JSON.parse(localTenant);
+      if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+    }
     const data = localStorage.getItem('studypoint_addons');
     if (data) {
       const parsed = JSON.parse(data);
@@ -93,13 +104,36 @@ export const getStoredAddons = () => {
   return [];
 };
 
-export const calculateSeatAddonCharges = (seatAddons = {}, addonList = [], durationMonths = 1) => {
+export const calculateSeatAddonCharges = (
+  seatAddons = {},
+  addonList = [],
+  durationMonths = 1,
+  includedPerks = []
+) => {
   const charges = {};
+  const includedCharges = {};
   let total = 0;
-  if (!seatAddons || typeof seatAddons !== 'object') return { charges, total };
+  if (!seatAddons || typeof seatAddons !== 'object') return { charges, total, includedCharges };
 
   const duration = Number(durationMonths) || 1;
   const list = Array.isArray(addonList) && addonList.length > 0 ? addonList : getStoredAddons();
+
+  // Helper to check if a configured addon is already included free in the membership plan perks
+  const isCoveredByPerk = (addonName) => {
+    if (!Array.isArray(includedPerks) || includedPerks.length === 0 || !addonName) return false;
+    const aName = addonName.toLowerCase();
+    return includedPerks.some((perk) => {
+      const p = String(perk).toLowerCase();
+      return (
+        p.includes(aName) ||
+        aName.includes(p) ||
+        (aName.includes('wifi') && p.includes('wifi')) ||
+        (aName.includes('locker') && p.includes('locker')) ||
+        ((aName.includes('light') || aName.includes('lamp')) && (p.includes('light') || p.includes('lamp'))) ||
+        ((aName.includes('ac') || aName.includes('cooler')) && (p.includes('ac') || p.includes('air conditioned')))
+      );
+    });
+  };
 
   list.forEach((addon) => {
     const nameLower = addon.name?.toLowerCase();
@@ -109,19 +143,25 @@ export const calculateSeatAddonCharges = (seatAddons = {}, addonList = [], durat
       (addon.name && seatAddons[addon.name])
     );
     if (isChecked) {
-      const monthly = Number(addon.monthlyCharge) || 0;
-      const totalCharge = monthly * duration;
-      charges[addon.name] = totalCharge;
-      total += totalCharge;
+      if (isCoveredByPerk(addon.name)) {
+        // Free because it's included in the Membership Plan!
+        charges[addon.name] = 0;
+        includedCharges[addon.name] = true;
+      } else {
+        const monthly = Number(addon.monthlyCharge) || 0;
+        const totalCharge = monthly * duration;
+        charges[addon.name] = totalCharge;
+        total += totalCharge;
+      }
     }
   });
 
-  return { charges, total };
+  return { charges, total, includedCharges };
 };
 
-export const calculateTotalFee = (baseFee, addons = {}, addonPricing = []) => {
+export const calculateTotalFee = (baseFee, addons = {}, addonPricing = [], includedPerks = []) => {
   let total = Number(baseFee) || 0;
-  const { total: addonTotal } = calculateSeatAddonCharges(addons, addonPricing, 1);
+  const { total: addonTotal } = calculateSeatAddonCharges(addons, addonPricing, 1, includedPerks);
   return total + addonTotal;
 };
 
@@ -150,6 +190,16 @@ export const generateId = () => {
 // Dynamic Shifts Loader from LocalStorage / Settings
 export const getStoredShifts = () => {
   try {
+    let tenantId = 'genius_root';
+    try {
+      tenantId = getActiveTenantId();
+    } catch (_) {}
+    const tenantKey = `studypoint_${tenantId}_shifts`;
+    const localTenant = localStorage.getItem(tenantKey);
+    if (localTenant) {
+      const parsed = JSON.parse(localTenant);
+      if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+    }
     const data = localStorage.getItem('studypoint_shifts');
     if (data) {
       const parsed = JSON.parse(data);

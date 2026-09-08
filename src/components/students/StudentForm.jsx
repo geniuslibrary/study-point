@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import Modal from '../common/Modal';
 import Button from '../common/Button';
 import CameraCaptureModal from '../common/CameraCaptureModal';
-import { Sun, Sunrise, Sunset, Clock, Armchair, AlertCircle, Calendar, UserX, CheckCircle, Tag, IndianRupee, Lock, Camera, Upload, X, Trash2, User, Image, Check } from 'lucide-react';
+import { Sun, Sunrise, Sunset, Clock, Armchair, AlertCircle, Calendar, UserX, CheckCircle, Tag, IndianRupee, Lock, Camera, Upload, X, Trash2, User, Image, Check, Sparkles } from 'lucide-react';
 import { formatDate, formatCurrency, getStoredShifts, calculateSeatAddonCharges, getStoredAddons, compressImageFile, calculateMembershipEndDate } from '../../utils/helpers';
 
 export default function StudentForm({
@@ -14,11 +14,14 @@ export default function StudentForm({
   seats = [],
   plans = [],
   students = [],
+  addonPricing = [],
 }) {
   const getTodayInput = () => new Date().toISOString().split('T')[0];
   const shiftsList = getStoredShifts();
 
-  const configuredAddons = getStoredAddons();
+  const configuredAddons = Array.isArray(addonPricing) && addonPricing.length > 0
+    ? addonPricing
+    : getStoredAddons();
   const [selectedAddons, setSelectedAddons] = useState({});
 
   const [formData, setFormData] = useState({
@@ -103,10 +106,45 @@ export default function StudentForm({
     }
   }, [editData, isOpen, sections, plans]);
 
+  const selectedPlan = plans.find((p) => p.id === formData.membershipPlanId);
+  const planFeatures = selectedPlan?.features || [];
+
+  const isAddonCoveredByPlan = (addonName) => {
+    if (!planFeatures || planFeatures.length === 0 || !addonName) return false;
+    const aName = addonName.toLowerCase();
+    return planFeatures.some((perk) => {
+      const p = String(perk).toLowerCase();
+      return (
+        p.includes(aName) ||
+        aName.includes(p) ||
+        (aName.includes('wifi') && p.includes('wifi')) ||
+        (aName.includes('locker') && p.includes('locker')) ||
+        ((aName.includes('light') || aName.includes('lamp')) && (p.includes('light') || p.includes('lamp'))) ||
+        ((aName.includes('ac') || aName.includes('cooler')) && (p.includes('ac') || p.includes('air conditioned')))
+      );
+    });
+  };
+
+  // Automatically check any facilities that come included free with the selected membership plan
+  useEffect(() => {
+    if (planFeatures.length > 0 && configuredAddons.length > 0) {
+      setSelectedAddons((prev) => {
+        const next = { ...prev };
+        configuredAddons.forEach((addon) => {
+          if (isAddonCoveredByPlan(addon.name)) {
+            if (addon.id) next[addon.id] = true;
+            if (addon.name) next[addon.name] = true;
+            next[addon.name.toLowerCase()] = true;
+          }
+        });
+        return next;
+      });
+    }
+  }, [formData.membershipPlanId, plans]);
+
   // Calculate Subscription Period & Total Price from Join Date, Plan & Selected Addons
   const getBillingCycleInfo = () => {
     const isCustom = formData.membershipPlanId === 'custom_days' || formData.isCustomDays;
-    const selectedPlan = isCustom ? null : plans.find((p) => p.id === formData.membershipPlanId);
 
     const isDayBased = isCustom || selectedPlan?.durationUnit === 'days' || (selectedPlan?.durationDays && !selectedPlan?.durationMonths);
     const durationDays = isCustom ? (Number(formData.customDays) || 10) : (Number(selectedPlan?.durationDays) || 7);
@@ -119,7 +157,8 @@ export default function StudentForm({
     const { charges: addonCharges, total: addonTotal } = calculateSeatAddonCharges(
       selectedAddons,
       configuredAddons,
-      addonDurationFactor
+      addonDurationFactor,
+      planFeatures
     );
     const finalPrice = Math.max(0, planPrice + addonTotal - discount);
 
@@ -288,6 +327,8 @@ export default function StudentForm({
         planName: cycleInfo.planName,
         planPrice: cycleInfo.planPrice,
         finalPrice: cycleInfo.finalPrice,
+        planFeatures: selectedPlan?.features || [],
+        includedBenefits: selectedPlan?.features || [],
       };
       await onSubmit(payload);
       onClose();
@@ -655,18 +696,21 @@ export default function StudentForm({
         {/* Seat Hardware Facilities (Addon Options) */}
         {formData.status === 'active' && configuredAddons.length > 0 && (
           <div className="bg-slate-50 p-3.5 rounded-2xl border border-slate-200 space-y-2">
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between flex-wrap gap-1">
               <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
                 <Lock className="w-3.5 h-3.5 text-indigo-600" />
                 <span>Seat Hardware Facilities (ऐड-ऑन सुविधाएं):</span>
               </label>
-              <span className="text-[10px] text-indigo-600 font-semibold">Configured in Settings</span>
+              <span className="text-[10px] text-indigo-600 font-bold bg-indigo-50 px-2 py-0.5 rounded-md border border-indigo-200">
+                {configuredAddons.length} Configured in Settings
+              </span>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2">
               {configuredAddons.map((item) => {
                 const nameLower = item.name?.toLowerCase();
-                const isChecked = Boolean(
+                const isCovered = isAddonCoveredByPlan(item.name);
+                const isChecked = isCovered || Boolean(
                   selectedAddons[item.id] ||
                   (nameLower && selectedAddons[nameLower]) ||
                   (item.name && selectedAddons[item.name])
@@ -676,7 +720,9 @@ export default function StudentForm({
                     key={item.id || item.name}
                     className={`flex items-center justify-between gap-2 p-2.5 rounded-xl border text-xs font-bold cursor-pointer transition-all ${
                       isChecked
-                        ? 'border-indigo-600 bg-indigo-50 text-indigo-700 shadow-2xs'
+                        ? isCovered
+                          ? 'border-emerald-500 bg-emerald-50/90 text-emerald-900 shadow-2xs ring-1 ring-emerald-400/50'
+                          : 'border-indigo-600 bg-indigo-50 text-indigo-700 shadow-2xs'
                         : 'border-slate-200 bg-white hover:bg-slate-50 text-slate-600'
                     }`}
                   >
@@ -684,6 +730,7 @@ export default function StudentForm({
                       <input
                         type="checkbox"
                         checked={isChecked}
+                        disabled={isCovered}
                         onChange={(e) => {
                           const checked = e.target.checked;
                           const updated = { ...selectedAddons };
@@ -696,9 +743,15 @@ export default function StudentForm({
                       />
                       <span className="truncate">{item.name}</span>
                     </div>
-                    <span className="text-[10px] font-black opacity-80 shrink-0 bg-white/80 px-1.5 py-0.5 rounded border border-slate-200/60">
-                      ₹{item.monthlyCharge}/mo
-                    </span>
+                    {isCovered ? (
+                      <span className="text-[10px] font-black text-emerald-700 bg-white px-2 py-0.5 rounded border border-emerald-300 shrink-0 flex items-center gap-1">
+                        <Check className="w-3 h-3 text-emerald-600 stroke-[3]" /> Free with Plan
+                      </span>
+                    ) : (
+                      <span className="text-[10px] font-black opacity-80 shrink-0 bg-white/80 px-1.5 py-0.5 rounded border border-slate-200/60">
+                        ₹{item.monthlyCharge}/mo
+                      </span>
+                    )}
                   </label>
                 );
               })}
@@ -761,6 +814,27 @@ export default function StudentForm({
               />
             </div>
           </div>
+
+          {/* Plan Included Benefits Pill Banner */}
+          {selectedPlan?.features && selectedPlan.features.length > 0 && (
+            <div className="bg-emerald-50/90 border border-emerald-200 rounded-2xl p-3 animate-in fade-in">
+              <div className="flex items-center gap-1.5 text-xs font-black text-emerald-900 mb-1.5">
+                <Sparkles className="w-3.5 h-3.5 text-emerald-600" />
+                <span>Plan Included Benefits (इस प्लान में फ्री शामिल सुविधाएं):</span>
+              </div>
+              <div className="flex flex-wrap gap-1.5">
+                {selectedPlan.features.map((perk, i) => (
+                  <span
+                    key={i}
+                    className="text-[11px] font-bold bg-white text-emerald-800 border border-emerald-200 px-2.5 py-1 rounded-xl shadow-2xs flex items-center gap-1"
+                  >
+                    <Check className="w-3 h-3 text-emerald-600 stroke-[3]" />
+                    <span>{perk}</span>
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* Custom Days Input Block */}
           {formData.membershipPlanId === 'custom_days' && (

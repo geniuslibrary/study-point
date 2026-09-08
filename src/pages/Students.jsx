@@ -176,16 +176,20 @@ export default function Students() {
       joinDate: joinD.toISOString(),
       membershipStart: joinD.toISOString(),
       membershipEnd: membershipEnd.toISOString(),
+      planFeatures: formData.planFeatures || plan?.features || [],
+      includedBenefits: formData.includedBenefits || plan?.features || [],
       status: formData.status || 'active',
       notes: formData.notes || '',
     };
 
     const docRecord = await createDocument(COLLECTIONS.STUDENTS, newStudentData);
 
-    const { charges: addonCharges, total: addonTotal } = calculateSeatAddonCharges(
+    const planFeatures = formData.planFeatures || plan?.features || [];
+    const { charges: addonCharges, total: addonTotal, includedCharges } = calculateSeatAddonCharges(
       formData.addons,
       addonPricing,
-      duration
+      duration,
+      planFeatures
     );
 
     // If seat is allocated, also sync the selected hardware facilities onto the physical seat document
@@ -209,6 +213,9 @@ export default function Students() {
           baseFee,
           discountAmount: discount,
           addonCharges,
+          includedCharges: includedCharges || {},
+          planFeatures,
+          includedBenefits: planFeatures,
           dueDate: membershipEnd.toISOString(),
           paidDate: null,
           status: 'pending',
@@ -291,6 +298,8 @@ export default function Students() {
       joinDate: joinD.toISOString(),
       membershipStart: joinD.toISOString(),
       membershipEnd: membershipEnd.toISOString(),
+      planFeatures: formData.planFeatures || plan?.features || [],
+      includedBenefits: formData.includedBenefits || plan?.features || [],
       status: formData.status || 'active',
       notes: formData.notes || '',
     };
@@ -303,10 +312,12 @@ export default function Students() {
       });
     }
 
-    const { charges: addonCharges, total: addonTotal } = calculateSeatAddonCharges(
+    const editPlanFeatures = formData.planFeatures || plan?.features || [];
+    const { charges: addonCharges, total: addonTotal, includedCharges } = calculateSeatAddonCharges(
       formData.addons,
       addonPricing,
-      duration
+      duration,
+      editPlanFeatures
     );
 
     // Also update any pending fee records for this student to reflect new discount / plan / facilities
@@ -570,6 +581,7 @@ export default function Students() {
         seats={seats}
         plans={plans}
         students={students}
+        addonPricing={addonPricing}
       />
 
       <ConfirmDialog

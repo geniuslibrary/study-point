@@ -166,11 +166,18 @@ export default function FeeReceipt({ isOpen, onClose, fee, student, section, sea
         .join('');
     }
 
+    const perksList = fee.planFeatures || fee.includedBenefits || student?.planFeatures || student?.includedBenefits || [];
+    let perksSummary = '';
+    if (perksList.length > 0) {
+      perksSummary = `🎁 *Included Benefits:* ${perksList.join(', ')}\n`;
+    }
+
     const message = `🎉 *FEE PAYMENT RECEIPT - ${libraryTitle.toUpperCase()}*\n\n` +
       `Hello *${student?.name || 'Student'}*,\n` +
       `Your official fee payment of *₹${totalReceived}* has been confirmed!\n\n` +
       `🧾 *Receipt No:* ${receiptNo}\n` +
       `📦 *Plan:* ${planTitle}\n` +
+      (perksSummary ? perksSummary : '') +
       (addonSummary ? addonSummary : '') +
       (discountAmt > 0 ? `🏷️ *Discount:* -₹${discountAmt}\n` : '') +
       `📅 *Validity Period:* ${validityText}\n` +
@@ -277,6 +284,24 @@ export default function FeeReceipt({ isOpen, onClose, fee, student, section, sea
                     {formatCurrency(baseRate)}
                   </td>
                 </tr>
+                {(() => {
+                  const perks = fee.planFeatures || fee.includedBenefits || student?.planFeatures || student?.includedBenefits || [];
+                  if (perks.length === 0) return null;
+                  return (
+                    <tr className="bg-emerald-50/40">
+                      <td colSpan={2} className="px-4 py-2 text-emerald-800 text-[11px]">
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <span className="font-bold text-emerald-950">🎁 Free Plan Perks:</span>
+                          {perks.map((p, i) => (
+                            <span key={i} className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-900 border border-emerald-300">
+                              ✓ {p}
+                            </span>
+                          ))}
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })()}
                 {Object.entries(finalAddonCharges).map(([name, amt]) => {
                   const monthlyRate = duration > 0 ? Math.round(amt / duration) : amt;
                   return (

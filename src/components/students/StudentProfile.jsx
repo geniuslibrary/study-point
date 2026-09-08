@@ -18,6 +18,9 @@ import {
   Edit,
   Tag,
   IndianRupee,
+  Gift,
+  CheckCircle2,
+  Sparkles,
 } from 'lucide-react';
 import Button from '../common/Button';
 
@@ -213,31 +216,97 @@ export default function StudentProfile({
           </div>
         </div>
 
-        {/* Active Add-ons on the Seat */}
-        {seat?.addons && Object.values(seat.addons).some(Boolean) && (
-          <div className="bg-white p-4 rounded-2xl border border-slate-200">
-            <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2.5">
-              Seat Facilities & Add-ons
-            </h4>
-            <div className="flex flex-wrap gap-2">
-              {(seat.addons.locker || seat.addons.Locker) && (
-                <span className="flex items-center gap-1.5 px-3 py-1 bg-amber-50 text-amber-800 border border-amber-200 rounded-xl text-xs font-bold">
-                  <Lock className="w-3.5 h-3.5 text-amber-600" /> Locker Facility Assigned
-                </span>
+        {/* Plan Included Benefits & Active Facilities */}
+        {(() => {
+          const planPerks = student.planFeatures || student.includedBenefits || plan?.features || [];
+          const combinedAddons = { ...(seat?.addons || {}), ...(student?.addons || {}) };
+          const activeAddonsList = Object.entries(combinedAddons).filter(([_, active]) => Boolean(active));
+
+          if (planPerks.length === 0 && activeAddonsList.length === 0) return null;
+
+          return (
+            <div className="bg-white p-4 rounded-2xl border border-slate-200 space-y-3">
+              {/* Plan Bundled Benefits */}
+              {planPerks.length > 0 && (
+                <div>
+                  <h4 className="text-xs font-bold text-emerald-800 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                    <Gift className="w-3.5 h-3.5 text-emerald-600" />
+                    <span>Plan Included Benefits (इस प्लान में फ्री सुविधाएं)</span>
+                  </h4>
+                  <div className="flex flex-wrap gap-1.5">
+                    {planPerks.map((perk, idx) => (
+                      <span
+                        key={idx}
+                        className="inline-flex items-center gap-1 px-2.5 py-1 bg-emerald-50 text-emerald-800 border border-emerald-200 rounded-xl text-xs font-semibold"
+                      >
+                        <CheckCircle2 className="w-3 h-3 text-emerald-600 shrink-0" />
+                        {perk}
+                      </span>
+                    ))}
+                  </div>
+                </div>
               )}
-              {(seat.addons.wifi || seat.addons.WiFi || seat.addons.Wifi) && (
-                <span className="flex items-center gap-1.5 px-3 py-1 bg-blue-50 text-blue-800 border border-blue-200 rounded-xl text-xs font-bold">
-                  <Wifi className="w-3.5 h-3.5 text-blue-600" /> High-Speed WiFi
-                </span>
-              )}
-              {(seat.addons.light || seat.addons.lamp || seat.addons['Desk Light']) && (
-                <span className="flex items-center gap-1.5 px-3 py-1 bg-yellow-50 text-yellow-800 border border-yellow-200 rounded-xl text-xs font-bold">
-                  <Lamp className="w-3.5 h-3.5 text-yellow-600" /> Dedicated Desk Light
-                </span>
+
+              {/* Active Hardware / Seat Facilities */}
+              {activeAddonsList.length > 0 && (
+                <div className={planPerks.length > 0 ? 'pt-2 border-t border-slate-100' : ''}>
+                  <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">
+                    Active Seat Facilities & Add-ons
+                  </h4>
+                  <div className="flex flex-wrap gap-2">
+                    {activeAddonsList.map(([addonKey]) => {
+                      const lower = addonKey.toLowerCase();
+                      let IconComponent = Sparkles;
+                      let colorClass = 'bg-slate-50 text-slate-800 border-slate-200';
+                      let iconColor = 'text-slate-600';
+
+                      if (lower.includes('lock')) {
+                        IconComponent = Lock;
+                        colorClass = 'bg-amber-50 text-amber-900 border-amber-200';
+                        iconColor = 'text-amber-600';
+                      } else if (lower.includes('wifi')) {
+                        IconComponent = Wifi;
+                        colorClass = 'bg-blue-50 text-blue-900 border-blue-200';
+                        iconColor = 'text-blue-600';
+                      } else if (lower.includes('light') || lower.includes('lamp')) {
+                        IconComponent = Lamp;
+                        colorClass = 'bg-yellow-50 text-yellow-900 border-yellow-200';
+                        iconColor = 'text-yellow-600';
+                      }
+
+                      const isFreeWithPlan = planPerks.some((p) =>
+                        p.toLowerCase().includes(addonKey.toLowerCase()) ||
+                        addonKey.toLowerCase().includes(p.toLowerCase()) ||
+                        (lower.includes('wifi') && p.toLowerCase().includes('wifi')) ||
+                        (lower.includes('lock') && p.toLowerCase().includes('lock')) ||
+                        ((lower.includes('light') || lower.includes('lamp')) && (p.toLowerCase().includes('light') || p.toLowerCase().includes('lamp')))
+                      );
+
+                      return (
+                        <span
+                          key={addonKey}
+                          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold border ${colorClass}`}
+                        >
+                          <IconComponent className={`w-3.5 h-3.5 ${iconColor}`} />
+                          <span>{addonKey}</span>
+                          {isFreeWithPlan ? (
+                            <span className="text-[10px] px-1.5 py-0.2 bg-emerald-100 text-emerald-800 font-extrabold rounded-md ml-1">
+                              Free
+                            </span>
+                          ) : (
+                            <span className="text-[10px] px-1.5 py-0.2 bg-indigo-100 text-indigo-800 font-extrabold rounded-md ml-1">
+                              Add-on
+                            </span>
+                          )}
+                        </span>
+                      );
+                    })}
+                  </div>
+                </div>
               )}
             </div>
-          </div>
-        )}
+          );
+        })()}
 
         {/* Fee Payment History */}
         <div>
