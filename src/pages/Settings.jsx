@@ -38,12 +38,14 @@ import {
   setTenantItem,
 } from '../firebase/storageService';
 import { seedOneYearDummyData } from '../utils/seedData';
+import { useAuth } from '../context/AuthContext';
 
 const getSettingsLocalKey = () => `studypoint_${getActiveTenantId()}_settings`;
 const getAddonsLocalKey = () => `studypoint_${getActiveTenantId()}_addons`;
 const getShiftsLocalKey = () => `studypoint_${getActiveTenantId()}_shifts`;
 
 export default function Settings() {
+  const { user, refreshUserSession } = useAuth();
   const fileInputRef = useRef(null);
   const signInputRef = useRef(null);
 
@@ -227,6 +229,13 @@ export default function Settings() {
         await setDoc(getFirestoreDocRef(COLLECTIONS.SETTINGS, 'ownerProfile'), info);
       } catch (cloudErr) {
         console.warn('Cloud save warning:', cloudErr.message);
+      }
+
+      if (user && user.role === 'owner' && info.ownerName && info.ownerName.trim()) {
+        refreshUserSession({
+          ...user,
+          displayName: info.ownerName.trim(),
+        });
       }
 
       showToast('🎉 Library details, Logo & Signature saved successfully! All Bills will now display your Signature.');

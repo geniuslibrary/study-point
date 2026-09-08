@@ -6,8 +6,8 @@ import {
   onAuthStateChanged,
   createUserWithEmailAndPassword,
 } from 'firebase/auth';
-import { collectionGroup, getDocs } from 'firebase/firestore';
-import { fetchCollectionData, getLocalCollection } from '../firebase/storageService';
+import { collectionGroup, getDocs, getDoc } from 'firebase/firestore';
+import { fetchCollectionData, getLocalCollection, getFirestoreDocRef } from '../firebase/storageService';
 import { COLLECTIONS, ROLE_PRESETS } from '../utils/constants';
 
 const AuthContext = createContext();
@@ -92,10 +92,63 @@ export const AuthProvider = ({ children }) => {
       }
     };
 
+    // Sync owner session with configured ownerName from settings
+    const syncOwnerSession = async (currUser) => {
+      if (!currUser || currUser.role !== 'owner') return;
+      try {
+        const tenantId = currUser.tenantId || 'genius_root';
+        const sKey = `studypoint_${tenantId}_settings`;
+        let local = localStorage.getItem(sKey);
+        if (!local && tenantId === 'genius_root') {
+          local = localStorage.getItem('studypoint_settings');
+        }
+        let ownerName = '';
+        if (local) {
+          try {
+            const parsed = JSON.parse(local);
+            if (parsed.ownerName && parsed.ownerName.trim() && parsed.ownerName.toLowerCase() !== 'owner') {
+              ownerName = parsed.ownerName.trim();
+            }
+          } catch (_) {}
+        }
+
+        if (!ownerName) {
+          const docSnap = await getDoc(getFirestoreDocRef(COLLECTIONS.SETTINGS, 'ownerProfile'));
+          if (docSnap && docSnap.exists()) {
+            const cloudData = docSnap.data();
+            if (cloudData.ownerName && cloudData.ownerName.trim() && cloudData.ownerName.toLowerCase() !== 'owner') {
+              ownerName = cloudData.ownerName.trim();
+              if (local) {
+                try {
+                  const p = JSON.parse(local);
+                  localStorage.setItem(sKey, JSON.stringify({ ...p, ownerName }));
+                } catch (_) {}
+              }
+            }
+          }
+        }
+
+        if (ownerName && currUser.displayName !== ownerName) {
+          const updated = {
+            ...currUser,
+            displayName: ownerName,
+          };
+          setUser(updated);
+          localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(updated));
+        }
+      } catch (err) {
+        console.warn('Owner session sync warning:', err);
+      }
+    };
+
     if (savedSession) {
       try {
         const parsed = JSON.parse(savedSession);
-        syncStaffSession(parsed);
+        if (parsed.role !== 'owner') {
+          syncStaffSession(parsed);
+        } else {
+          syncOwnerSession(parsed);
+        }
       } catch (e) {}
     }
 
@@ -129,6 +182,8 @@ export const AuthProvider = ({ children }) => {
             setUser(parsed);
             if (parsed.role !== 'owner') {
               syncStaffSession(parsed);
+            } else {
+              syncOwnerSession(parsed);
             }
           } catch (e) {}
         } else {
@@ -143,6 +198,7 @@ export const AuthProvider = ({ children }) => {
           };
           setUser(userData);
           localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(userData));
+          syncOwnerSession(userData);
         }
       } else {
         const local = localStorage.getItem(LOCAL_STORAGE_KEY);

@@ -470,4 +470,58 @@ export const checkAndAutoReleaseExpiredMemberships = async () => {
   return [];
 };
 
+/**
+ * Resolves a human-friendly user display name.
+ * Falls back from user.displayName -> user.name -> saved library ownerName -> email prefix.
+ */
+export const getUserDisplayName = (user) => {
+  if (!user) return 'User';
 
+  // 1. If staff user, or if displayName is a real name (not generic 'Owner' / 'Study Point Owner')
+  const genericNames = ['owner', 'library owner', 'study point owner', 'staff member', 'team member'];
+  if (user.displayName && !genericNames.includes(user.displayName.trim().toLowerCase())) {
+    return user.displayName.trim();
+  }
+
+  // 2. If user.name is provided
+  if (user.name && !genericNames.includes(user.name.trim().toLowerCase())) {
+    return user.name.trim();
+  }
+
+  // 3. Try reading from saved library settings in localStorage
+  try {
+    let tenantId = 'genius_root';
+    try {
+      tenantId = getActiveTenantId();
+    } catch (_) {
+      tenantId = user.tenantId || 'genius_root';
+    }
+    const sKey = `studypoint_${tenantId}_settings`;
+    let local = typeof window !== 'undefined' ? localStorage.getItem(sKey) : null;
+    if (!local && typeof window !== 'undefined') {
+      local = localStorage.getItem('studypoint_settings');
+    }
+    if (local) {
+      const parsed = JSON.parse(local);
+      if (parsed.ownerName && parsed.ownerName.trim() && !genericNames.includes(parsed.ownerName.trim().toLowerCase())) {
+        return parsed.ownerName.trim();
+      }
+    }
+  } catch (_) {}
+
+  // 4. Try from email prefix (e.g. manish@... -> Manish)
+  if (user.email && user.email.includes('@')) {
+    const prefix = user.email.split('@')[0];
+    const cleaned = prefix.replace(/[0-9]/g, '').replace(/[._-]/g, ' ').trim();
+    if (cleaned) {
+      return cleaned
+        .split(' ')
+        .filter(Boolean)
+        .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+        .join(' ');
+    }
+    return user.email.split('@')[0];
+  }
+
+  return user.displayName || 'Owner';
+};

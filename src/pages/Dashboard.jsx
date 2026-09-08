@@ -58,7 +58,7 @@ import {
   TrendingUp,
   Sliders,
 } from 'lucide-react';
-import { formatCurrency, formatDate } from '../utils/helpers';
+import { formatCurrency, formatDate, getUserDisplayName } from '../utils/helpers';
 
 export default function Dashboard() {
   const { user, userRole, hasPermission } = useAuth();
@@ -759,7 +759,7 @@ export default function Dashboard() {
               </div>
 
               <h1 className="text-2xl sm:text-3xl lg:text-4xl font-black tracking-tight text-white">
-                Welcome back, {user?.displayName || user?.name || (!isStaff ? 'Owner' : 'Team Member')} 👋
+                Welcome back, {getUserDisplayName(user)} 👋
               </h1>
               <p className="text-indigo-200/90 text-xs sm:text-sm mt-1.5 max-w-xl font-medium leading-relaxed">
                 Study Point Smart Hub • <span className="text-white font-bold">{stats.totalStudents} Active Students</span> enrolled across <span className="text-white font-bold">{stats.totalSeats} seats</span> ({occupancyRate}% occupancy).

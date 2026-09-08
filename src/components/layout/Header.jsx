@@ -4,6 +4,7 @@ import NotificationPanel from './NotificationPanel';
 import { useAuth } from '../../context/AuthContext';
 import { fetchCollectionData } from '../../firebase/storageService';
 import { COLLECTIONS } from '../../utils/constants';
+import { getUserDisplayName } from '../../utils/helpers';
 
 const getHeaderRoleBadge = (user) => {
   if (!user) return 'Staff';
@@ -106,11 +107,11 @@ const Header = ({ title, onMenuClick }) => {
           {/* User Role Badge & Profile */}
           <div className="flex items-center gap-2 pl-2 border-l border-gray-200">
             <div className="w-9 h-9 bg-indigo-100/90 text-indigo-700 rounded-xl flex items-center justify-center font-bold text-xs shadow-2xs">
-              {user?.displayName?.charAt(0) || 'O'}
+              {getUserDisplayName(user).charAt(0).toUpperCase() || 'U'}
             </div>
             <div className="hidden md:block text-left">
               <p className="text-xs font-bold text-gray-900 leading-tight">
-                {user?.displayName || 'Study Point Owner'}
+                {getUserDisplayName(user)}
               </p>
               <span className="text-[10px] font-bold bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded-md border border-indigo-100 mt-0.5 inline-block">
                 {getHeaderRoleBadge(user)}

@@ -17,6 +17,7 @@ import {
   Zap,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
+import { getUserDisplayName } from '../../utils/helpers';
 
 const Sidebar = ({ isOpen, setIsOpen, onLogout }) => {
   const { user, hasPermission } = useAuth();
@@ -114,11 +115,11 @@ const Sidebar = ({ isOpen, setIsOpen, onLogout }) => {
         <div className="p-4 border-t border-slate-100 bg-slate-50/50">
           <div className="mb-2.5 p-2.5 bg-white rounded-xl border border-slate-200/80 shadow-2xs flex items-center gap-2.5">
             <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 text-white flex items-center justify-center font-extrabold text-xs shadow-xs shrink-0">
-              {user?.displayName?.charAt(0) || 'O'}
+              {getUserDisplayName(user).charAt(0).toUpperCase() || 'U'}
             </div>
             <div className="truncate flex-1 min-w-0">
               <p className="text-xs font-bold text-slate-900 truncate leading-tight">
-                {user?.displayName || 'Study Point Owner'}
+                {getUserDisplayName(user)}
               </p>
               <p className="text-[10px] text-slate-400 truncate">{user?.email}</p>
             </div>
