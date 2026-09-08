@@ -37,7 +37,6 @@ export default function PlanForm({ isOpen, onClose, onSubmit, editData, shifts =
 
   const [shiftsList, setShiftsList] = useState([]);
   const [addonsList, setAddonsList] = useState([]);
-  const [customPerkInput, setCustomPerkInput] = useState('');
 
   useEffect(() => {
     if (isOpen) {
@@ -141,19 +140,6 @@ export default function PlanForm({ isOpen, onClose, onSubmit, editData, shifts =
 
     return names;
   }, [addonsList, formData.features]);
-
-  const handleAddCustomPerk = (e) => {
-    if (e) e.preventDefault();
-    const val = customPerkInput.trim();
-    if (!val) return;
-    if (!formData.features.includes(val)) {
-      setFormData((prev) => ({
-        ...prev,
-        features: [...prev.features, val],
-      }));
-    }
-    setCustomPerkInput('');
-  };
 
   useEffect(() => {
     if (editData) {
@@ -626,32 +612,6 @@ export default function PlanForm({ isOpen, onClose, onSubmit, editData, shifts =
               })}
             </div>
           )}
-
-          {/* Quick Add Custom Perk */}
-          <div className="mt-2.5 flex items-center gap-2">
-            <input
-              type="text"
-              value={customPerkInput}
-              onChange={(e) => setCustomPerkInput(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') {
-                  e.preventDefault();
-                  handleAddCustomPerk(e);
-                }
-              }}
-              placeholder="+ Type extra perk (e.g. RO Water, AC)"
-              className="text-xs px-3 py-1.5 border border-slate-200 rounded-xl bg-white focus:ring-2 focus:ring-indigo-500 text-slate-800 placeholder-slate-400 max-w-xs shadow-2xs"
-            />
-            {customPerkInput.trim() && (
-              <button
-                type="button"
-                onClick={handleAddCustomPerk}
-                className="text-xs font-bold px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl cursor-pointer shadow-2xs"
-              >
-                Add Perk
-              </button>
-            )}
-          </div>
         </div>
 
         {/* Plan Status Active Switch */}
