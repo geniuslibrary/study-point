@@ -272,11 +272,11 @@ export function DailyCollectionBarWidget({ fees = [] }) {
             <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-700 text-white flex items-center justify-center shadow-md shadow-emerald-500/20 shrink-0">
               <BarChart3 className="w-4 h-4 sm:w-5 sm:h-5" />
             </div>
-            <div className="min-w-0">
-              <h3 className="font-black text-slate-900 text-sm sm:text-base leading-tight truncate">
+            <div>
+              <h3 className="font-black text-slate-900 text-sm sm:text-base leading-snug">
                 Daily Fee Collection (7 Days)
               </h3>
-              <p className="text-[10px] sm:text-[11px] text-slate-500 font-semibold truncate">दैनिक 7-दिवसीय फीस वेलोसिटी ग्राफ</p>
+              <p className="text-[10px] sm:text-[11px] text-slate-500 font-semibold">दैनिक 7-दिवसीय फीस वेलोसिटी ग्राफ</p>
             </div>
           </div>
           <div className="text-right shrink-0">
@@ -379,11 +379,11 @@ export function SeatOccupancyGaugeWidget({ seats = [], students = [] }) {
             <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-2xl bg-gradient-to-br from-indigo-600 to-purple-700 text-white flex items-center justify-center shadow-md shadow-indigo-500/20 shrink-0">
               <Gauge className="w-5 h-5" />
             </div>
-            <div className="min-w-0">
-              <h3 className="font-black text-slate-900 text-sm sm:text-base leading-tight truncate">
+            <div>
+              <h3 className="font-black text-slate-900 text-sm sm:text-base leading-snug">
                 Live Capacity Speedometer
               </h3>
-              <p className="text-[10px] sm:text-[11px] text-slate-500 font-semibold truncate">हॉल ऑक्यूपेंसी स्पीडोमीटर व खाली सीटें</p>
+              <p className="text-[10px] sm:text-[11px] text-slate-500 font-semibold">हॉल ऑक्यूपेंसी स्पीडोमीटर व खाली सीटें</p>
             </div>
           </div>
           <span className={`text-[10px] sm:text-xs font-black px-2.5 sm:px-3 py-1 rounded-full border shadow-xs shrink-0 ${
@@ -397,100 +397,101 @@ export function SeatOccupancyGaugeWidget({ seats = [], students = [] }) {
           </span>
         </div>
 
-        {/* Luxury Radial Arc Cockpit Gauge */}
-        <div className="flex flex-col items-center justify-center pt-2">
-          <div className="relative w-48 h-28 sm:w-56 sm:h-32 flex items-center justify-center">
-            <svg className="w-48 h-48 sm:w-56 sm:h-56 absolute -top-4" viewBox="0 0 200 200">
-              <defs>
-                <linearGradient id="gaugeGradient" x1="0%" y1="0%" x2="100%" y2="0%">
-                  <stop offset="0%" stopColor="#10b981" />
-                  <stop offset="50%" stopColor="#f59e0b" />
-                  <stop offset="100%" stopColor="#e11d48" />
-                </linearGradient>
-                <filter id="needleShadow" x="-30%" y="-30%" width="160%" height="160%">
-                  <feDropShadow dx="0" dy="2" stdDeviation="3" floodColor="#0f172a" floodOpacity="0.4" />
-                </filter>
-              </defs>
+        {/* Luxury Radial Top Semi-Circle Cockpit Gauge */}
+        <div className="flex flex-col items-center justify-center pt-1">
+          <svg className="w-48 sm:w-56 h-auto" viewBox="0 0 200 142">
+            <defs>
+              <linearGradient id="gaugeGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+                <stop offset="0%" stopColor="#10b981" />
+                <stop offset="50%" stopColor="#f59e0b" />
+                <stop offset="100%" stopColor="#e11d48" />
+              </linearGradient>
+              <filter id="needleShadow" x="-30%" y="-30%" width="160%" height="160%">
+                <feDropShadow dx="0" dy="2" stdDeviation="2.5" floodColor="#0f172a" floodOpacity="0.35" />
+              </filter>
+            </defs>
 
-              {/* Background Inactive Arc */}
-              <circle
-                cx="100"
-                cy="100"
-                r="75"
-                fill="none"
-                stroke="#e2e8f0"
-                strokeWidth="14"
-                strokeDasharray="235.6 235.6"
-                strokeDashoffset="0"
-                strokeLinecap="round"
-                transform="rotate(180 100 100)"
-              />
+            {/* Background Inactive Track Arc (top semi-circle) */}
+            <path
+              d="M 25 95 A 75 75 0 0 1 175 95"
+              fill="none"
+              stroke="#e2e8f0"
+              strokeWidth="14"
+              strokeLinecap="round"
+            />
 
-              {/* Dynamic Gradient Value Arc */}
-              <circle
-                cx="100"
-                cy="100"
-                r="75"
-                fill="none"
-                stroke="url(#gaugeGradient)"
-                strokeWidth="14"
-                strokeDasharray="235.6 235.6"
-                strokeDashoffset={dashOffset}
-                strokeLinecap="round"
-                transform="rotate(180 100 100)"
-                className="transition-all duration-1000 ease-out"
-              />
+            {/* Dynamic Value Arc */}
+            <path
+              d="M 25 95 A 75 75 0 0 1 175 95"
+              fill="none"
+              stroke="url(#gaugeGradient)"
+              strokeWidth="14"
+              strokeLinecap="round"
+              strokeDasharray="235.62"
+              strokeDashoffset={235.62 - (occupancyPct / 100) * 235.62}
+              className="transition-all duration-1000 ease-out"
+            />
 
-              {/* Gauge Ticks */}
-              {[0, 25, 50, 75, 100].map((tick) => {
-                const angle = -180 + (tick / 100) * 180;
-                const rad = (angle * Math.PI) / 180;
-                const x1 = 100 + 60 * Math.cos(rad);
-                const y1 = 100 + 60 * Math.sin(rad);
-                const x2 = 100 + 66 * Math.cos(rad);
-                const y2 = 100 + 66 * Math.sin(rad);
-                return (
-                  <line
-                    key={tick}
-                    x1={x1}
-                    y1={y1}
-                    x2={x2}
-                    y2={y2}
-                    stroke="#94a3b8"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                  />
-                );
-              })}
-
-              {/* Needle Indicator */}
-              <g transform={`rotate(${needleAngle} 100 100)`} className="transition-transform duration-1000 ease-out">
+            {/* Gauge Ticks */}
+            {[0, 25, 50, 75, 100].map((tick) => {
+              const rad = Math.PI - (tick / 100) * Math.PI;
+              const x1 = 100 + 58 * Math.cos(rad);
+              const y1 = 95 - 58 * Math.sin(rad);
+              const x2 = 100 + 64 * Math.cos(rad);
+              const y2 = 95 - 64 * Math.sin(rad);
+              return (
                 <line
-                  x1="100"
-                  y1="100"
-                  x2="100"
-                  y2="34"
-                  stroke="#0f172a"
-                  strokeWidth="3.5"
+                  key={tick}
+                  x1={x1}
+                  y1={y1}
+                  x2={x2}
+                  y2={y2}
+                  stroke="#cbd5e1"
+                  strokeWidth="2"
                   strokeLinecap="round"
-                  filter="url(#needleShadow)"
                 />
-                <circle cx="100" cy="34" r="3.5" fill="#f43f5e" />
-              </g>
+              );
+            })}
 
-              {/* Center Pivot Dial */}
-              <circle cx="100" cy="100" r="10" fill="#0f172a" />
-              <circle cx="100" cy="100" r="5" fill="#38bdf8" />
-            </svg>
+            {/* Needle Indicator */}
+            <g transform={`rotate(${needleAngle} 100 95)`} className="transition-transform duration-1000 ease-out">
+              <line
+                x1="100"
+                y1="95"
+                x2="100"
+                y2="38"
+                stroke="#0f172a"
+                strokeWidth="3.5"
+                strokeLinecap="round"
+                filter="url(#needleShadow)"
+              />
+              <circle cx="100" cy="38" r="3.5" fill="#f43f5e" />
+            </g>
 
-            {/* Big Center Digital HUD Readout */}
-            <div className="absolute bottom-0 text-center">
-              <p className="text-2xl sm:text-4xl font-black text-slate-900 tracking-tight leading-none">
-                {occupancyPct}%
-              </p>
-              <p className="text-[9px] sm:text-[10px] text-slate-400 font-bold uppercase tracking-wider mt-1">Total Capacity</p>
-            </div>
-          </div>
+            {/* Center Pivot Dial */}
+            <circle cx="100" cy="95" r="7" fill="#0f172a" />
+            <circle cx="100" cy="95" r="3.5" fill="#38bdf8" />
+
+            {/* Digital HUD Readout - perfectly placed below pivot */}
+            <text
+              x="100"
+              y="118"
+              textAnchor="middle"
+              className="fill-slate-900"
+              style={{ fontSize: '26px', fontWeight: 900, fontFamily: 'inherit' }}
+            >
+              {occupancyPct}%
+            </text>
+            <text
+              x="100"
+              y="131"
+              textAnchor="middle"
+              className="fill-slate-400 uppercase tracking-wider"
+              style={{ fontSize: '9px', fontWeight: 800, letterSpacing: '0.08em', fontFamily: 'inherit' }}
+            >
+              TOTAL CAPACITY
+            </text>
+          </svg>
         </div>
 
         {/* 3 Metric Cards */}
@@ -571,11 +572,11 @@ export function PlanPopularityDonutWidget({ students = [], plans = [] }) {
             <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-2xl bg-gradient-to-br from-purple-500 to-indigo-700 text-white flex items-center justify-center shadow-md shadow-purple-500/20 shrink-0">
               <PieChart className="w-5 h-5" />
             </div>
-            <div className="min-w-0">
-              <h3 className="font-black text-slate-900 text-sm sm:text-base leading-tight truncate">
+            <div>
+              <h3 className="font-black text-slate-900 text-sm sm:text-base leading-snug">
                 Plan Popularity & Donut
               </h3>
-              <p className="text-[10px] sm:text-[11px] text-slate-500 font-semibold truncate">मेंबरशिप प्लान्स का सर्कुलर विज़ुअल शेयर</p>
+              <p className="text-[10px] sm:text-[11px] text-slate-500 font-semibold">मेंबरशिप प्लान्स का सर्कुलर विज़ुअल शेयर</p>
             </div>
           </div>
           <span className="text-[10px] sm:text-xs font-black text-purple-700 bg-purple-50 px-2.5 sm:px-3 py-1 rounded-full border border-purple-200 shadow-xs shrink-0">
@@ -691,11 +692,11 @@ export function AdmissionVsExitGrowthWidget({ students = [] }) {
             <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-2xl bg-gradient-to-br from-teal-500 to-emerald-700 text-white flex items-center justify-center shadow-md shadow-teal-500/20 shrink-0">
               <TrendingUp className="w-5 h-5" />
             </div>
-            <div className="min-w-0">
-              <h3 className="font-black text-slate-900 text-sm sm:text-base leading-tight truncate">
+            <div>
+              <h3 className="font-black text-slate-900 text-sm sm:text-base leading-snug">
                 Net Growth & Exit Velocity
               </h3>
-              <p className="text-[10px] sm:text-[11px] text-slate-500 font-semibold truncate">6 माह नए एडमिशन बनाम लेफ्ट छात्र</p>
+              <p className="text-[10px] sm:text-[11px] text-slate-500 font-semibold">6 माह नए एडमिशन बनाम लेफ्ट छात्र</p>
             </div>
           </div>
           <span className={`inline-flex items-center gap-1 text-[10px] sm:text-xs font-black px-2.5 sm:px-3 py-1 rounded-full border shadow-xs shrink-0 ${
@@ -798,11 +799,11 @@ export function ShiftCapacityCompareWidget({ seats = [], students = [] }) {
             <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-2xl bg-gradient-to-br from-cyan-500 to-blue-700 text-white flex items-center justify-center shadow-md shadow-cyan-500/20 shrink-0">
               <Layers className="w-5 h-5" />
             </div>
-            <div className="min-w-0">
-              <h3 className="font-black text-slate-900 text-sm sm:text-base leading-tight truncate">
+            <div>
+              <h3 className="font-black text-slate-900 text-sm sm:text-base leading-snug">
                 Shift Slot Capacity & Vacancy
               </h3>
-              <p className="text-[10px] sm:text-[11px] text-slate-500 font-semibold truncate">शिफ्ट-वाइज खाली और भरी सीटों का सटीक ग्राफ</p>
+              <p className="text-[10px] sm:text-[11px] text-slate-500 font-semibold">शिफ्ट-वाइज खाली और भरी सीटों का सटीक ग्राफ</p>
             </div>
           </div>
           <span className="text-[10px] sm:text-xs font-black text-cyan-700 bg-cyan-50 px-2.5 sm:px-3 py-1 rounded-full border border-cyan-200 shadow-xs shrink-0">
@@ -895,11 +896,11 @@ export function FeeAgingRecoveryWidget({ students = [], fees = [] }) {
             <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-2xl bg-gradient-to-br from-rose-500 to-red-700 text-white flex items-center justify-center shadow-md shadow-rose-500/20 shrink-0">
               <ShieldAlert className="w-5 h-5" />
             </div>
-            <div className="min-w-0">
-              <h3 className="font-black text-slate-900 text-sm sm:text-base leading-tight truncate">
+            <div>
+              <h3 className="font-black text-slate-900 text-sm sm:text-base leading-snug">
                 Fee Dues Aging & Recovery
               </h3>
-              <p className="text-[10px] sm:text-[11px] text-slate-500 font-semibold truncate">बकाया फीस रिकवरी बकेट व रिस्क फनेल</p>
+              <p className="text-[10px] sm:text-[11px] text-slate-500 font-semibold">बकाया फीस रिकवरी बकेट व रिस्क फनेल</p>
             </div>
           </div>
           <div className="text-right shrink-0">
@@ -961,11 +962,11 @@ export function ProfitMarginExpenseWidget({ revenue = 0, expenses = [] }) {
             <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-700 text-white flex items-center justify-center shadow-md shadow-emerald-500/20 shrink-0">
               <CircleDollarSign className="w-5 h-5" />
             </div>
-            <div className="min-w-0">
-              <h3 className="font-black text-slate-900 text-sm sm:text-base leading-tight truncate">
+            <div>
+              <h3 className="font-black text-slate-900 text-sm sm:text-base leading-snug">
                 Net Profit & Operating Margin
               </h3>
-              <p className="text-[10px] sm:text-[11px] text-slate-500 font-semibold truncate">कमाई, खर्चे व शुद्ध मुनाफा विज़ुअल स्प्लिट</p>
+              <p className="text-[10px] sm:text-[11px] text-slate-500 font-semibold">कमाई, खर्चे व शुद्ध मुनाफा विज़ुअल स्प्लिट</p>
             </div>
           </div>
           <span className="text-[10px] sm:text-xs font-black text-emerald-800 bg-emerald-50 px-2.5 sm:px-3 py-1 rounded-full border border-emerald-200 shadow-xs shrink-0">
@@ -1050,11 +1051,11 @@ export function AverageRevenueMetricWidget({ students = [], revenue = 0 }) {
             <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-2xl bg-gradient-to-br from-amber-500 to-orange-600 text-white flex items-center justify-center shadow-md shadow-amber-500/20 shrink-0">
               <Award className="w-5 h-5" />
             </div>
-            <div className="min-w-0">
-              <h3 className="font-black text-slate-900 text-sm sm:text-base leading-tight truncate">
+            <div>
+              <h3 className="font-black text-slate-900 text-sm sm:text-base leading-snug">
                 ARPU & Student Lifetime Value
               </h3>
-              <p className="text-[10px] sm:text-[11px] text-slate-500 font-semibold truncate">प्रति छात्र औसत कमाई (LTV व मासिक टिकट साइज)</p>
+              <p className="text-[10px] sm:text-[11px] text-slate-500 font-semibold">प्रति छात्र औसत कमाई (LTV व मासिक टिकट साइज)</p>
             </div>
           </div>
           <span className="text-[10px] sm:text-xs font-black text-amber-700 bg-amber-50 px-2.5 sm:px-3 py-1 rounded-full border border-amber-200 shadow-xs shrink-0">
@@ -1136,11 +1137,11 @@ export function StudyTimeDistributionWidget({ students = [] }) {
             <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-2xl bg-gradient-to-br from-blue-500 to-indigo-700 text-white flex items-center justify-center shadow-md shadow-blue-500/20 shrink-0">
               <Compass className="w-5 h-5" />
             </div>
-            <div className="min-w-0">
-              <h3 className="font-black text-slate-900 text-sm sm:text-base leading-tight truncate">
+            <div>
+              <h3 className="font-black text-slate-900 text-sm sm:text-base leading-snug">
                 Study Time Preference Radar
               </h3>
-              <p className="text-[10px] sm:text-[11px] text-slate-500 font-semibold truncate">छात्रों की समय स्लॉट प्राथमिकता रडार चार्ट</p>
+              <p className="text-[10px] sm:text-[11px] text-slate-500 font-semibold">छात्रों की समय स्लॉट प्राथमिकता रडार चार्ट</p>
             </div>
           </div>
           <span className="text-[10px] sm:text-xs font-black text-blue-700 bg-blue-50 px-2.5 sm:px-3 py-1 rounded-full border border-blue-200 shadow-xs shrink-0">
@@ -1258,11 +1259,11 @@ export function ThermalRushHeatmapWidget({ students = [], seats = [] }) {
             <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-2xl bg-gradient-to-br from-rose-500 to-amber-600 text-white flex items-center justify-center shadow-md shadow-rose-500/20 shrink-0">
               <Grid3X3 className="w-5 h-5" />
             </div>
-            <div className="min-w-0">
-              <h3 className="font-black text-slate-900 text-sm sm:text-base leading-tight truncate">
+            <div>
+              <h3 className="font-black text-slate-900 text-sm sm:text-base leading-snug">
                 7-Day Thermal Rush Heatmap
               </h3>
-              <p className="text-[10px] sm:text-[11px] text-slate-500 font-semibold truncate">साप्ताहिक 7-दिन थर्मल हीट ग्रिड (दिन व घंटेवार)</p>
+              <p className="text-[10px] sm:text-[11px] text-slate-500 font-semibold">साप्ताहिक 7-दिन थर्मल हीट ग्रिड (दिन व घंटेवार)</p>
             </div>
           </div>
           <span className="text-[10px] sm:text-xs font-black text-rose-700 bg-rose-50 px-2.5 sm:px-3 py-1 rounded-full border border-rose-200 shadow-xs shrink-0">
@@ -1346,11 +1347,11 @@ export function VisualSeatFloorMapWidget({ seats = [], students = [] }) {
             <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-2xl bg-gradient-to-br from-indigo-600 to-purple-700 text-white flex items-center justify-center shadow-md shadow-indigo-500/20 shrink-0">
               <Armchair className="w-5 h-5" />
             </div>
-            <div className="min-w-0">
-              <h3 className="font-black text-slate-900 text-sm sm:text-base leading-tight truncate">
+            <div>
+              <h3 className="font-black text-slate-900 text-sm sm:text-base leading-snug">
                 Live 2D Seat Floor Matrix
               </h3>
-              <p className="text-[10px] sm:text-[11px] text-slate-500 font-semibold truncate">लाइब्रेरी हॉल का लाइव 2D विज़ुअल मैप</p>
+              <p className="text-[10px] sm:text-[11px] text-slate-500 font-semibold">लाइब्रेरी हॉल का लाइव 2D विज़ुअल मैप</p>
             </div>
           </div>
           <span className="text-[10px] sm:text-xs font-black text-indigo-700 bg-indigo-50 px-2.5 sm:px-3 py-1 rounded-full border border-indigo-200 shadow-xs shrink-0">
