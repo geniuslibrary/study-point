@@ -274,12 +274,8 @@ export default function StudentProfile({
                         iconColor = 'text-yellow-600';
                       }
 
-                      const isFreeWithPlan = planPerks.some((p) =>
-                        p.toLowerCase().includes(addonKey.toLowerCase()) ||
-                        addonKey.toLowerCase().includes(p.toLowerCase()) ||
-                        (lower.includes('wifi') && p.toLowerCase().includes('wifi')) ||
-                        (lower.includes('lock') && p.toLowerCase().includes('lock')) ||
-                        ((lower.includes('light') || lower.includes('lamp')) && (p.toLowerCase().includes('light') || p.toLowerCase().includes('lamp')))
+                      const isFreeWithPlan = planPerks.some(
+                        (p) => String(p).toLowerCase().trim() === addonKey.toLowerCase().trim()
                       );
 
                       return (

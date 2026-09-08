@@ -112,44 +112,32 @@ export default function StudentForm({
   const isAddonCoveredByPlan = (addonName) => {
     if (!planFeatures || planFeatures.length === 0 || !addonName) return false;
     const aName = addonName.toLowerCase().trim();
-    return planFeatures.some((perk) => {
-      const p = String(perk).toLowerCase().trim();
-      if (p === aName) return true;
-      if (p.includes(aName) || aName.includes(p)) {
-        if (
-          (p.includes('personal') && !aName.includes('personal')) ||
-          (!p.includes('personal') && aName.includes('personal'))
-        ) {
-          return false;
-        }
-        return true;
-      }
-      if (aName.includes('wifi') && p.includes('wifi')) return true;
-      if (aName.includes('locker') && p.includes('locker')) {
-        if (
-          (p.includes('personal') && !aName.includes('personal')) ||
-          (!p.includes('personal') && aName.includes('personal'))
-        ) {
-          return false;
-        }
-        return true;
-      }
-      if ((aName.includes('light') || aName.includes('lamp')) && (p.includes('light') || p.includes('lamp'))) return true;
-      if ((aName.includes('ac') || aName.includes('cooler')) && (p.includes('ac') || p.includes('air conditioned'))) return true;
-      return false;
-    });
+    return planFeatures.some((perk) => String(perk).toLowerCase().trim() === aName);
   };
 
   // Automatically check any facilities that come included free with the selected membership plan
   useEffect(() => {
-    if (planFeatures.length > 0 && configuredAddons.length > 0) {
+    if (configuredAddons.length > 0) {
       setSelectedAddons((prev) => {
-        const next = { ...prev };
+        const next = {};
         configuredAddons.forEach((addon) => {
+          const nameLower = addon.name?.toLowerCase();
           if (isAddonCoveredByPlan(addon.name)) {
+            // Auto-check only this facility because it is covered free in this plan
             if (addon.id) next[addon.id] = true;
             if (addon.name) next[addon.name] = true;
             next[addon.name.toLowerCase()] = true;
+          } else if (
+            prev[addon.id] ||
+            (nameLower && prev[nameLower]) ||
+            (addon.name && prev[addon.name])
+          ) {
+            // Keep if user was editing an existing student with this addon
+            if (editData?.addons?.[addon.id] || editData?.addons?.[addon.name] || editData?.addons?.[nameLower]) {
+              if (addon.id) next[addon.id] = true;
+              if (addon.name) next[addon.name] = true;
+              next[addon.name.toLowerCase()] = true;
+            }
           }
         });
         return next;
@@ -721,7 +709,7 @@ export default function StudentForm({
               </span>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5">
               {configuredAddons.map((item) => {
                 const nameLower = item.name?.toLowerCase();
                 const isCovered = isAddonCoveredByPlan(item.name);
@@ -741,29 +729,31 @@ export default function StudentForm({
                         : 'border-slate-200 bg-white hover:bg-slate-50 text-slate-600'
                     }`}
                   >
-                    <div className="flex items-center gap-2 min-w-0">
+                    <div className="flex items-center gap-2 min-w-0 flex-1">
                       <input
                         type="checkbox"
                         checked={isChecked}
                         disabled={isCovered}
                         onChange={(e) => {
                           const checked = e.target.checked;
-                          const updated = { ...selectedAddons };
-                          if (item.id) updated[item.id] = checked;
-                          if (nameLower) updated[nameLower] = checked;
-                          if (item.name) updated[item.name] = checked;
-                          setSelectedAddons(updated);
+                          setSelectedAddons((prev) => {
+                            const updated = { ...prev };
+                            if (item.id) updated[item.id] = checked;
+                            if (nameLower) updated[nameLower] = checked;
+                            if (item.name) updated[item.name] = checked;
+                            return updated;
+                          });
                         }}
-                        className="rounded text-indigo-600 focus:ring-indigo-500 shrink-0"
+                        className="rounded text-indigo-600 focus:ring-indigo-500 shrink-0 cursor-pointer"
                       />
-                      <span className="truncate">{item.name}</span>
+                      <span className="text-xs font-bold text-slate-800 break-words leading-tight">{item.name}</span>
                     </div>
                     {isCovered ? (
-                      <span className="text-[10px] font-black text-emerald-700 bg-white px-2 py-0.5 rounded border border-emerald-300 shrink-0 flex items-center gap-1">
-                        <Check className="w-3 h-3 text-emerald-600 stroke-[3]" /> Free with Plan
+                      <span className="text-[10px] font-black text-emerald-800 bg-emerald-100 px-2 py-0.5 rounded border border-emerald-300 shrink-0 flex items-center gap-1">
+                        <Check className="w-3 h-3 text-emerald-600 stroke-[3]" /> Free
                       </span>
                     ) : (
-                      <span className="text-[10px] font-black opacity-80 shrink-0 bg-white/80 px-1.5 py-0.5 rounded border border-slate-200/60">
+                      <span className="text-[10px] font-bold text-indigo-900 shrink-0 bg-indigo-50 px-2 py-0.5 rounded border border-indigo-200">
                         ₹{item.monthlyCharge}/mo
                       </span>
                     )}

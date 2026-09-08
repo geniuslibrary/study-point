@@ -119,36 +119,11 @@ export const calculateSeatAddonCharges = (
   const duration = Number(durationMonths) || 1;
   const list = Array.isArray(addonList) && addonList.length > 0 ? addonList : getStoredAddons();
 
-  // Helper to check if a configured addon is already included free in the membership plan perks
+  // Helper to check if a configured addon is already included free in the membership plan perks (Strict Exact Match)
   const isCoveredByPerk = (addonName) => {
     if (!Array.isArray(includedPerks) || includedPerks.length === 0 || !addonName) return false;
     const aName = addonName.toLowerCase().trim();
-    return includedPerks.some((perk) => {
-      const p = String(perk).toLowerCase().trim();
-      if (p === aName) return true;
-      if (p.includes(aName) || aName.includes(p)) {
-        if (
-          (p.includes('personal') && !aName.includes('personal')) ||
-          (!p.includes('personal') && aName.includes('personal'))
-        ) {
-          return false;
-        }
-        return true;
-      }
-      if (aName.includes('wifi') && p.includes('wifi')) return true;
-      if (aName.includes('locker') && p.includes('locker')) {
-        if (
-          (p.includes('personal') && !aName.includes('personal')) ||
-          (!p.includes('personal') && aName.includes('personal'))
-        ) {
-          return false;
-        }
-        return true;
-      }
-      if ((aName.includes('light') || aName.includes('lamp')) && (p.includes('light') || p.includes('lamp'))) return true;
-      if ((aName.includes('ac') || aName.includes('cooler')) && (p.includes('ac') || p.includes('air conditioned'))) return true;
-      return false;
-    });
+    return includedPerks.some((perk) => String(perk).toLowerCase().trim() === aName);
   };
 
   list.forEach((addon) => {
