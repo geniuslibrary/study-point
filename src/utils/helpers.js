@@ -63,10 +63,15 @@ export const getMonthName = (monthStr) => {
   return date.toLocaleDateString('en-IN', { month: 'long', year: 'numeric' });
 };
 
-export const isOverdue = (dueDate) => {
+export const isOverdue = (dueDate, graceDays = 2) => {
   if (!dueDate) return false;
   const due = dueDate.toDate ? dueDate.toDate() : new Date(dueDate);
-  return due < new Date();
+  const now = new Date();
+  now.setHours(0, 0, 0, 0);
+  const threshold = new Date(due);
+  threshold.setHours(0, 0, 0, 0);
+  threshold.setDate(threshold.getDate() + graceDays);
+  return threshold < now;
 };
 
 export const daysUntil = (date) => {
@@ -365,14 +370,25 @@ export const getMembershipRemainingDays = (membershipEnd) => {
   const diffMs = target.getTime() - today.getTime();
   const diffDays = Math.round(diffMs / (1000 * 60 * 60 * 24));
 
-  if (diffDays < 0) {
+  if (diffDays < -2) {
     return {
       diffDays,
       isExpired: true,
+      isOverdue: true,
       isEndingToday: false,
-      label: `🔴 Expired (${Math.abs(diffDays)}d ago)`,
-      shortLabel: `${Math.abs(diffDays)}d ago`,
+      label: `🔴 Overdue (${Math.abs(diffDays)}d ago)`,
+      shortLabel: `${Math.abs(diffDays)}d Overdue`,
       color: 'bg-rose-50 text-rose-700 border-rose-200 font-bold',
+    };
+  } else if (diffDays < 0) {
+    return {
+      diffDays,
+      isExpired: true,
+      isGrace: true,
+      isEndingToday: false,
+      label: `🟡 Expired (${Math.abs(diffDays)}d Grace)`,
+      shortLabel: `${Math.abs(diffDays)}d Grace`,
+      color: 'bg-amber-50 text-amber-900 border-amber-200 font-bold',
     };
   } else if (diffDays === 0) {
     return {
@@ -381,16 +397,17 @@ export const getMembershipRemainingDays = (membershipEnd) => {
       isEndingToday: true,
       label: '⚠️ Ending Today (आज समाप्त)',
       shortLabel: 'Today',
-      color: 'bg-amber-50 text-amber-800 border-amber-200 font-bold',
+      color: 'bg-amber-50 text-amber-900 border-amber-200 font-bold',
     };
   } else if (diffDays <= 3) {
     return {
       diffDays,
       isExpired: false,
       isEndingToday: false,
-      label: `⏳ In ${diffDays} days`,
+      isEndingSoon: true,
+      label: `⏳ In ${diffDays} day${diffDays > 1 ? 's' : ''}`,
       shortLabel: `${diffDays}d left`,
-      color: 'bg-amber-50 text-amber-700 border-amber-200 font-semibold',
+      color: 'bg-amber-50 text-amber-800 border-amber-200 font-bold',
     };
   } else {
     return {
@@ -420,13 +437,17 @@ export const checkAndAutoReleaseExpiredMemberships = async ({
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
-  // Find active students with assigned seats whose membershipEnd is in the past (< today)
+  // 2 days grace period: Only auto-release if expired more than 2 days ago
+  const graceThreshold = new Date(today);
+  graceThreshold.setDate(graceThreshold.getDate() - 2);
+
+  // Find active students with assigned seats whose membershipEnd is past the 2-day grace period
   const expiredActiveStudents = students.filter((s) => {
     if (s.status !== 'active' || !s.seatId || !s.membershipEnd) return false;
     const end = s.membershipEnd.toDate ? s.membershipEnd.toDate() : new Date(s.membershipEnd);
     if (isNaN(end.getTime())) return false;
     end.setHours(0, 0, 0, 0);
-    return end.getTime() < today.getTime(); // Strictly expired before today
+    return end.getTime() < graceThreshold.getTime(); // Strictly more than 2 days overdue
   });
 
   for (const student of expiredActiveStudents) {

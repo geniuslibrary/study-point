@@ -540,8 +540,10 @@ export default function NotificationPanel({ isOpen, onClose }) {
                   </div>
 
                   {expiringStudents.map((st) => {
-                    const isOverdue = st.diffDays < 0;
+                    const isOverdue = st.diffDays < -2;
+                    const isExpiredGrace = st.diffDays >= -2 && st.diffDays < 0;
                     const isToday = st.diffDays === 0;
+                    const isEndingSoon = st.diffDays > 0 && st.diffDays <= 3;
                     const reminderInfo = formatReminderTime(
                       st.lastExpiryReminderAt || (st.lastReminderType === 'expiry' ? st.lastReminderAt : null)
                     );
@@ -552,9 +554,11 @@ export default function NotificationPanel({ isOpen, onClose }) {
                         className={`p-3 rounded-xl border transition-all ${
                           isOverdue
                             ? 'bg-red-50/60 border-red-200'
+                            : isExpiredGrace
+                            ? 'bg-amber-50/70 border-amber-200'
                             : isToday
                             ? 'bg-rose-50/60 border-rose-200'
-                            : 'bg-amber-50/60 border-amber-200'
+                            : 'bg-emerald-50/50 border-emerald-200'
                         }`}
                       >
                         <div className="flex items-start justify-between gap-2">
@@ -567,13 +571,17 @@ export default function NotificationPanel({ isOpen, onClose }) {
                                 className={`text-[10px] font-extrabold px-2 py-0.5 rounded-md ${
                                   isOverdue
                                     ? 'bg-red-600 text-white'
+                                    : isExpiredGrace
+                                    ? 'bg-amber-600 text-white'
                                     : isToday
                                     ? 'bg-rose-600 text-white animate-pulse'
                                     : 'bg-amber-500 text-white'
                                 }`}
                               >
                                 {isOverdue
-                                  ? `Expired ${Math.abs(st.diffDays)}d ago`
+                                  ? `Overdue (${Math.abs(st.diffDays)}d ago)`
+                                  : isExpiredGrace
+                                  ? `Expired (${Math.abs(st.diffDays)}d Grace)`
                                   : isToday
                                   ? 'Expires TODAY!'
                                   : `Expires in ${st.diffDays} day${st.diffDays > 1 ? 's' : ''}`}
@@ -628,7 +636,12 @@ export default function NotificationPanel({ isOpen, onClose }) {
                           <button
                             onClick={() => {
                               onClose();
-                              navigate('/fees');
+                              navigate('/fees', {
+                                state: {
+                                  statusFilter: isOverdue ? 'overdue' : isExpiredGrace ? 'pending' : 'ending_soon',
+                                  collectStudentId: st.id,
+                                },
+                              });
                             }}
                             className="px-2.5 py-1 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-bold transition-all flex items-center gap-1 shadow-2xs cursor-pointer"
                           >

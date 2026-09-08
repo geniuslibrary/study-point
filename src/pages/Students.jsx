@@ -438,6 +438,9 @@ export default function Students() {
         const todayStr = new Date().toISOString();
         const todayDateOnly = todayStr.split('T')[0];
         const monthCode = todayDateOnly.slice(0, 7);
+        const currentEnd = st.membershipEnd ? (st.membershipEnd.toDate ? st.membershipEnd.toDate() : new Date(st.membershipEnd)) : null;
+        const now = new Date();
+        const periodStart = (currentEnd && currentEnd > now) ? currentEnd.toISOString() : todayStr;
         const feePayload = {
           studentId: st.id,
           studentName: st.name,
@@ -455,7 +458,7 @@ export default function Students() {
           paymentMode: paymentMode || 'cash',
           paidDate: todayStr,
           date: todayDateOnly,
-          periodStart: todayStr,
+          periodStart: periodStart,
           periodEnd: newExpiryDate,
           month: monthCode,
           isDayBased: true,
