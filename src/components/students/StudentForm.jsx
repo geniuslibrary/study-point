@@ -802,7 +802,7 @@ export default function StudentForm({
                       </span>
                     ) : (
                       <span className="text-[10px] font-bold text-indigo-900 shrink-0 bg-indigo-50 px-2 py-0.5 rounded border border-indigo-200">
-                        ₹{item.monthlyCharge}/mo
+                        ₹{item.monthlyCharge}/month
                       </span>
                     )}
                   </label>

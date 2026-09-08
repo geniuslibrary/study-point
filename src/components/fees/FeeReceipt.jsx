@@ -310,7 +310,7 @@ export default function FeeReceipt({ isOpen, onClose, fee, student, section, sea
                         <span className="flex items-center gap-1.5">
                           <span>🔒 {name} Facility Add-on</span>
                           <span className="text-[10px] text-indigo-600 font-bold">
-                            (₹{monthlyRate}/mo × {duration} Month{duration > 1 ? 's' : ''})
+                            (₹{monthlyRate}/month × {duration} Month{duration > 1 ? 's' : ''})
                           </span>
                         </span>
                       </td>

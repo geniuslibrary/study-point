@@ -653,7 +653,7 @@ export default function Sections() {
                           <span className="truncate">{item.name}</span>
                         </div>
                         <span className="text-[10px] font-black opacity-80 shrink-0 bg-white/80 px-1.5 py-0.5 rounded border border-slate-200/60">
-                          ₹{item.monthlyCharge}/mo
+                          ₹{item.monthlyCharge}/month
                         </span>
                       </label>
                     );

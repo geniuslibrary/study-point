@@ -896,7 +896,7 @@ export default function Settings() {
                             <span className="font-semibold text-slate-900 text-sm">{addon.name}</span>
                             <div className="flex items-center gap-3">
                               <span className="text-indigo-700 font-black text-sm bg-indigo-50 px-2.5 py-1 rounded-lg border border-indigo-100">
-                                ₹{addon.monthlyCharge || addon.price || 0}/mo
+                                ₹{addon.monthlyCharge || addon.price || 0}/month
                               </span>
                               <button
                                 type="button"
