@@ -224,7 +224,7 @@ export default function FeeTracker({
               { id: 'all', label: 'All Status', count: statusCounts.all },
               { id: 'paid', label: '🟢 Paid', count: statusCounts.paid },
               { id: 'ending_soon', label: '⏳ Ending Soon (0-3 Days)', count: statusCounts.ending_soon },
-              { id: 'pending', label: '🟡 Pending (0-2 Days)', count: statusCounts.pending },
+              { id: 'pending', label: '🟡 Membership Expired (0-2 Days)', count: statusCounts.pending },
               { id: 'overdue', label: '🔴 Overdue (>2 Days)', count: statusCounts.overdue },
             ].map((st) => (
               <button
@@ -419,14 +419,14 @@ export default function FeeTracker({
                       <div>
                         <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-amber-50 text-amber-800 border border-amber-200">
                           {diffDays === 0
-                            ? 'Due Today'
+                            ? 'Expired Today'
                             : diffDays === -1
-                            ? 'Due (1d Grace)'
+                            ? 'Expired (1d Grace)'
                             : diffDays === -2
-                            ? 'Due (2d Grace)'
+                            ? 'Expired (2d Grace)'
                             : diffDays > 0
                             ? `Pending (${diffDays}d left)`
-                            : 'Pending'}
+                            : 'Expired'}
                         </span>
                       </div>
                     )}
@@ -537,7 +537,7 @@ export default function FeeTracker({
                   </span>
                 ) : (
                   <span className="px-2 py-0.5 rounded-full text-xs font-bold bg-amber-50 text-amber-800 border border-amber-200">
-                    {diffDays === 0 ? 'Due Today' : diffDays === -1 ? 'Due (1d Grace)' : diffDays === -2 ? 'Due (2d Grace)' : diffDays > 0 ? `Pending (${diffDays}d)` : 'Pending'}
+                    {diffDays === 0 ? 'Expired Today' : diffDays === -1 ? 'Expired (1d)' : diffDays === -2 ? 'Expired (2d)' : diffDays > 0 ? `Pending (${diffDays}d)` : 'Expired'}
                   </span>
                 )}
               </div>
