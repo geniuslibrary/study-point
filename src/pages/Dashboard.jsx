@@ -26,35 +26,8 @@ import {
 } from '../utils/templateHelpers';
 import {
   ExpiringMembershipsWidget,
-  CashRegisterWidget,
   PaymentModesWidget,
-  MonthlyTargetWidget,
-  ExpenseCategoriesWidget,
-  FeeCalculatorWidget,
-  AddonUtilizationWidget,
-  QuickSeatSearchWidget,
-  NoticeBoardWidget,
-  StaffActivityWidget,
-  NewInquiriesWidget,
-  AdmissionsVsExitsWidget,
-  RemindersCounterWidget,
-  TopMembersWidget,
-  LeftStudentsAuditWidget,
 } from '../components/dashboard/DashboardExtraWidgets';
-import {
-  HourlyPeakHoursWidget,
-  DailyCollectionBarWidget,
-  PlanPopularityDonutWidget,
-  AdmissionVsExitGrowthWidget,
-  SeatOccupancyGaugeWidget,
-  FeeAgingRecoveryWidget,
-  ShiftCapacityCompareWidget,
-  ProfitMarginExpenseWidget,
-  AverageRevenueMetricWidget,
-  StudyTimeDistributionWidget,
-  ThermalRushHeatmapWidget,
-  VisualSeatFloorMapWidget,
-} from '../components/dashboard/HighLevelGraphicalWidgets';
 import DashboardWidgetSettingsModal from '../components/dashboard/DashboardWidgetSettingsModal';
 import {
   Users,
@@ -406,51 +379,21 @@ export default function Dashboard() {
     return dashConfig[key] === true;
   };
 
-  // Group 1: Core Operations
+  // 1. Core Operations
   const showQuickActions = isVisible('quickActions', true);
   const showTodayPulse = isVisible('todayPulse', true, true);
   const showCoreStats = isVisible('coreStats', true);
   const showOccupancy = isVisible('occupancyOverview', true);
-  const showShiftDist = isVisible('shiftDistribution', true);
-  const showQuickSeatSearch = isVisible('quickSeatSearch', true);
 
-  // Group 2: Financials & Money
-  const showRevenueChart = isVisible('revenueChart', false, true);
-  const showCashRegister = isVisible('cashRegister', false, true);
-  const showPaymentModes = isVisible('paymentModesPie', false, true);
-  const showMonthlyTarget = isVisible('monthlyTarget', false, true);
-  const showExpenseCategories = isVisible('expenseCategories', false, true);
-  const showRecentActivity = isVisible('recentActivity', false, true);
-  const showFeeCalculator = isVisible('feeCalculator', true);
-
-  // Group 3: Students, Inquiries & Retention
+  // 2. Urgent Alerts & Follow-Ups
   const showPendingDues = isVisible('pendingDuesAlert', true);
   const showExpiringMemberships = isVisible('expiringMemberships', true);
   const showDemoTracker = isVisible('demoTracker', true);
-  const showNewInquiries = isVisible('newInquiries', true);
-  const showAdmissionsVsExits = isVisible('admissionsVsExits', true);
-  const showTopMembers = isVisible('topMembers', false);
-  const showLeftStudentsAudit = isVisible('leftStudentsAudit', false);
 
-  // Group 4: Facilities, Automation & Team
-  const showAddonUtilization = isVisible('addonUtilization', true);
-  const showRemindersCounter = isVisible('remindersCounter', true);
-  const showNoticeBoard = isVisible('noticeBoard', true);
-  const showStaffActivity = isVisible('staffActivity', true);
-
-  // Group 5: High-Level Graphical & Visual Analytics
-  const showHourlyPeakHours = isVisible('hourlyPeakHours', true);
-  const showDailyCollectionBar = isVisible('dailyCollectionBar', false, true);
-  const showPlanPopularityDonut = isVisible('planPopularityDonut', true);
-  const showAdmissionVsExitGrowth = isVisible('admissionVsExitGrowth', true);
-  const showSeatOccupancyGauge = isVisible('seatOccupancyGauge', true);
-  const showFeeAgingRecovery = isVisible('feeAgingRecovery', true);
-  const showShiftCapacityCompare = isVisible('shiftCapacityCompare', true);
-  const showProfitMarginExpense = isVisible('profitMarginExpense', false, true);
-  const showAverageRevenueMetric = isVisible('averageRevenueMetric', false, true);
-  const showStudyTimeDistribution = isVisible('studyTimeDistribution', true);
-  const showThermalFootfallHeatmap = isVisible('thermalFootfallHeatmap', true);
-  const showVisualSeatMatrixMini = isVisible('visualSeatMatrixMini', true);
+  // 3. Financials & Analytics
+  const showRevenueChart = isVisible('revenueChart', false, true);
+  const showPaymentModes = isVisible('paymentModesPie', false, true);
+  const showRecentActivity = isVisible('recentActivity', false, true);
 
   const hideRevenueCard = isStaff && (staffWidgets?.hideFinancials || !staffWidgets?.revenueChart);
 
@@ -458,77 +401,25 @@ export default function Dashboard() {
     showQuickActions ||
     showTodayPulse ||
     showCoreStats ||
-    showQuickSeatSearch ||
     showOccupancy ||
-    showRevenueChart ||
-    showMonthlyTarget ||
-    showCashRegister ||
-    showPaymentModes ||
-    showExpenseCategories ||
-    showFeeCalculator ||
     showPendingDues ||
     showExpiringMemberships ||
     showDemoTracker ||
-    showNewInquiries ||
-    showAdmissionsVsExits ||
-    showRemindersCounter ||
-    showShiftDist ||
-    showAddonUtilization ||
-    showTopMembers ||
-    showLeftStudentsAudit ||
-    showNoticeBoard ||
-    showStaffActivity ||
-    showRecentActivity ||
-    showHourlyPeakHours ||
-    showDailyCollectionBar ||
-    showPlanPopularityDonut ||
-    showAdmissionVsExitGrowth ||
-    showSeatOccupancyGauge ||
-    showFeeAgingRecovery ||
-    showShiftCapacityCompare ||
-    showProfitMarginExpense ||
-    showAverageRevenueMetric ||
-    showStudyTimeDistribution ||
-    showThermalFootfallHeatmap ||
-    showVisualSeatMatrixMini;
+    showRevenueChart ||
+    showPaymentModes ||
+    showRecentActivity;
 
   const widgetVisibilityMap = {
     quickActions: showQuickActions,
     todayPulse: showTodayPulse,
     coreStats: showCoreStats,
-    quickSeatSearch: showQuickSeatSearch,
     occupancyOverview: showOccupancy,
     revenueChart: showRevenueChart,
-    monthlyTarget: showMonthlyTarget,
-    cashRegister: showCashRegister,
-    paymentModesPie: showPaymentModes,
-    expenseCategories: showExpenseCategories,
-    feeCalculator: showFeeCalculator,
     pendingDuesAlert: showPendingDues,
     expiringMemberships: showExpiringMemberships,
     demoTracker: showDemoTracker,
-    newInquiries: showNewInquiries,
-    admissionsVsExits: showAdmissionsVsExits,
-    remindersCounter: showRemindersCounter,
-    shiftDistribution: showShiftDist,
-    addonUtilization: showAddonUtilization,
-    topMembers: showTopMembers,
-    leftStudentsAudit: showLeftStudentsAudit,
-    noticeBoard: showNoticeBoard,
-    staffActivity: showStaffActivity,
+    paymentModesPie: showPaymentModes,
     recentActivity: showRecentActivity,
-    hourlyPeakHours: showHourlyPeakHours,
-    dailyCollectionBar: showDailyCollectionBar,
-    planPopularityDonut: showPlanPopularityDonut,
-    admissionVsExitGrowth: showAdmissionVsExitGrowth,
-    seatOccupancyGauge: showSeatOccupancyGauge,
-    feeAgingRecovery: showFeeAgingRecovery,
-    shiftCapacityCompare: showShiftCapacityCompare,
-    profitMarginExpense: showProfitMarginExpense,
-    averageRevenueMetric: showAverageRevenueMetric,
-    studyTimeDistribution: showStudyTimeDistribution,
-    thermalFootfallHeatmap: showThermalFootfallHeatmap,
-    visualSeatMatrixMini: showVisualSeatMatrixMini,
   };
 
   const renderWidgetById = (id) => {
@@ -630,48 +521,6 @@ export default function Dashboard() {
           </div>
         );
 
-      case 'monthlyTarget':
-        return (
-          <div key={id} className="col-span-1">
-            <MonthlyTargetWidget currentRevenue={stats.revenue} />
-          </div>
-        );
-
-      case 'cashRegister':
-        return (
-          <div key={id} className="col-span-1">
-            <CashRegisterWidget
-              todayCashFees={cashStats.cashFees}
-              todayCashExpenses={cashStats.cashExpenses}
-            />
-          </div>
-        );
-
-      case 'paymentModesPie':
-        return (
-          <div key={id} className="col-span-1">
-            <PaymentModesWidget
-              upiTotal={paymentModeStats.upi}
-              cashTotal={paymentModeStats.cash}
-              bankTotal={paymentModeStats.bank}
-            />
-          </div>
-        );
-
-      case 'expenseCategories':
-        return (
-          <div key={id} className="col-span-1">
-            <ExpenseCategoriesWidget expenses={monthExpensesList} />
-          </div>
-        );
-
-      case 'feeCalculator':
-        return (
-          <div key={id} className="col-span-1">
-            <FeeCalculatorWidget plans={allPlansList} />
-          </div>
-        );
-
       case 'pendingDuesAlert':
         return (
           <div key={id} className="col-span-1 flex flex-col">
@@ -701,80 +550,14 @@ export default function Dashboard() {
           </div>
         );
 
-      case 'newInquiries':
+      case 'paymentModesPie':
         return (
           <div key={id} className="col-span-1">
-            <NewInquiriesWidget visitors={visitors} />
-          </div>
-        );
-
-      case 'admissionsVsExits':
-        return (
-          <div key={id} className="col-span-1">
-            <AdmissionsVsExitsWidget
-              admissionsCount={admissionsVsLeft.admissions}
-              leftCount={admissionsVsLeft.left}
+            <PaymentModesWidget
+              upiTotal={paymentModeStats.upi}
+              cashTotal={paymentModeStats.cash}
+              bankTotal={paymentModeStats.bank}
             />
-          </div>
-        );
-
-      case 'remindersCounter':
-        return (
-          <div key={id} className="col-span-1">
-            <RemindersCounterWidget urgentPendingCount={urgentPendingList.length} />
-          </div>
-        );
-
-      case 'shiftDistribution':
-        return (
-          <div key={id} className="col-span-1 flex flex-col">
-            <ShiftDistribution
-              fullDayCount={shiftStats.fullDayCount}
-              morningCount={shiftStats.morningCount}
-              eveningCount={shiftStats.eveningCount}
-              totalStudents={stats.totalStudents}
-            />
-          </div>
-        );
-
-      case 'addonUtilization':
-        return (
-          <div key={id} className="col-span-1">
-            <AddonUtilizationWidget
-              seats={allSeatsList}
-              students={allStudentsList}
-            />
-          </div>
-        );
-
-      case 'topMembers':
-        return (
-          <div key={id} className="col-span-1">
-            <TopMembersWidget
-              students={allStudentsList}
-              plans={allPlansList}
-            />
-          </div>
-        );
-
-      case 'leftStudentsAudit':
-        return (
-          <div key={id} className="col-span-1">
-            <LeftStudentsAuditWidget students={allStudentsList} />
-          </div>
-        );
-
-      case 'noticeBoard':
-        return (
-          <div key={id} className="col-span-1">
-            <NoticeBoardWidget />
-          </div>
-        );
-
-      case 'staffActivity':
-        return (
-          <div key={id} className="col-span-1">
-            <StaffActivityWidget staffUsers={allStaffList} />
           </div>
         );
 
@@ -782,91 +565,6 @@ export default function Dashboard() {
         return (
           <div key={id} className="col-span-1 md:col-span-2 bg-white rounded-3xl border border-slate-200/80 shadow-xs overflow-hidden flex flex-col">
             <RecentActivity fees={recentFees} />
-          </div>
-        );
-
-      // High-Level Graphical Widgets (10 Advanced Visualizations)
-      case 'hourlyPeakHours':
-        return (
-          <div key={id} className="col-span-1">
-            <HourlyPeakHoursWidget students={allStudentsList} seats={allSeatsList} />
-          </div>
-        );
-
-      case 'dailyCollectionBar':
-        return (
-          <div key={id} className="col-span-1">
-            <DailyCollectionBarWidget fees={recentFees} />
-          </div>
-        );
-
-      case 'seatOccupancyGauge':
-        return (
-          <div key={id} className="col-span-1">
-            <SeatOccupancyGaugeWidget seats={allSeatsList} students={allStudentsList} />
-          </div>
-        );
-
-      case 'planPopularityDonut':
-        return (
-          <div key={id} className="col-span-1">
-            <PlanPopularityDonutWidget students={allStudentsList} plans={allPlansList} />
-          </div>
-        );
-
-      case 'admissionVsExitGrowth':
-        return (
-          <div key={id} className="col-span-1">
-            <AdmissionVsExitGrowthWidget students={allStudentsList} />
-          </div>
-        );
-
-      case 'shiftCapacityCompare':
-        return (
-          <div key={id} className="col-span-1">
-            <ShiftCapacityCompareWidget seats={allSeatsList} students={allStudentsList} />
-          </div>
-        );
-
-      case 'feeAgingRecovery':
-        return (
-          <div key={id} className="col-span-1">
-            <FeeAgingRecoveryWidget students={allStudentsList} fees={recentFees} />
-          </div>
-        );
-
-      case 'profitMarginExpense':
-        return (
-          <div key={id} className="col-span-1">
-            <ProfitMarginExpenseWidget revenue={stats.revenue} expenses={monthExpensesList} />
-          </div>
-        );
-
-      case 'averageRevenueMetric':
-        return (
-          <div key={id} className="col-span-1">
-            <AverageRevenueMetricWidget students={allStudentsList} revenue={stats.revenue} />
-          </div>
-        );
-
-      case 'studyTimeDistribution':
-        return (
-          <div key={id} className="col-span-1">
-            <StudyTimeDistributionWidget students={allStudentsList} />
-          </div>
-        );
-
-      case 'thermalFootfallHeatmap':
-        return (
-          <div key={id} className="col-span-1 md:col-span-2">
-            <ThermalRushHeatmapWidget students={allStudentsList} seats={allSeatsList} />
-          </div>
-        );
-
-      case 'visualSeatMatrixMini':
-        return (
-          <div key={id} className="col-span-1 md:col-span-2">
-            <VisualSeatFloorMapWidget seats={allSeatsList} students={allStudentsList} />
           </div>
         );
 

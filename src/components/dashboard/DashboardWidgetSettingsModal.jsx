@@ -34,11 +34,10 @@ export default function DashboardWidgetSettingsModal({
 
   const categories = [
     { id: 'all', label: 'All Widgets (सभी)', icon: Layers },
-    { id: 'visualAnalytics', label: '📊 Graphical Graphs (ग्राफिक्स)', icon: BarChart3 },
     { id: 'operations', label: '⚡ Operations (दैनिक)', icon: Sparkles },
+    { id: 'alerts', label: '🚨 Urgent Alerts (फॉलो-अप)', icon: Users },
     { id: 'financials', label: '💵 Financials (कमाई/खर्च)', icon: Wallet },
-    { id: 'students', label: '👥 Students (छात्र)', icon: Users },
-    { id: 'facilities', label: '🏢 Facilities (सुविधाएं)', icon: ShieldCheck },
+    { id: 'security', label: '🔒 Privacy (सुरक्षा)', icon: ShieldCheck },
   ];
 
   const handleToggle = (id) => {

@@ -547,7 +547,7 @@ export default function Customization() {
                 <div className="flex items-center gap-2">
                   <h3 className="text-base font-bold text-slate-900">Dashboard Widgets Visibility</h3>
                   <span className="text-xs font-black px-2.5 py-0.5 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-100">
-                    {DASHBOARD_WIDGET_OPTIONS.filter((w) => w.id !== 'hideFinancials' && dashConfig[w.id] !== false).length} / 24 Active
+                    {DASHBOARD_WIDGET_OPTIONS.filter((w) => w.id !== 'hideFinancials' && dashConfig[w.id] !== false).length} / {DASHBOARD_WIDGET_OPTIONS.filter((w) => w.id !== 'hideFinancials').length} Active
                   </span>
                 </div>
                 <p className="text-xs text-slate-500 mt-0.5">
@@ -641,11 +641,11 @@ export default function Customization() {
                 {/* Category Filter Pills */}
                 <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-hide">
                   {[
-                    { id: 'all', label: 'All Widgets (24)' },
-                    { id: 'operations', label: '⚡ Core Operations (6)' },
-                    { id: 'financials', label: '💰 Financials & Target (7)' },
-                    { id: 'students', label: '👥 Students & Retention (7)' },
-                    { id: 'facilities', label: '🏢 Facilities & Team (4)' },
+                    { id: 'all', label: `All Widgets (${DASHBOARD_WIDGET_OPTIONS.length})` },
+                    { id: 'operations', label: `⚡ Core Operations (${DASHBOARD_WIDGET_OPTIONS.filter((w) => w.category === 'operations').length})` },
+                    { id: 'alerts', label: `🚨 Urgent Alerts (${DASHBOARD_WIDGET_OPTIONS.filter((w) => w.category === 'alerts').length})` },
+                    { id: 'financials', label: `💰 Financials (${DASHBOARD_WIDGET_OPTIONS.filter((w) => w.category === 'financials').length})` },
+                    { id: 'security', label: `🔒 Privacy (${DASHBOARD_WIDGET_OPTIONS.filter((w) => w.category === 'security').length})` },
                   ].map((cat) => (
                     <button
                       key={cat.id}
