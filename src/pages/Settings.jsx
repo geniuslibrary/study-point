@@ -170,21 +170,96 @@ export default function Settings() {
     setInfo((prev) => ({ ...prev, [name]: value }));
   };
 
-  const handleLogoUpload = (e) => {
+  const optimizeGraphicFile = (file) => {
+    return new Promise((resolve, reject) => {
+      if (!file) return reject(new Error('No file selected'));
+
+      // Keep SVG as raw data URL without rasterizing
+      if (file.type === 'image/svg+xml') {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+        return;
+      }
+
+      let objectUrl = null;
+      try {
+        objectUrl = URL.createObjectURL(file);
+      } catch (e) {
+        objectUrl = null;
+      }
+
+      const finishWithCanvas = (img) => {
+        try {
+          const maxDim = 1200;
+          let width = img.naturalWidth || img.width || 400;
+          let height = img.naturalHeight || img.height || 400;
+
+          if (width > maxDim || height > maxDim) {
+            if (width > height) {
+              height = Math.round((height * maxDim) / width);
+              width = maxDim;
+            } else {
+              width = Math.round((width * maxDim) / height);
+              height = maxDim;
+            }
+          }
+
+          const canvas = document.createElement('canvas');
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          ctx.imageSmoothingEnabled = true;
+          ctx.imageSmoothingQuality = 'high';
+          ctx.drawImage(img, 0, 0, width, height);
+
+          const mimeType = file.type === 'image/png' ? 'image/png' : 'image/jpeg';
+          const quality = mimeType === 'image/jpeg' ? 0.9 : undefined;
+          const dataUrl = canvas.toDataURL(mimeType, quality);
+          resolve(dataUrl);
+        } catch (err) {
+          fallbackReader();
+        } finally {
+          if (objectUrl) {
+            try { URL.revokeObjectURL(objectUrl); } catch (_) {}
+          }
+        }
+      };
+
+      const fallbackReader = () => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      };
+
+      if (objectUrl) {
+        const img = new Image();
+        img.onload = () => finishWithCanvas(img);
+        img.onerror = () => {
+          if (objectUrl) try { URL.revokeObjectURL(objectUrl); } catch (_) {}
+          fallbackReader();
+        };
+        img.src = objectUrl;
+      } else {
+        fallbackReader();
+      }
+    });
+  };
+
+  const handleLogoUpload = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    if (file.size > 2 * 1024 * 1024) {
-      alert('Logo image size should be less than 2MB');
-      return;
-    }
-
-    const reader = new FileReader();
-    reader.onload = () => {
-      setInfo((prev) => ({ ...prev, logoUrl: reader.result }));
+    try {
+      const dataUrl = await optimizeGraphicFile(file);
+      setInfo((prev) => ({ ...prev, logoUrl: dataUrl }));
       showToast('Logo image selected! Click "Save Details & Signature" to apply.');
-    };
-    reader.readAsDataURL(file);
+    } catch (err) {
+      console.error('Logo upload error:', err);
+      showToast('Error reading logo file');
+    }
   };
 
   const handleRemoveLogo = () => {
@@ -193,21 +268,18 @@ export default function Settings() {
     showToast('Logo removed');
   };
 
-  const handleSignatureUpload = (e) => {
+  const handleSignatureUpload = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    if (file.size > 2 * 1024 * 1024) {
-      alert('Signature image size should be less than 2MB');
-      return;
-    }
-
-    const reader = new FileReader();
-    reader.onload = () => {
-      setInfo((prev) => ({ ...prev, signatureUrl: reader.result }));
+    try {
+      const dataUrl = await optimizeGraphicFile(file);
+      setInfo((prev) => ({ ...prev, signatureUrl: dataUrl }));
       showToast('Signature image selected! Click "Save Details & Signature" to apply.');
-    };
-    reader.readAsDataURL(file);
+    } catch (err) {
+      console.error('Signature upload error:', err);
+      showToast('Error reading signature file');
+    }
   };
 
   const handleRemoveSignature = () => {
