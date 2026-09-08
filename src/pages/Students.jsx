@@ -13,7 +13,6 @@ import { COLLECTIONS, SEAT_STATUS, STUDENT_STATUS } from '../utils/constants';
 import {
   calculateSeatAddonCharges,
   getStoredAddons,
-  checkAndAutoReleaseExpiredMemberships,
   formatDate,
 } from '../utils/helpers';
 import {
@@ -67,33 +66,9 @@ export default function Students() {
         fetchCollectionData(COLLECTIONS.ADDON_PRICING),
       ]);
 
-      // Auto-check and release physical seats of students whose validity expired (< today) without extension
-      let currentStudents = stuDocs;
-      let currentSeats = seatDocs;
-      try {
-        const released = await checkAndAutoReleaseExpiredMemberships({
-          students: stuDocs,
-          seats: seatDocs,
-          updateDocument,
-          COLLECTIONS,
-          SEAT_STATUS,
-        });
-        if (released && released.length > 0) {
-          console.log(`[Auto-Release] Freed ${released.length} expired seat(s):`, released);
-          const [refreshedStudents, refreshedSeats] = await Promise.all([
-            fetchCollectionData(COLLECTIONS.STUDENTS),
-            fetchCollectionData(COLLECTIONS.SEATS),
-          ]);
-          currentStudents = refreshedStudents;
-          currentSeats = refreshedSeats;
-        }
-      } catch (releaseErr) {
-        console.warn('Auto release expired check failed gracefully:', releaseErr);
-      }
-
-      setStudents(currentStudents);
+      setStudents(stuDocs);
       setSections(secDocs);
-      setSeats(currentSeats);
+      setSeats(seatDocs);
       setPlans(planDocs);
       setFees(feeDocs);
       setAddonPricing(addonDocs && addonDocs.length > 0 ? addonDocs : getStoredAddons());
@@ -574,7 +549,7 @@ export default function Students() {
           }}
           onExtend={(student) => setExtendStudent(student)}
           onViewProfile={setProfileStudent}
-          onToggleStatus={handleToggleStatus}
+          onToggleStatus={(student) => setStatusTarget(student)}
           canEdit={canEdit}
           canDelete={canDelete}
           canCollectFee={canCollectFee}
@@ -595,6 +570,25 @@ export default function Students() {
         seats={seats}
         plans={plans}
         students={students}
+      />
+
+      <ConfirmDialog
+        isOpen={!!statusTarget}
+        onClose={() => setStatusTarget(null)}
+        onConfirm={async () => {
+          if (!statusTarget) return;
+          const target = statusTarget;
+          setStatusTarget(null);
+          await handleToggleStatus(target);
+        }}
+        title={statusTarget?.status === 'active' ? 'Student ko Left mark karein aur Seat free karein?' : 'Student ko Active karein?'}
+        message={
+          statusTarget?.status === 'active'
+            ? `Kya aap sach me "${statusTarget?.name}" ko LEFT mark karke unki Seat free (vacant) karna chahte hain?`
+            : `Kya aap "${statusTarget?.name}" ko dobara ACTIVE status me lana chahte hain?`
+        }
+        confirmText={statusTarget?.status === 'active' ? 'Yes, Mark Left & Free Seat' : 'Yes, Make Active'}
+        variant={statusTarget?.status === 'active' ? 'danger' : 'primary'}
       />
 
       <ConfirmDialog

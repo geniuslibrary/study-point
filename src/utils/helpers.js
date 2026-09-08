@@ -422,83 +422,11 @@ export const getMembershipRemainingDays = (membershipEnd) => {
 };
 
 /**
- * Automatically inspect active students and free seats whose validity expired without extension
+ * Note: Seats are NEVER automatically released.
+ * Seats are freed ONLY manually when the Admin clicks "Left" or changes status to 'left'.
  */
-export const checkAndAutoReleaseExpiredMemberships = async ({
-  students = [],
-  seats = [],
-  updateDocument,
-  COLLECTIONS,
-  SEAT_STATUS,
-}) => {
-  if (!updateDocument || !COLLECTIONS || !SEAT_STATUS) return [];
-
-  const releasedItems = [];
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-
-  // 2 days grace period: Only auto-release if expired more than 2 days ago
-  const graceThreshold = new Date(today);
-  graceThreshold.setDate(graceThreshold.getDate() - 2);
-
-  // Find active students with assigned seats whose membershipEnd is past the 2-day grace period
-  const expiredActiveStudents = students.filter((s) => {
-    if (s.status !== 'active' || !s.seatId || !s.membershipEnd) return false;
-    const end = s.membershipEnd.toDate ? s.membershipEnd.toDate() : new Date(s.membershipEnd);
-    if (isNaN(end.getTime())) return false;
-    end.setHours(0, 0, 0, 0);
-    return end.getTime() < graceThreshold.getTime(); // Strictly more than 2 days overdue
-  });
-
-  for (const student of expiredActiveStudents) {
-    const seatId = student.seatId;
-    const assignedSeat = seats.find((seat) => seat.id === seatId);
-
-    // 1. Unlink seat and mark student as expired
-    try {
-      await updateDocument(COLLECTIONS.STUDENTS, student.id, {
-        status: 'expired',
-        seatId: '',
-        seatReleasedAt: new Date().toISOString(),
-        autoReleasedReason: 'Membership validity expired without extension',
-      });
-
-      // 2. Re-evaluate seat occupancy
-      const remainingActiveStudents = students.filter(
-        (s) => s.seatId === seatId && s.status === 'active' && s.id !== student.id
-      );
-
-      let newSeatStatus = SEAT_STATUS.AVAILABLE;
-      if (remainingActiveStudents.length > 0) {
-        const hasFullDay = remainingActiveStudents.some((s) => !s.shift || s.shift === 'full_day');
-        const hasFirstHalf = remainingActiveStudents.some((s) => s.shift === 'first_half');
-        const hasSecondHalf = remainingActiveStudents.some((s) => s.shift === 'second_half');
-
-        if (hasFullDay || (hasFirstHalf && hasSecondHalf) || remainingActiveStudents.length >= 2) {
-          newSeatStatus = SEAT_STATUS.OCCUPIED;
-        } else {
-          newSeatStatus = SEAT_STATUS.PARTIALLY_OCCUPIED;
-        }
-      }
-
-      await updateDocument(COLLECTIONS.SEATS, seatId, {
-        status: newSeatStatus,
-        studentId: remainingActiveStudents[0] ? remainingActiveStudents[0].id : null,
-      });
-
-      releasedItems.push({
-        studentId: student.id,
-        studentName: student.name,
-        seatNumber: assignedSeat?.seatNumber || '—',
-        seatId,
-        expiredDate: student.membershipEnd,
-      });
-    } catch (err) {
-      console.error('Error auto-releasing expired seat for student:', student.name, err);
-    }
-  }
-
-  return releasedItems;
+export const checkAndAutoReleaseExpiredMemberships = async () => {
+  return [];
 };
 
 

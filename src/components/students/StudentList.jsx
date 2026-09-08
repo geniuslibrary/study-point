@@ -367,6 +367,16 @@ export default function StudentList({
                         </button>
                       )}
 
+                      {!isLeft && onToggleStatus && (
+                        <button
+                          onClick={() => onToggleStatus(student)}
+                          className="p-1.5 hover:bg-rose-50 rounded-lg text-rose-600 transition-colors cursor-pointer"
+                          title="Mark Left & Free Seat (छोड़ दिया)"
+                        >
+                          <UserX className="w-4 h-4" />
+                        </button>
+                      )}
+
                       {canEdit && (
                         <button
                           onClick={() => onEdit(student)}
@@ -495,6 +505,15 @@ export default function StudentList({
                     className="px-2.5 py-1 bg-emerald-600 text-white rounded-lg text-xs font-bold flex items-center gap-1"
                   >
                     <IndianRupee size={12} /> Fee
+                  </button>
+                )}
+                {!isLeft && onToggleStatus && (
+                  <button
+                    onClick={() => onToggleStatus(student)}
+                    className="px-2.5 py-1 bg-rose-50 hover:bg-rose-100 text-rose-700 rounded-lg text-xs font-bold flex items-center gap-1 cursor-pointer transition-colors"
+                    title="Mark Left & Free Seat (छोड़ दिया)"
+                  >
+                    <UserX size={12} /> Left
                   </button>
                 )}
                 {canEdit && (

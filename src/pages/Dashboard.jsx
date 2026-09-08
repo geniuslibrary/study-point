@@ -58,7 +58,7 @@ import {
   TrendingUp,
   Sliders,
 } from 'lucide-react';
-import { formatCurrency, formatDate, checkAndAutoReleaseExpiredMemberships } from '../utils/helpers';
+import { formatCurrency, formatDate } from '../utils/helpers';
 
 export default function Dashboard() {
   const { user, userRole, hasPermission } = useAuth();
@@ -139,29 +139,7 @@ export default function Dashboard() {
         fetchCollectionData(COLLECTIONS.STAFF_USERS),
       ]);
 
-      let currentStudents = students;
-      let currentSeats = allSeats;
-      try {
-        const released = await checkAndAutoReleaseExpiredMemberships({
-          students,
-          seats: allSeats,
-          updateDocument,
-          COLLECTIONS,
-          SEAT_STATUS,
-        });
-        if (released && released.length > 0) {
-          const [refreshedStudents, refreshedSeats] = await Promise.all([
-            fetchCollectionData(COLLECTIONS.STUDENTS),
-            fetchCollectionData(COLLECTIONS.SEATS),
-          ]);
-          currentStudents = refreshedStudents;
-          currentSeats = refreshedSeats;
-        }
-      } catch (err) {
-        console.warn('Dashboard auto-release check failed gracefully:', err);
-      }
-
-      setAllStudentsList(currentStudents);
+      setAllStudentsList(students);
       setAllPlansList(allPlans || []);
       setAllStaffList(allStaff || []);
 
