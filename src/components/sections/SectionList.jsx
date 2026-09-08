@@ -1,7 +1,6 @@
 import { useState } from 'react';
-import { ChevronDown, ChevronUp, Edit, Trash2, Building2, Users, PlusCircle, CheckCircle2, Clock, Armchair } from 'lucide-react';
+import { ChevronDown, ChevronUp, Edit, Trash2, Building2, Users, CheckCircle2, Clock, Armchair } from 'lucide-react';
 import SeatGrid from './SeatGrid';
-import Button from '../common/Button';
 
 export default function SectionList({
   sections = [],
@@ -92,32 +91,38 @@ export default function SectionList({
                 </div>
 
                 {/* Action Buttons Bar */}
-                <div className="flex items-center justify-end gap-1.5 w-full md:w-auto pt-2 md:pt-0 border-t md:border-t-0 border-slate-100">
-                  <Button
-                    variant="secondary"
-                    size="sm"
-                    icon={<Edit className="w-3.5 h-3.5 text-gray-600" />}
+                <div className="flex items-center justify-end gap-2 w-full md:w-auto pt-2 md:pt-0 border-t md:border-t-0 border-slate-100">
+                  {/* Edit Button */}
+                  <button
+                    type="button"
                     onClick={() => onEdit(section)}
                     title="Edit Section Name & Total Seats"
-                    className="justify-center text-xs"
+                    className="h-8 px-3 rounded-xl text-xs font-semibold bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 shadow-2xs hover:border-slate-300 transition-all flex items-center gap-1.5 cursor-pointer active:scale-95"
                   >
-                    Edit
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    icon={<Trash2 className="w-3.5 h-3.5 text-red-500" />}
+                    <Edit className="w-3.5 h-3.5 text-slate-500" />
+                    <span>Edit</span>
+                  </button>
+
+                  {/* Delete Button */}
+                  <button
+                    type="button"
                     onClick={() => onDelete(section)}
                     title="Delete Section"
-                    className="justify-center hover:bg-rose-50 border border-transparent hover:border-rose-100 rounded-xl"
-                  />
+                    className="h-8 w-8 rounded-xl text-xs font-semibold bg-white hover:bg-rose-50 text-slate-400 hover:text-rose-600 border border-slate-200 hover:border-rose-200 shadow-2xs transition-all flex items-center justify-center cursor-pointer active:scale-95"
+                  >
+                    <Trash2 className="w-3.5 h-3.5 text-rose-500" />
+                  </button>
+
+                  {/* Seats View/Hide Button */}
                   <button
+                    type="button"
                     onClick={() => setExpandedId(isExpanded ? null : section.id)}
-                    className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 border cursor-pointer ${
+                    className={`h-8 px-3.5 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 border cursor-pointer active:scale-95 shadow-2xs ${
                       isExpanded
-                        ? 'bg-indigo-600 text-white border-indigo-600 shadow-2xs'
-                        : 'bg-slate-100 hover:bg-slate-200 text-slate-800 border-slate-200'
+                        ? 'bg-indigo-600 hover:bg-indigo-700 text-white border-indigo-600 shadow-indigo-200'
+                        : 'bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border-indigo-200'
                     }`}
+                    title={isExpanded ? 'Hide seat layout' : 'View seat layout'}
                   >
                     <span>{isExpanded ? 'Hide' : 'Seats'}</span>
                     {isExpanded ? <ChevronUp className="w-3.5 h-3.5 shrink-0" /> : <ChevronDown className="w-3.5 h-3.5 shrink-0" />}
