@@ -241,7 +241,28 @@ export const seedOneYearDummyData = async () => {
     let validityStart = `${joinDateObj.getFullYear()}-${String(joinDateObj.getMonth() + 1).padStart(2, '0')}-01`;
     let validityEnd = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-28`;
 
-    if (spec.isDayCrash) {
+    if (spec.id === 'stu_22') {
+      // Ending Soon (2 days left)
+      validityEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 2).toISOString().split('T')[0];
+    } else if (spec.id === 'stu_20') {
+      // Ending Soon (Ends Today)
+      validityEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString().split('T')[0];
+    } else if (spec.id === 'stu_7') {
+      // Expired (1 day ago)
+      validityEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1).toISOString().split('T')[0];
+    } else if (spec.id === 'stu_12') {
+      // Expired (2 days ago)
+      validityEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 2).toISOString().split('T')[0];
+    } else if (spec.id === 'stu_16') {
+      // Overdue (5 days ago)
+      validityEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 5).toISOString().split('T')[0];
+    } else if (spec.id === 'stu_18') {
+      // Overdue (12 days ago)
+      validityEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 12).toISOString().split('T')[0];
+    } else if (spec.id === 'stu_23') {
+      // Active (18 days left)
+      validityEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 18).toISOString().split('T')[0];
+    } else if (spec.isDayCrash) {
       const expDate = new Date(now.getTime() + (spec.expireInDays || 2) * 24 * 60 * 60 * 1000);
       const startCrashDate = new Date(expDate.getTime() - spec.crashDays * 24 * 60 * 60 * 1000);
       validityStart = startCrashDate.toISOString().split('T')[0];
@@ -272,6 +293,8 @@ export const seedOneYearDummyData = async () => {
       joinDate: joinDateObj.toISOString(),
       validityStart,
       validityEnd,
+      membershipStart: validityStart,
+      membershipEnd: validityEnd,
       status: spec.status === 'active' ? STUDENT_STATUS.ACTIVE : STUDENT_STATUS.LEFT,
       tenantId,
       createdAt: joinDateObj.toISOString(),
@@ -316,8 +339,47 @@ export const seedOneYearDummyData = async () => {
     enrolledStudents.forEach((spec, idx) => {
       feeCounter++;
       const isCurrentMonth = m.offset === 0;
-      // In current month, make 2 students have dues for Pending Dues alert testing
-      const isDue = isCurrentMonth && (spec.id === 'stu_7' || spec.id === 'stu_16');
+
+      let periodEndDate;
+      let isUnpaid = false;
+
+      if (isCurrentMonth) {
+        if (spec.id === 'stu_22') {
+          // Ending Soon (2 days left)
+          periodEndDate = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 2);
+          isUnpaid = true;
+        } else if (spec.id === 'stu_20') {
+          // Ending Soon (Ends Today)
+          periodEndDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+          isUnpaid = true;
+        } else if (spec.id === 'stu_7') {
+          // Expired (1 day ago)
+          periodEndDate = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1);
+          isUnpaid = true;
+        } else if (spec.id === 'stu_12') {
+          // Expired (2 days ago)
+          periodEndDate = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 2);
+          isUnpaid = true;
+        } else if (spec.id === 'stu_16') {
+          // Overdue (5 days ago)
+          periodEndDate = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 5);
+          isUnpaid = true;
+        } else if (spec.id === 'stu_18') {
+          // Overdue (12 days ago)
+          periodEndDate = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 12);
+          isUnpaid = true;
+        } else if (spec.id === 'stu_23') {
+          // Active (18 days left)
+          periodEndDate = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 18);
+          isUnpaid = true;
+        } else {
+          periodEndDate = new Date(now.getFullYear(), now.getMonth(), 28);
+          isUnpaid = false;
+        }
+      } else {
+        periodEndDate = new Date(m.year, m.monthIndex, 28);
+        isUnpaid = false;
+      }
       
       const paymentDay = Math.min(26, 2 + ((idx * 3) % 22));
       const payDate = new Date(m.year, m.monthIndex, paymentDay, 11, 30, 0);
@@ -333,17 +395,21 @@ export const seedOneYearDummyData = async () => {
         baseFee: spec.fee,
         discountAmount: 0,
         finalAmount: spec.fee,
-        paymentMode: isDue ? '' : pMode,
-        paymentDate: isDue ? null : payDate.toISOString(),
-        date: isDue ? `${m.year}-${String(m.monthIndex + 1).padStart(2, '0')}-10` : `${m.year}-${String(m.monthIndex + 1).padStart(2, '0')}-${String(paymentDay).padStart(2, '0')}`,
+        paymentMode: isUnpaid ? '' : pMode,
+        paymentDate: isUnpaid ? null : payDate.toISOString(),
+        paidDate: isUnpaid ? null : payDate.toISOString(),
+        date: isUnpaid ? periodEndDate.toISOString().split('T')[0] : `${m.year}-${String(m.monthIndex + 1).padStart(2, '0')}-${String(paymentDay).padStart(2, '0')}`,
+        dueDate: periodEndDate.toISOString(),
+        periodStart: `${m.year}-${String(m.monthIndex + 1).padStart(2, '0')}-01`,
+        periodEnd: periodEndDate.toISOString(),
         month: m.monthStr,
-        status: isDue ? 'due' : 'paid',
+        status: isUnpaid ? 'pending' : 'paid',
         planId: spec.planId,
         planName: plans.find((p) => p.id === spec.planId)?.name || 'Monthly',
-        receiptNumber: isDue ? '' : receiptNo,
+        receiptNumber: isUnpaid ? '' : receiptNo,
         validityStart: `${m.year}-${String(m.monthIndex + 1).padStart(2, '0')}-01`,
-        validityEnd: `${m.year}-${String(m.monthIndex + 1).padStart(2, '0')}-28`,
-        notes: isDue ? 'Pending monthly renewal fee' : `${pMode.toUpperCase()} Payment Verified`,
+        validityEnd: periodEndDate.toISOString().split('T')[0],
+        notes: isUnpaid ? 'Membership renewal pending' : `${pMode.toUpperCase()} Payment Verified`,
         tenantId,
         createdAt: payDate.toISOString(),
       };

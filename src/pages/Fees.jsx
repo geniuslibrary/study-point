@@ -23,6 +23,7 @@ import {
   createDocument,
   updateDocument,
 } from '../firebase/storageService';
+import { seedOneYearDummyData } from '../utils/seedData';
 
 export default function Fees() {
   const location = useLocation();
@@ -42,6 +43,24 @@ export default function Fees() {
   const [receiptFee, setReceiptFee] = useState(null);
   const [leftConfirmTarget, setLeftConfirmTarget] = useState(null);
   const [markingLeftLoading, setMarkingLeftLoading] = useState(false);
+  const [seedingLoading, setSeedingLoading] = useState(false);
+
+  const handleLoadDummyData = async () => {
+    if (!window.confirm('Kya aap Fees test karne ke liye Demo / Dummy data load karna chahte hain? Isse Paid, Ending Soon, Expired, aur Overdue sabhi tabs ka test data load ho jayega.')) {
+      return;
+    }
+    setSeedingLoading(true);
+    try {
+      await seedOneYearDummyData();
+      await fetchData();
+      alert('Demo Data Successfully Load Ho Gaya! Ab aap Paid, Ending Soon, Expired, aur Overdue sabhi tabs test kar sakte hain.');
+    } catch (err) {
+      console.error('Error seeding dummy data from fees:', err);
+      alert('Data load karne mein dikkat aayi: ' + (err?.message || err));
+    } finally {
+      setSeedingLoading(false);
+    }
+  };
 
   // Automatic Background Dues Synchronizer
   const autoSyncMonthlyDues = async (currentFees, activeStudents, allPlans, allSeats, allAddons) => {
@@ -506,9 +525,26 @@ export default function Fees() {
             </p>
           </div>
 
-          <div className="inline-flex items-center gap-2 px-3.5 py-2 rounded-2xl bg-emerald-50 text-emerald-800 border border-emerald-200 text-xs font-bold shadow-2xs">
-            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-            <span>Auto-Synced Monthly Dues</span>
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={handleLoadDummyData}
+              disabled={seedingLoading}
+              className="inline-flex items-center gap-2 px-3.5 py-2 rounded-2xl bg-indigo-600 hover:bg-indigo-700 active:scale-95 text-white text-xs font-bold shadow-xs transition-all cursor-pointer"
+              title="Test karne ke liye dummy data load karein"
+            >
+              {seedingLoading ? (
+                <Loader2 className="w-3.5 h-3.5 animate-spin text-white" />
+              ) : (
+                <Sparkles className="w-3.5 h-3.5 text-white" />
+              )}
+              <span>{seedingLoading ? 'Loading Test Data...' : 'Load Dummy Data (Test)'}</span>
+            </button>
+
+            <div className="inline-flex items-center gap-2 px-3.5 py-2 rounded-2xl bg-emerald-50 text-emerald-800 border border-emerald-200 text-xs font-bold shadow-2xs">
+              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+              <span>Auto-Synced Monthly Dues</span>
+            </div>
           </div>
         </div>
 
