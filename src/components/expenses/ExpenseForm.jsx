@@ -5,7 +5,7 @@ import { EXPENSE_CATEGORIES } from '../../utils/constants';
 import { Zap, Users, Receipt, Wrench, Calculator, Sparkles } from 'lucide-react';
 import { formatCurrency } from '../../utils/helpers';
 
-export default function ExpenseForm({ isOpen, onClose, onSubmit, editData }) {
+export default function ExpenseForm({ isOpen, onClose, onSubmit, editData, staffList = [] }) {
   // Form Mode: 'general' | 'electricity' | 'salary' | 'additional'
   const [formMode, setFormMode] = useState('general');
 
@@ -33,6 +33,7 @@ export default function ExpenseForm({ isOpen, onClose, onSubmit, editData }) {
 
   // Staff Salary specific calculator fields
   const [salaryData, setSalaryData] = useState({
+    staffId: '',
     staffName: '',
     role: '',
     baseSalary: '',
@@ -41,7 +42,7 @@ export default function ExpenseForm({ isOpen, onClose, onSubmit, editData }) {
     bonus: '',
     deductions: '',
     netSalary: 0,
-    paymentMode: 'upi',
+    paymentMode: 'cash',
   });
 
   useEffect(() => {
@@ -61,7 +62,36 @@ export default function ExpenseForm({ isOpen, onClose, onSubmit, editData }) {
         });
 
         if (editData.category === 'Electricity') setFormMode('electricity');
-        else if (editData.category === 'Staff Salary') setFormMode('salary');
+        else if (editData.category === 'Staff Salary' || editData.expenseType === 'salary') {
+          setFormMode('salary');
+          if (editData.salaryDetails) {
+            setSalaryData({
+              staffId: editData.salaryDetails.staffId || editData.staffId || '',
+              staffName: editData.salaryDetails.staffName || '',
+              role: editData.salaryDetails.role || '',
+              baseSalary: String(editData.salaryDetails.baseSalary || editData.amount || ''),
+              daysInMonth: String(editData.salaryDetails.daysInMonth || '30'),
+              daysWorked: String(editData.salaryDetails.daysWorked || '30'),
+              bonus: String(editData.salaryDetails.bonus || ''),
+              deductions: String(editData.salaryDetails.deductions || ''),
+              netSalary: Number(editData.amount) || 0,
+              paymentMode: editData.salaryDetails.paymentMode || 'cash',
+            });
+          } else {
+            setSalaryData({
+              staffId: editData.staffId || '',
+              staffName: editData.description?.replace('Staff Salary: ', '')?.split('(')[0]?.trim() || '',
+              role: '',
+              baseSalary: String(editData.amount || ''),
+              daysInMonth: '30',
+              daysWorked: '30',
+              bonus: '',
+              deductions: '',
+              netSalary: Number(editData.amount) || 0,
+              paymentMode: 'cash',
+            });
+          }
+        }
         else if (editData.expenseType === 'additional') setFormMode('additional');
         else setFormMode('general');
     } else {
@@ -399,12 +429,53 @@ export default function ExpenseForm({ isOpen, onClose, onSubmit, editData }) {
           {/* Mode 2: STAFF SALARY CALCULATOR */}
           {formMode === 'salary' && (
             <div className="bg-blue-50/70 border border-blue-200 p-4 rounded-xl space-y-3.5">
-              <div className="flex items-center gap-2">
-                <Users className="w-4 h-4 text-blue-600" />
-                <h4 className="text-xs font-bold text-blue-900 uppercase tracking-wider">
-                  Staff Salary & Attendance Calculator
-                </h4>
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2">
+                  <Users className="w-4 h-4 text-blue-600" />
+                  <h4 className="text-xs font-bold text-blue-900 uppercase tracking-wider">
+                    Staff Salary & Attendance Calculator
+                  </h4>
+                </div>
+                <span className="text-[10px] font-bold text-blue-700 bg-blue-100/70 px-2 py-0.5 rounded">
+                  Monthly Auto-Schedule
+                </span>
               </div>
+
+              {staffList && staffList.length > 0 && !editData && (
+                <div>
+                  <label className="block text-[11px] font-bold text-blue-900 mb-1">
+                    Select Existing Staff (स्टाफ सदस्य चुनें - नाम व सैलरी अपने-आप भरेगी):
+                  </label>
+                  <select
+                    value={salaryData.staffId || ''}
+                    onChange={(e) => {
+                      const selectedId = e.target.value;
+                      const foundStaff = staffList.find((s) => s.id === selectedId);
+                      if (foundStaff) {
+                        setSalaryData((prev) => ({
+                          ...prev,
+                          staffId: foundStaff.id,
+                          staffName: foundStaff.name || '',
+                          role: foundStaff.roleLabel || foundStaff.role || 'Staff',
+                          baseSalary: foundStaff.monthlySalary ? String(foundStaff.monthlySalary) : prev.baseSalary,
+                        }));
+                      } else {
+                        setSalaryData((prev) => ({ ...prev, staffId: '' }));
+                      }
+                    }}
+                    className="w-full px-3 py-2 bg-white border border-blue-300 rounded-lg text-xs font-bold text-blue-900 focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="">-- Choose from Staff & Roles (or enter below) --</option>
+                    {staffList
+                      .filter((s) => s.status !== 'left')
+                      .map((s) => (
+                        <option key={s.id} value={s.id}>
+                          {s.name} ({s.roleLabel || s.role || 'Staff'}) {s.monthlySalary ? `— ₹${s.monthlySalary}/month` : ''}
+                        </option>
+                      ))}
+                  </select>
+                </div>
+              )}
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
@@ -419,7 +490,7 @@ export default function ExpenseForm({ isOpen, onClose, onSubmit, editData }) {
                       setSalaryData((prev) => ({ ...prev, staffName: e.target.value }))
                     }
                     placeholder="e.g. Ramesh Kumar"
-                    className="w-full px-2.5 py-1.5 bg-white border border-blue-200 rounded-lg text-xs"
+                    className="w-full px-2.5 py-1.5 bg-white border border-blue-200 rounded-lg text-xs font-semibold"
                   />
                 </div>
 
@@ -432,7 +503,7 @@ export default function ExpenseForm({ isOpen, onClose, onSubmit, editData }) {
                     value={salaryData.role}
                     onChange={(e) => setSalaryData((prev) => ({ ...prev, role: e.target.value }))}
                     placeholder="e.g. Caretaker, Receptionist"
-                    className="w-full px-2.5 py-1.5 bg-white border border-blue-200 rounded-lg text-xs"
+                    className="w-full px-2.5 py-1.5 bg-white border border-blue-200 rounded-lg text-xs font-semibold"
                   />
                 </div>
               </div>
@@ -545,11 +616,11 @@ export default function ExpenseForm({ isOpen, onClose, onSubmit, editData }) {
             </div>
           </div>
 
-          {/* Recurrence Toggle for General/Standard Expenses */}
-          {(formMode === 'general' || formMode === 'additional') && (
+          {/* Recurrence Toggle for General, Additional & Salary Expenses */}
+          {(formMode === 'general' || formMode === 'additional' || formMode === 'salary') && (
             <div className="bg-slate-50 p-3 rounded-xl border border-slate-200 mt-2">
               <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-2">
-                Expense Frequency
+                Expense Frequency (आवृत्ति)
               </label>
               <div className="flex items-center gap-6">
                 <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
@@ -560,7 +631,7 @@ export default function ExpenseForm({ isOpen, onClose, onSubmit, editData }) {
                     onChange={() => setFormData({ ...formData, isRecurring: false })}
                     className="w-4 h-4 text-indigo-600 focus:ring-indigo-500"
                   />
-                  <span className="font-semibold">One Time</span>
+                  <span className="font-semibold">One Time (केवल इस महीने)</span>
                 </label>
                 <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
                   <input
@@ -570,12 +641,12 @@ export default function ExpenseForm({ isOpen, onClose, onSubmit, editData }) {
                     onChange={() => setFormData({ ...formData, isRecurring: true })}
                     className="w-4 h-4 text-indigo-600 focus:ring-indigo-500"
                   />
-                  <span className="font-semibold">Monthly Recurring</span>
+                  <span className="font-semibold">Monthly Recurring (हर महीने)</span>
                 </label>
               </div>
               {formData.isRecurring && (
                 <p className="text-[11px] font-medium text-indigo-600 mt-1.5 flex items-center gap-1">
-                  <Sparkles size={12} /> This expense will automatically be added every month on this date.
+                  <Sparkles size={12} /> {formMode === 'salary' ? 'यह सैलरी हर महीने Expenses में स्वतः जुड़ेगी जब तक Staff Active रहे।' : 'This expense will automatically be added every month on this date.'}
                 </p>
               )}
             </div>
