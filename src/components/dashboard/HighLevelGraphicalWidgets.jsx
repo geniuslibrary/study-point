@@ -108,52 +108,52 @@ export function HourlyPeakHoursWidget({ students = [], seats = [] }) {
   const areaD = `${pathD} L ${points[points.length - 1].x} ${svgHeight} L ${points[0].x} ${svgHeight} Z`;
 
   return (
-    <div className="bg-gradient-to-br from-white via-slate-50/70 to-indigo-50/20 rounded-3xl p-5 sm:p-6 border border-slate-200/90 shadow-sm hover:shadow-md transition-all flex flex-col justify-between h-full relative overflow-hidden group">
+    <div className="bg-gradient-to-br from-white via-slate-50/70 to-indigo-50/20 rounded-3xl p-4 sm:p-6 border border-slate-200/90 shadow-sm hover:shadow-md transition-all flex flex-col justify-between h-full relative overflow-hidden group">
       {/* Subtle background glow */}
       <div className="absolute top-0 right-0 w-48 h-48 bg-indigo-500/5 rounded-full blur-3xl pointer-events-none" />
 
       <div>
         {/* Header */}
-        <div className="flex items-center justify-between gap-2 mb-4">
-          <div className="flex items-center gap-3">
-            <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-indigo-500 to-indigo-700 text-white flex items-center justify-center shadow-md shadow-indigo-500/20">
-              <Clock className="w-5 h-5" />
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 mb-3 sm:mb-4">
+          <div className="flex items-center gap-2.5 sm:gap-3">
+            <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-2xl bg-gradient-to-br from-indigo-500 to-indigo-700 text-white flex items-center justify-center shadow-md shadow-indigo-500/20 shrink-0">
+              <Clock className="w-4 h-4 sm:w-5 sm:h-5" />
             </div>
             <div>
               <div className="flex items-center gap-2">
                 <h3 className="font-black text-slate-900 text-sm sm:text-base leading-tight">
                   Library Footfall & Peak Hours
                 </h3>
-                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping" />
+                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping shrink-0" />
               </div>
-              <p className="text-[11px] text-slate-500 font-semibold">16-Hour Visual Heatwave (6 AM - 10 PM)</p>
+              <p className="text-[10px] sm:text-[11px] text-slate-500 font-semibold">16-Hour Visual Heatwave (6 AM - 10 PM)</p>
             </div>
           </div>
-          <span className="inline-flex items-center gap-1.5 text-[11px] font-black px-3 py-1.5 rounded-full bg-amber-500/10 text-amber-700 border border-amber-500/20 shadow-xs">
+          <span className="inline-flex items-center gap-1.5 text-[10px] sm:text-[11px] font-black px-2.5 py-1 rounded-full bg-amber-500/10 text-amber-700 border border-amber-500/20 shadow-xs self-start sm:self-auto shrink-0">
             <Flame className="w-3.5 h-3.5 text-amber-500" />
             <span>Peak: <strong>{peakSlot.label}</strong></span>
           </span>
         </div>
 
         {/* Live Slot Floating HUD */}
-        <div className="grid grid-cols-3 gap-2.5 p-3 rounded-2xl bg-slate-900 text-white shadow-md mb-4 border border-slate-800">
+        <div className="grid grid-cols-3 gap-1.5 sm:gap-2.5 p-2 sm:p-3 rounded-2xl bg-slate-900 text-white shadow-md mb-3 sm:mb-4 border border-slate-800 text-center">
           <div className="text-left pl-1">
-            <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Active Slot</p>
-            <p className="text-sm font-black text-indigo-300">{activeSlot.label}</p>
+            <p className="text-[9px] sm:text-[10px] text-slate-400 font-bold uppercase tracking-wider truncate">Active Slot</p>
+            <p className="text-xs sm:text-sm font-black text-indigo-300 truncate">{activeSlot.label}</p>
           </div>
-          <div className="text-center border-x border-slate-800">
-            <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">In-Library</p>
-            <p className="text-base font-black text-white">{activeSlot.present} <span className="text-xs font-semibold text-slate-400">Students</span></p>
+          <div className="text-center border-x border-slate-800 px-1">
+            <p className="text-[9px] sm:text-[10px] text-slate-400 font-bold uppercase tracking-wider truncate">In-Library</p>
+            <p className="text-xs sm:text-base font-black text-white truncate">{activeSlot.present} <span className="text-[10px] font-semibold text-slate-400 hidden sm:inline">Students</span></p>
           </div>
           <div className="text-right pr-1">
-            <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Hall Load</p>
-            <p className="text-sm font-black text-emerald-400">{activeSlot.pct}%</p>
+            <p className="text-[9px] sm:text-[10px] text-slate-400 font-bold uppercase tracking-wider truncate">Hall Load</p>
+            <p className="text-xs sm:text-sm font-black text-emerald-400">{activeSlot.pct}%</p>
           </div>
         </div>
 
         {/* SVG Spline Wave Chart */}
         <div className="relative w-full rounded-2xl bg-white/80 border border-slate-100 p-2 shadow-inner">
-          <svg className="w-full h-28 overflow-visible" viewBox={`0 0 ${svgWidth} ${svgHeight}`} preserveAspectRatio="none">
+          <svg className="w-full h-24 sm:h-28 overflow-visible" viewBox={`0 0 ${svgWidth} ${svgHeight}`} preserveAspectRatio="none">
             <defs>
               <linearGradient id="peakWaveGrad" x1="0" y1="0" x2="0" y2="1">
                 <stop offset="0%" stopColor="#6366f1" stopOpacity="0.45" />
@@ -203,7 +203,7 @@ export function HourlyPeakHoursWidget({ students = [], seats = [] }) {
           </svg>
 
           {/* Time Axis Labels */}
-          <div className="flex justify-between items-center text-[10px] font-bold text-slate-400 px-2 mt-1">
+          <div className="flex justify-between items-center text-[9px] sm:text-[10px] font-bold text-slate-400 px-1 sm:px-2 mt-1">
             <span>6 AM</span>
             <span>9 AM</span>
             <span>12 PM</span>
@@ -215,12 +215,12 @@ export function HourlyPeakHoursWidget({ students = [], seats = [] }) {
       </div>
 
       {/* Footer Benchmark */}
-      <div className="pt-3 mt-3 border-t border-slate-100/90 flex items-center justify-between text-xs text-slate-500 font-medium">
-        <span className="flex items-center gap-1.5">
-          <span className="w-2 h-2 rounded-full bg-amber-500" />
-          Busy Window: <strong className="text-slate-800">10:00 AM - 1:00 PM & 5:00 - 8:00 PM</strong>
+      <div className="pt-3 mt-3 border-t border-slate-100/90 flex flex-col sm:flex-row sm:items-center justify-between gap-1.5 text-[11px] sm:text-xs text-slate-500 font-medium">
+        <span className="flex items-center gap-1.5 truncate">
+          <span className="w-2 h-2 rounded-full bg-amber-500 shrink-0" />
+          Busy Window: <strong className="text-slate-800 truncate">10 AM - 1 PM & 5 PM - 8 PM</strong>
         </span>
-        <span className="text-[11px] font-bold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-lg border border-indigo-100">
+        <span className="text-[10px] sm:text-[11px] font-bold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-lg border border-indigo-100 self-start sm:self-auto shrink-0">
           Capacity: {capacity} Seats
         </span>
       </div>
@@ -263,42 +263,42 @@ export function DailyCollectionBarWidget({ fees = [] }) {
   const activeHover = hoverDay || bestDay;
 
   return (
-    <div className="bg-gradient-to-br from-white via-slate-50/70 to-emerald-50/20 rounded-3xl p-5 sm:p-6 border border-slate-200/90 shadow-sm hover:shadow-md transition-all flex flex-col justify-between h-full relative overflow-hidden group">
+    <div className="bg-gradient-to-br from-white via-slate-50/70 to-emerald-50/20 rounded-3xl p-4 sm:p-6 border border-slate-200/90 shadow-sm hover:shadow-md transition-all flex flex-col justify-between h-full relative overflow-hidden group">
       <div className="absolute -bottom-8 -right-8 w-40 h-40 bg-emerald-500/5 rounded-full blur-3xl pointer-events-none" />
 
       <div>
-        <div className="flex items-center justify-between gap-2 mb-4">
-          <div className="flex items-center gap-3">
-            <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-700 text-white flex items-center justify-center shadow-md shadow-emerald-500/20">
-              <BarChart3 className="w-5 h-5" />
+        <div className="flex items-center justify-between gap-2 mb-3 sm:mb-4">
+          <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
+            <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-700 text-white flex items-center justify-center shadow-md shadow-emerald-500/20 shrink-0">
+              <BarChart3 className="w-4 h-4 sm:w-5 sm:h-5" />
             </div>
-            <div>
-              <h3 className="font-black text-slate-900 text-sm sm:text-base leading-tight">
+            <div className="min-w-0">
+              <h3 className="font-black text-slate-900 text-sm sm:text-base leading-tight truncate">
                 Daily Fee Collection (7 Days)
               </h3>
-              <p className="text-[11px] text-slate-500 font-semibold">दैनिक 7-दिवसीय फीस वेलोसिटी ग्राफ</p>
+              <p className="text-[10px] sm:text-[11px] text-slate-500 font-semibold truncate">दैनिक 7-दिवसीय फीस वेलोसिटी ग्राफ</p>
             </div>
           </div>
-          <div className="text-right">
-            <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">7-Day Total</p>
-            <p className="text-base font-black text-emerald-700 leading-tight">{formatINR(weekSum)}</p>
+          <div className="text-right shrink-0">
+            <p className="text-[9px] sm:text-[10px] text-slate-400 font-bold uppercase tracking-wider">7-Day Total</p>
+            <p className="text-sm sm:text-base font-black text-emerald-700 leading-tight">{formatINR(weekSum)}</p>
           </div>
         </div>
 
         {/* Selected Day HUD Banner */}
-        <div className="p-3 bg-slate-900 text-white rounded-2xl flex items-center justify-between mb-4 border border-slate-800 shadow-md">
-          <div className="flex items-center gap-2">
-            <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse" />
-            <span className="text-xs font-bold text-slate-300">{activeHover.dateFormatted}:</span>
+        <div className="p-2.5 sm:p-3 bg-slate-900 text-white rounded-2xl flex items-center justify-between mb-3 sm:mb-4 border border-slate-800 shadow-md text-xs">
+          <div className="flex items-center gap-1.5 sm:gap-2 truncate">
+            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse shrink-0" />
+            <span className="text-[11px] sm:text-xs font-bold text-slate-300 truncate">{activeHover.dateFormatted}:</span>
           </div>
-          <div className="text-right">
-            <span className="text-base font-black text-emerald-300">{formatINR(activeHover.total)}</span>
-            <span className="text-[10px] text-slate-400 ml-2 font-medium">({Math.round((activeHover.total / (weekSum || 1)) * 100)}% of week)</span>
+          <div className="text-right shrink-0">
+            <span className="text-sm sm:text-base font-black text-emerald-300">{formatINR(activeHover.total)}</span>
+            <span className="text-[9px] sm:text-[10px] text-slate-400 ml-1.5 font-medium hidden xs:inline">({Math.round((activeHover.total / (weekSum || 1)) * 100)}%)</span>
           </div>
         </div>
 
         {/* 3D Cylindrical Neon Bars */}
-        <div className="h-36 flex items-end gap-2 sm:gap-3 w-full pt-4 px-1">
+        <div className="h-32 sm:h-36 flex items-end gap-1 sm:gap-3 w-full pt-3 px-0.5">
           {last7Days.map((day) => {
             const barHeightPct = Math.max(12, Math.round((day.total / maxDaily) * 100));
             const isBest = day.total > 0 && day.dateStr === bestDay.dateStr;
@@ -312,7 +312,7 @@ export function DailyCollectionBarWidget({ fees = [] }) {
                 className="flex-1 flex flex-col items-center h-full justify-end cursor-pointer group/bar"
               >
                 {/* Floating tool tip */}
-                <div className="text-[10px] font-black text-emerald-800 bg-emerald-50 px-1.5 py-0.5 rounded-md border border-emerald-200 mb-1 opacity-0 group-hover/bar:opacity-100 transition-opacity truncate shadow-xs">
+                <div className="text-[9px] sm:text-[10px] font-black text-emerald-800 bg-emerald-50 px-1 py-0.5 rounded-md border border-emerald-200 mb-1 opacity-0 group-hover/bar:opacity-100 transition-opacity truncate shadow-xs">
                   {day.total > 0 ? `₹${day.total}` : '₹0'}
                 </div>
 
@@ -320,7 +320,7 @@ export function DailyCollectionBarWidget({ fees = [] }) {
                 <div className="w-full flex items-end justify-center h-full">
                   <div
                     style={{ height: `${barHeightPct}%` }}
-                    className={`w-full rounded-t-2xl transition-all duration-300 relative overflow-hidden ${
+                    className={`w-full rounded-t-xl sm:rounded-t-2xl transition-all duration-300 relative overflow-hidden ${
                       isBest
                         ? 'bg-gradient-to-t from-emerald-600 via-teal-500 to-emerald-400 shadow-md shadow-emerald-500/30 ring-2 ring-emerald-300'
                         : isSelected
@@ -331,11 +331,11 @@ export function DailyCollectionBarWidget({ fees = [] }) {
                     }`}
                   >
                     {/* Gloss highlight on top */}
-                    <div className="w-full h-1.5 bg-white/40 rounded-t-full" />
+                    <div className="w-full h-1 bg-white/40 rounded-t-full" />
                   </div>
                 </div>
 
-                <span className={`text-[11px] font-extrabold mt-2 transition-colors ${
+                <span className={`text-[10px] sm:text-[11px] font-extrabold mt-1.5 transition-colors ${
                   isSelected || isBest ? 'text-emerald-700' : 'text-slate-600'
                 }`}>
                   {day.dayLabel}
@@ -346,9 +346,9 @@ export function DailyCollectionBarWidget({ fees = [] }) {
         </div>
       </div>
 
-      <div className="pt-3 mt-3 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500 font-medium">
+      <div className="pt-3 mt-3 border-t border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-1.5 text-[11px] sm:text-xs text-slate-500 font-medium">
         <span>Best Day: <strong className="text-emerald-700">{bestDay.dayLabel} ({formatINR(bestDay.total)})</strong></span>
-        <span className="text-[11px] font-bold text-slate-400">Daily Average: {formatINR(Math.round(weekSum / 7))}</span>
+        <span className="text-[10px] sm:text-[11px] font-bold text-slate-400">Daily Avg: {formatINR(Math.round(weekSum / 7))}</span>
       </div>
     </div>
   );
@@ -372,21 +372,21 @@ export function SeatOccupancyGaugeWidget({ seats = [], students = [] }) {
   const dashOffset = arcLength - (occupancyPct / 100) * arcLength;
 
   return (
-    <div className="bg-gradient-to-br from-white via-slate-50/70 to-indigo-50/20 rounded-3xl p-5 sm:p-6 border border-slate-200/90 shadow-sm hover:shadow-md transition-all flex flex-col justify-between h-full relative overflow-hidden group">
+    <div className="bg-gradient-to-br from-white via-slate-50/70 to-indigo-50/20 rounded-3xl p-4 sm:p-6 border border-slate-200/90 shadow-sm hover:shadow-md transition-all flex flex-col justify-between h-full relative overflow-hidden group">
       <div>
         <div className="flex items-center justify-between gap-2 mb-3">
-          <div className="flex items-center gap-3">
-            <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-indigo-600 to-purple-700 text-white flex items-center justify-center shadow-md shadow-indigo-500/20">
+          <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
+            <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-2xl bg-gradient-to-br from-indigo-600 to-purple-700 text-white flex items-center justify-center shadow-md shadow-indigo-500/20 shrink-0">
               <Gauge className="w-5 h-5" />
             </div>
-            <div>
-              <h3 className="font-black text-slate-900 text-sm sm:text-base leading-tight">
+            <div className="min-w-0">
+              <h3 className="font-black text-slate-900 text-sm sm:text-base leading-tight truncate">
                 Live Capacity Speedometer
               </h3>
-              <p className="text-[11px] text-slate-500 font-semibold">हॉल ऑक्यूपेंसी स्पीडोमीटर व खाली सीटें</p>
+              <p className="text-[10px] sm:text-[11px] text-slate-500 font-semibold truncate">हॉल ऑक्यूपेंसी स्पीडोमीटर व खाली सीटें</p>
             </div>
           </div>
-          <span className={`text-xs font-black px-3 py-1 rounded-full border shadow-xs ${
+          <span className={`text-[10px] sm:text-xs font-black px-2.5 sm:px-3 py-1 rounded-full border shadow-xs shrink-0 ${
             occupancyPct >= 85
               ? 'bg-rose-50 text-rose-700 border-rose-200 shadow-rose-100'
               : occupancyPct >= 50
@@ -399,8 +399,8 @@ export function SeatOccupancyGaugeWidget({ seats = [], students = [] }) {
 
         {/* Luxury Radial Arc Cockpit Gauge */}
         <div className="flex flex-col items-center justify-center pt-2">
-          <div className="relative w-56 h-32 flex items-center justify-center">
-            <svg className="w-56 h-56 absolute -top-4" viewBox="0 0 200 200">
+          <div className="relative w-48 h-28 sm:w-56 sm:h-32 flex items-center justify-center">
+            <svg className="w-48 h-48 sm:w-56 sm:h-56 absolute -top-4" viewBox="0 0 200 200">
               <defs>
                 <linearGradient id="gaugeGradient" x1="0%" y1="0%" x2="100%" y2="0%">
                   <stop offset="0%" stopColor="#10b981" />
@@ -485,34 +485,34 @@ export function SeatOccupancyGaugeWidget({ seats = [], students = [] }) {
 
             {/* Big Center Digital HUD Readout */}
             <div className="absolute bottom-0 text-center">
-              <p className="text-3xl sm:text-4xl font-black text-slate-900 tracking-tight leading-none">
+              <p className="text-2xl sm:text-4xl font-black text-slate-900 tracking-tight leading-none">
                 {occupancyPct}%
               </p>
-              <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mt-1">Total Capacity</p>
+              <p className="text-[9px] sm:text-[10px] text-slate-400 font-bold uppercase tracking-wider mt-1">Total Capacity</p>
             </div>
           </div>
         </div>
 
         {/* 3 Metric Cards */}
-        <div className="grid grid-cols-3 gap-2.5 p-2.5 bg-slate-50/80 rounded-2xl border border-slate-200/70 text-center mt-3 shadow-2xs">
+        <div className="grid grid-cols-3 gap-1.5 sm:gap-2.5 p-2 sm:p-2.5 bg-slate-50/80 rounded-2xl border border-slate-200/70 text-center mt-3 shadow-2xs">
           <div>
-            <p className="text-[10px] text-slate-400 font-bold uppercase">Total Seats</p>
-            <p className="text-sm font-black text-slate-800">{totalPhysicalSeats}</p>
+            <p className="text-[9px] sm:text-[10px] text-slate-400 font-bold uppercase">Total Seats</p>
+            <p className="text-xs sm:text-sm font-black text-slate-800">{totalPhysicalSeats}</p>
           </div>
           <div>
-            <p className="text-[10px] text-slate-400 font-bold uppercase">Occupied</p>
-            <p className="text-sm font-black text-indigo-600">{occupiedCount}</p>
+            <p className="text-[9px] sm:text-[10px] text-slate-400 font-bold uppercase">Occupied</p>
+            <p className="text-xs sm:text-sm font-black text-indigo-600">{occupiedCount}</p>
           </div>
           <div>
-            <p className="text-[10px] text-slate-400 font-bold uppercase">Available</p>
-            <p className="text-sm font-black text-emerald-600">{freeSeats}</p>
+            <p className="text-[9px] sm:text-[10px] text-slate-400 font-bold uppercase">Available</p>
+            <p className="text-xs sm:text-sm font-black text-emerald-600">{freeSeats}</p>
           </div>
         </div>
       </div>
 
-      <div className="pt-3 mt-3 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500 font-medium">
+      <div className="pt-3 mt-3 border-t border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-1.5 text-[11px] sm:text-xs text-slate-500 font-medium">
         <span>Available for Admissions: <strong className="text-emerald-700 font-extrabold">{freeSeats} seats</strong></span>
-        <span className="text-[11px] font-bold text-slate-400">Live Hardware Sync</span>
+        <span className="text-[10px] sm:text-[11px] font-bold text-slate-400">Live Hardware Sync</span>
       </div>
     </div>
   );
@@ -564,21 +564,21 @@ export function PlanPopularityDonutWidget({ students = [], plans = [] }) {
   let accumulatedAngle = 0;
 
   return (
-    <div className="bg-gradient-to-br from-white via-slate-50/70 to-purple-50/20 rounded-3xl p-5 sm:p-6 border border-slate-200/90 shadow-sm hover:shadow-md transition-all flex flex-col justify-between h-full relative overflow-hidden group">
+    <div className="bg-gradient-to-br from-white via-slate-50/70 to-purple-50/20 rounded-3xl p-4 sm:p-6 border border-slate-200/90 shadow-sm hover:shadow-md transition-all flex flex-col justify-between h-full relative overflow-hidden group">
       <div>
         <div className="flex items-center justify-between gap-2 mb-4">
-          <div className="flex items-center gap-3">
-            <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-purple-500 to-indigo-700 text-white flex items-center justify-center shadow-md shadow-purple-500/20">
+          <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
+            <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-2xl bg-gradient-to-br from-purple-500 to-indigo-700 text-white flex items-center justify-center shadow-md shadow-purple-500/20 shrink-0">
               <PieChart className="w-5 h-5" />
             </div>
-            <div>
-              <h3 className="font-black text-slate-900 text-sm sm:text-base leading-tight">
+            <div className="min-w-0">
+              <h3 className="font-black text-slate-900 text-sm sm:text-base leading-tight truncate">
                 Plan Popularity & Donut
               </h3>
-              <p className="text-[11px] text-slate-500 font-semibold">मेंबरशिप प्लान्स का सर्कुलर विज़ुअल शेयर</p>
+              <p className="text-[10px] sm:text-[11px] text-slate-500 font-semibold truncate">मेंबरशिप प्लान्स का सर्कुलर विज़ुअल शेयर</p>
             </div>
           </div>
-          <span className="text-xs font-black text-purple-700 bg-purple-50 px-3 py-1 rounded-full border border-purple-200 shadow-xs">
+          <span className="text-[10px] sm:text-xs font-black text-purple-700 bg-purple-50 px-2.5 sm:px-3 py-1 rounded-full border border-purple-200 shadow-xs shrink-0">
             {totalValid} Members
           </span>
         </div>
@@ -586,8 +586,8 @@ export function PlanPopularityDonutWidget({ students = [], plans = [] }) {
         {/* Circular Donut + Legend Side-by-Side */}
         <div className="grid grid-cols-1 sm:grid-cols-2 items-center gap-4 py-2">
           {/* SVG Donut Center */}
-          <div className="relative w-36 h-36 mx-auto flex items-center justify-center">
-            <svg className="w-36 h-36 transform -rotate-90" viewBox="0 0 140 140">
+          <div className="relative w-32 h-32 sm:w-36 sm:h-36 mx-auto flex items-center justify-center">
+            <svg className="w-32 h-32 sm:w-36 sm:h-36 transform -rotate-90" viewBox="0 0 140 140">
               {/* Background ring */}
               <circle cx="70" cy="70" r="52" fill="none" stroke="#f1f5f9" strokeWidth="18" />
 
@@ -618,22 +618,22 @@ export function PlanPopularityDonutWidget({ students = [], plans = [] }) {
 
             {/* Donut Hole Readout */}
             <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-              <span className="text-xl font-black text-slate-900">{totalValid}</span>
-              <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Students</span>
+              <span className="text-lg sm:text-xl font-black text-slate-900">{totalValid}</span>
+              <span className="text-[8px] sm:text-[9px] font-bold text-slate-400 uppercase tracking-wider">Students</span>
             </div>
           </div>
 
           {/* Slices Legend List */}
-          <div className="space-y-2">
+          <div className="space-y-1.5 sm:space-y-2">
             {planList.slice(0, 4).map((p) => (
               <div key={p.name} className="flex items-center justify-between text-xs p-1.5 rounded-xl hover:bg-slate-50 transition-colors">
                 <div className="flex items-center gap-2 min-w-0">
-                  <span className="w-3 h-3 rounded-md shrink-0 shadow-2xs" style={{ backgroundColor: p.color.hex }} />
-                  <span className="font-bold text-slate-700 truncate">{p.name}</span>
+                  <span className="w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-md shrink-0 shadow-2xs" style={{ backgroundColor: p.color.hex }} />
+                  <span className="font-bold text-slate-700 truncate text-[11px] sm:text-xs">{p.name}</span>
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
-                  <span className="text-[11px] font-semibold text-slate-400">{p.count}</span>
-                  <span className="font-black text-slate-900 w-9 text-right">{p.pct}%</span>
+                  <span className="text-[10px] sm:text-[11px] font-semibold text-slate-400">{p.count}</span>
+                  <span className="font-black text-slate-900 w-8 sm:w-9 text-right text-[11px] sm:text-xs">{p.pct}%</span>
                 </div>
               </div>
             ))}
@@ -641,9 +641,9 @@ export function PlanPopularityDonutWidget({ students = [], plans = [] }) {
         </div>
       </div>
 
-      <div className="pt-3 mt-3 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500 font-medium">
+      <div className="pt-3 mt-3 border-t border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-1.5 text-[11px] sm:text-xs text-slate-500 font-medium">
         <span>Top Choice: <strong className="text-purple-700">{planList[0]?.name || 'Full Day'}</strong></span>
-        <span className="text-[11px] font-bold text-slate-400">{planList.length} Active Plan Tiers</span>
+        <span className="text-[10px] sm:text-[11px] font-bold text-slate-400">{planList.length} Active Plan Tiers</span>
       </div>
     </div>
   );
@@ -684,36 +684,36 @@ export function AdmissionVsExitGrowthWidget({ students = [] }) {
   const netGrowth = totalNew - totalLeft;
 
   return (
-    <div className="bg-gradient-to-br from-white via-slate-50/70 to-teal-50/20 rounded-3xl p-5 sm:p-6 border border-slate-200/90 shadow-sm hover:shadow-md transition-all flex flex-col justify-between h-full relative overflow-hidden group">
+    <div className="bg-gradient-to-br from-white via-slate-50/70 to-teal-50/20 rounded-3xl p-4 sm:p-6 border border-slate-200/90 shadow-sm hover:shadow-md transition-all flex flex-col justify-between h-full relative overflow-hidden group">
       <div>
         <div className="flex items-center justify-between gap-2 mb-4">
-          <div className="flex items-center gap-3">
-            <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-teal-500 to-emerald-700 text-white flex items-center justify-center shadow-md shadow-teal-500/20">
+          <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
+            <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-2xl bg-gradient-to-br from-teal-500 to-emerald-700 text-white flex items-center justify-center shadow-md shadow-teal-500/20 shrink-0">
               <TrendingUp className="w-5 h-5" />
             </div>
-            <div>
-              <h3 className="font-black text-slate-900 text-sm sm:text-base leading-tight">
+            <div className="min-w-0">
+              <h3 className="font-black text-slate-900 text-sm sm:text-base leading-tight truncate">
                 Net Growth & Exit Velocity
               </h3>
-              <p className="text-[11px] text-slate-500 font-semibold">6 माह नए एडमिशन बनाम लेफ्ट छात्र</p>
+              <p className="text-[10px] sm:text-[11px] text-slate-500 font-semibold truncate">6 माह नए एडमिशन बनाम लेफ्ट छात्र</p>
             </div>
           </div>
-          <span className={`inline-flex items-center gap-1 text-xs font-black px-3 py-1 rounded-full border shadow-xs ${
+          <span className={`inline-flex items-center gap-1 text-[10px] sm:text-xs font-black px-2.5 sm:px-3 py-1 rounded-full border shadow-xs shrink-0 ${
             netGrowth >= 0 ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-rose-50 text-rose-700 border-rose-200'
           }`}>
-            {netGrowth >= 0 ? <ArrowUpRight className="w-4 h-4" /> : <ArrowDownRight className="w-4 h-4" />}
+            {netGrowth >= 0 ? <ArrowUpRight className="w-3.5 h-3.5" /> : <ArrowDownRight className="w-3.5 h-3.5" />}
             Net: {netGrowth >= 0 ? `+${netGrowth}` : netGrowth}
           </span>
         </div>
 
         {/* Dual Bar Chart with Gradient Pillars */}
-        <div className="h-36 flex items-end gap-2 sm:gap-4 w-full pt-4 px-2">
+        <div className="h-32 sm:h-36 flex items-end gap-1.5 sm:gap-4 w-full pt-3 sm:pt-4 px-1 sm:px-2">
           {months.map((m) => {
             const addH = Math.max(8, Math.round((m.admissions / maxVal) * 100));
             const exitH = Math.max(8, Math.round((m.exits / maxVal) * 100));
             return (
               <div key={m.label} className="flex-1 flex flex-col items-center h-full justify-end group/bar">
-                <div className="w-full flex items-end justify-center gap-1.5 h-full">
+                <div className="w-full flex items-end justify-center gap-1 sm:gap-1.5 h-full">
                   {/* Admission Pill */}
                   <div
                     style={{ height: `${addH}%` }}
@@ -727,7 +727,7 @@ export function AdmissionVsExitGrowthWidget({ students = [] }) {
                     title={`Exits: ${m.exits}`}
                   />
                 </div>
-                <span className="text-[10px] font-bold text-slate-500 mt-2 truncate max-w-full">
+                <span className="text-[9px] sm:text-[10px] font-bold text-slate-500 mt-1.5 sm:mt-2 truncate max-w-full">
                   {m.label}
                 </span>
               </div>
@@ -736,12 +736,12 @@ export function AdmissionVsExitGrowthWidget({ students = [] }) {
         </div>
       </div>
 
-      <div className="pt-3 mt-3 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500 font-medium">
+      <div className="pt-3 mt-3 border-t border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-1.5 text-[11px] sm:text-xs text-slate-500 font-medium">
         <div className="flex items-center gap-3">
           <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-emerald-500" /> New: <strong>{totalNew}</strong></span>
           <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-rose-500" /> Left: <strong>{totalLeft}</strong></span>
         </div>
-        <span className="text-[11px] font-bold text-teal-700 bg-teal-50 px-2.5 py-0.5 rounded-lg border border-teal-100">
+        <span className="text-[10px] sm:text-[11px] font-bold text-teal-700 bg-teal-50 px-2.5 py-0.5 rounded-lg border border-teal-100">
           Retention: {totalNew ? Math.round(((totalNew - totalLeft) / totalNew) * 100) : 100}%
         </span>
       </div>
@@ -791,48 +791,48 @@ export function ShiftCapacityCompareWidget({ seats = [], students = [] }) {
   ];
 
   return (
-    <div className="bg-gradient-to-br from-white via-slate-50/70 to-cyan-50/20 rounded-3xl p-5 sm:p-6 border border-slate-200/90 shadow-sm hover:shadow-md transition-all flex flex-col justify-between h-full relative overflow-hidden group">
+    <div className="bg-gradient-to-br from-white via-slate-50/70 to-cyan-50/20 rounded-3xl p-4 sm:p-6 border border-slate-200/90 shadow-sm hover:shadow-md transition-all flex flex-col justify-between h-full relative overflow-hidden group">
       <div>
         <div className="flex items-center justify-between gap-2 mb-4">
-          <div className="flex items-center gap-3">
-            <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-cyan-500 to-blue-700 text-white flex items-center justify-center shadow-md shadow-cyan-500/20">
+          <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
+            <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-2xl bg-gradient-to-br from-cyan-500 to-blue-700 text-white flex items-center justify-center shadow-md shadow-cyan-500/20 shrink-0">
               <Layers className="w-5 h-5" />
             </div>
-            <div>
-              <h3 className="font-black text-slate-900 text-sm sm:text-base leading-tight">
+            <div className="min-w-0">
+              <h3 className="font-black text-slate-900 text-sm sm:text-base leading-tight truncate">
                 Shift Slot Capacity & Vacancy
               </h3>
-              <p className="text-[11px] text-slate-500 font-semibold">शिफ्ट-वाइज खाली और भरी सीटों का सटीक ग्राफ</p>
+              <p className="text-[10px] sm:text-[11px] text-slate-500 font-semibold truncate">शिफ्ट-वाइज खाली और भरी सीटों का सटीक ग्राफ</p>
             </div>
           </div>
-          <span className="text-xs font-black text-cyan-700 bg-cyan-50 px-3 py-1 rounded-full border border-cyan-200 shadow-xs">
+          <span className="text-[10px] sm:text-xs font-black text-cyan-700 bg-cyan-50 px-2.5 sm:px-3 py-1 rounded-full border border-cyan-200 shadow-xs shrink-0">
             {totalPhysical} Max Seats
           </span>
         </div>
 
         {/* 3 Shift Cards */}
-        <div className="space-y-3 pt-1">
+        <div className="space-y-2.5 sm:space-y-3 pt-1">
           {shifts.map((sh) => {
             const fillPct = Math.min(100, Math.round((sh.seated / totalPhysical) * 100));
             return (
-              <div key={sh.name} className="p-3 bg-white rounded-2xl border border-slate-100 shadow-2xs hover:shadow-xs transition-shadow">
+              <div key={sh.name} className="p-2.5 sm:p-3 bg-white rounded-2xl border border-slate-100 shadow-2xs hover:shadow-xs transition-shadow">
                 <div className="flex justify-between items-center text-xs mb-1.5 font-bold">
-                  <div>
-                    <span className="text-slate-900 font-extrabold">{sh.name}</span>
-                    <span className="text-[10px] text-slate-400 font-semibold ml-1.5">({sh.timing})</span>
+                  <div className="min-w-0 pr-1">
+                    <span className="text-slate-900 font-extrabold text-[11px] sm:text-xs">{sh.name}</span>
+                    <span className="text-[9px] sm:text-[10px] text-slate-400 font-semibold ml-1 sm:ml-1.5">({sh.timing})</span>
                   </div>
-                  <span className="text-emerald-700 font-black bg-emerald-50 px-2 py-0.5 rounded-lg border border-emerald-200">
-                    {sh.free} Seats Free
+                  <span className="text-emerald-700 font-black bg-emerald-50 px-2 py-0.5 rounded-lg border border-emerald-200 shrink-0 text-[10px] sm:text-xs">
+                    {sh.free} Free
                   </span>
                 </div>
                 {/* Visual Progress Bar */}
-                <div className="h-3 bg-slate-100 rounded-full overflow-hidden flex shadow-inner">
+                <div className="h-2.5 sm:h-3 bg-slate-100 rounded-full overflow-hidden flex shadow-inner">
                   <div
                     style={{ width: `${fillPct}%` }}
                     className={`h-full bg-gradient-to-r ${sh.gradient} rounded-full transition-all duration-700`}
                   />
                 </div>
-                <div className="flex justify-between text-[10px] text-slate-400 font-bold mt-1">
+                <div className="flex justify-between text-[9px] sm:text-[10px] text-slate-400 font-bold mt-1">
                   <span>{sh.seated} Enrolled ({fillPct}%)</span>
                   <span>{totalPhysical} Hall Capacity</span>
                 </div>
@@ -842,9 +842,9 @@ export function ShiftCapacityCompareWidget({ seats = [], students = [] }) {
         </div>
       </div>
 
-      <div className="pt-3 mt-3 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500 font-medium">
+      <div className="pt-3 mt-3 border-t border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-1.5 text-[11px] sm:text-xs text-slate-500 font-medium">
         <span>Available for Next Admissions: <strong className="text-emerald-700">{Math.max(morningFree, eveningFree)} Slots</strong></span>
-        <span className="text-[11px] font-bold text-slate-400">Shift Matrix</span>
+        <span className="text-[10px] sm:text-[11px] font-bold text-slate-400">Shift Matrix</span>
       </div>
     </div>
   );
@@ -888,37 +888,37 @@ export function FeeAgingRecoveryWidget({ students = [], fees = [] }) {
   ];
 
   return (
-    <div className="bg-gradient-to-br from-white via-slate-50/70 to-rose-50/20 rounded-3xl p-5 sm:p-6 border border-slate-200/90 shadow-sm hover:shadow-md transition-all flex flex-col justify-between h-full relative overflow-hidden group">
+    <div className="bg-gradient-to-br from-white via-slate-50/70 to-rose-50/20 rounded-3xl p-4 sm:p-6 border border-slate-200/90 shadow-sm hover:shadow-md transition-all flex flex-col justify-between h-full relative overflow-hidden group">
       <div>
         <div className="flex items-center justify-between gap-2 mb-4">
-          <div className="flex items-center gap-3">
-            <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-rose-500 to-red-700 text-white flex items-center justify-center shadow-md shadow-rose-500/20">
+          <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
+            <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-2xl bg-gradient-to-br from-rose-500 to-red-700 text-white flex items-center justify-center shadow-md shadow-rose-500/20 shrink-0">
               <ShieldAlert className="w-5 h-5" />
             </div>
-            <div>
-              <h3 className="font-black text-slate-900 text-sm sm:text-base leading-tight">
+            <div className="min-w-0">
+              <h3 className="font-black text-slate-900 text-sm sm:text-base leading-tight truncate">
                 Fee Dues Aging & Recovery
               </h3>
-              <p className="text-[11px] text-slate-500 font-semibold">बकाया फीस रिकवरी बकेट व रिस्क फनेल</p>
+              <p className="text-[10px] sm:text-[11px] text-slate-500 font-semibold truncate">बकाया फीस रिकवरी बकेट व रिस्क फनेल</p>
             </div>
           </div>
-          <div className="text-right">
-            <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Pending Dues</p>
-            <p className="text-base font-black text-rose-600 leading-tight">{formatINR(totalAtRisk)}</p>
+          <div className="text-right shrink-0">
+            <p className="text-[9px] sm:text-[10px] text-slate-400 font-bold uppercase tracking-wider">Pending Dues</p>
+            <p className="text-sm sm:text-base font-black text-rose-600 leading-tight">{formatINR(totalAtRisk)}</p>
           </div>
         </div>
 
         {/* 4 Cascading Risk Tiers */}
-        <div className="space-y-3 pt-1">
+        <div className="space-y-2.5 sm:space-y-3 pt-1">
           {buckets.map((b) => {
             const barW = Math.max(8, Math.round((b.amount / maxBucket) * 100));
             return (
-              <div key={b.label} className="p-2.5 bg-white rounded-2xl border border-slate-100 shadow-2xs">
-                <div className="flex justify-between text-xs font-bold mb-1.5">
-                  <span className={b.textCol}>{b.label}</span>
-                  <span className="text-slate-900 font-extrabold">{formatINR(b.amount)}</span>
+              <div key={b.label} className="p-2 sm:p-2.5 bg-white rounded-2xl border border-slate-100 shadow-2xs">
+                <div className="flex justify-between text-[11px] sm:text-xs font-bold mb-1.5">
+                  <span className={`${b.textCol} truncate pr-2`}>{b.label}</span>
+                  <span className="text-slate-900 font-extrabold shrink-0">{formatINR(b.amount)}</span>
                 </div>
-                <div className="h-2.5 bg-slate-100 rounded-full overflow-hidden flex shadow-inner">
+                <div className="h-2 sm:h-2.5 bg-slate-100 rounded-full overflow-hidden flex shadow-inner">
                   <div
                     style={{ width: `${barW}%` }}
                     className={`h-full bg-gradient-to-r ${b.color} rounded-full transition-all duration-500`}
@@ -930,11 +930,11 @@ export function FeeAgingRecoveryWidget({ students = [], fees = [] }) {
         </div>
       </div>
 
-      <div className="pt-3 mt-3 border-t border-slate-100 flex items-center justify-between text-xs font-medium">
+      <div className="pt-3 mt-3 border-t border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-[11px] sm:text-xs font-medium">
         <span className="text-slate-500">1-Click Fast WhatsApp Recovery</span>
         <button
           onClick={() => navigate('/fees')}
-          className="text-indigo-600 hover:text-indigo-800 font-black flex items-center gap-1 cursor-pointer bg-indigo-50 hover:bg-indigo-100 px-3 py-1 rounded-xl transition-colors"
+          className="text-indigo-600 hover:text-indigo-800 font-black flex items-center justify-center gap-1 cursor-pointer bg-indigo-50 hover:bg-indigo-100 px-3 py-1.5 rounded-xl transition-colors w-full sm:w-auto"
         >
           <span>Collect Now</span>
           <ChevronRight className="w-3.5 h-3.5" />
@@ -954,48 +954,48 @@ export function ProfitMarginExpenseWidget({ revenue = 0, expenses = [] }) {
   const expenseRatio = revenue ? Math.round((totalExpense / revenue) * 100) : 0;
 
   return (
-    <div className="bg-gradient-to-br from-white via-slate-50/70 to-emerald-50/20 rounded-3xl p-5 sm:p-6 border border-slate-200/90 shadow-sm hover:shadow-md transition-all flex flex-col justify-between h-full relative overflow-hidden group">
+    <div className="bg-gradient-to-br from-white via-slate-50/70 to-emerald-50/20 rounded-3xl p-4 sm:p-6 border border-slate-200/90 shadow-sm hover:shadow-md transition-all flex flex-col justify-between h-full relative overflow-hidden group">
       <div>
         <div className="flex items-center justify-between gap-2 mb-4">
-          <div className="flex items-center gap-3">
-            <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-700 text-white flex items-center justify-center shadow-md shadow-emerald-500/20">
+          <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
+            <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-700 text-white flex items-center justify-center shadow-md shadow-emerald-500/20 shrink-0">
               <CircleDollarSign className="w-5 h-5" />
             </div>
-            <div>
-              <h3 className="font-black text-slate-900 text-sm sm:text-base leading-tight">
+            <div className="min-w-0">
+              <h3 className="font-black text-slate-900 text-sm sm:text-base leading-tight truncate">
                 Net Profit & Operating Margin
               </h3>
-              <p className="text-[11px] text-slate-500 font-semibold">कमाई, खर्चे व शुद्ध मुनाफा विज़ुअल स्प्लिट</p>
+              <p className="text-[10px] sm:text-[11px] text-slate-500 font-semibold truncate">कमाई, खर्चे व शुद्ध मुनाफा विज़ुअल स्प्लिट</p>
             </div>
           </div>
-          <span className="text-xs font-black text-emerald-800 bg-emerald-50 px-3 py-1 rounded-full border border-emerald-200 shadow-xs">
+          <span className="text-[10px] sm:text-xs font-black text-emerald-800 bg-emerald-50 px-2.5 sm:px-3 py-1 rounded-full border border-emerald-200 shadow-xs shrink-0">
             {profitMargin}% Net Margin
           </span>
         </div>
 
         {/* 3 Metric Cards */}
-        <div className="grid grid-cols-3 gap-2 p-3 bg-slate-900 text-white rounded-2xl mb-4 text-center border border-slate-800 shadow-md">
-          <div>
-            <p className="text-[10px] text-slate-400 font-bold uppercase">Revenue</p>
-            <p className="text-sm sm:text-base font-black text-white">{formatINR(revenue)}</p>
+        <div className="grid grid-cols-3 gap-1.5 sm:gap-2 p-2.5 sm:p-3 bg-slate-900 text-white rounded-2xl mb-4 text-center border border-slate-800 shadow-md">
+          <div className="min-w-0">
+            <p className="text-[9px] sm:text-[10px] text-slate-400 font-bold uppercase truncate">Revenue</p>
+            <p className="text-xs sm:text-base font-black text-white truncate">{formatINR(revenue)}</p>
           </div>
-          <div className="border-x border-slate-800">
-            <p className="text-[10px] text-slate-400 font-bold uppercase">Expenses</p>
-            <p className="text-sm sm:text-base font-black text-rose-400">{formatINR(totalExpense)}</p>
+          <div className="border-x border-slate-800 min-w-0 px-1">
+            <p className="text-[9px] sm:text-[10px] text-slate-400 font-bold uppercase truncate">Expenses</p>
+            <p className="text-xs sm:text-base font-black text-rose-400 truncate">{formatINR(totalExpense)}</p>
           </div>
-          <div>
-            <p className="text-[10px] text-slate-400 font-bold uppercase">Net Profit</p>
-            <p className="text-sm sm:text-base font-black text-emerald-400">{formatINR(netProfit)}</p>
+          <div className="min-w-0">
+            <p className="text-[9px] sm:text-[10px] text-slate-400 font-bold uppercase truncate">Net Profit</p>
+            <p className="text-xs sm:text-base font-black text-emerald-400 truncate">{formatINR(netProfit)}</p>
           </div>
         </div>
 
         {/* Waterfall Comparison Multi-Bar */}
         <div className="space-y-1.5">
-          <div className="flex justify-between text-xs font-bold text-slate-600">
+          <div className="flex justify-between text-[11px] sm:text-xs font-bold text-slate-600">
             <span>Income vs Expense Ratio</span>
             <span>{profitMargin}% Profit / {expenseRatio}% Cost</span>
           </div>
-          <div className="h-4 w-full rounded-full overflow-hidden flex bg-slate-100 shadow-inner">
+          <div className="h-3.5 sm:h-4 w-full rounded-full overflow-hidden flex bg-slate-100 shadow-inner">
             <div
               style={{ width: `${profitMargin}%` }}
               className="h-full bg-gradient-to-r from-emerald-500 to-teal-400 transition-all duration-700"
@@ -1010,12 +1010,12 @@ export function ProfitMarginExpenseWidget({ revenue = 0, expenses = [] }) {
         </div>
       </div>
 
-      <div className="pt-3 mt-3 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500 font-medium">
+      <div className="pt-3 mt-3 border-t border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-1.5 text-[11px] sm:text-xs text-slate-500 font-medium">
         <div className="flex items-center gap-3">
-          <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-emerald-500" /> Profit: {formatINR(netProfit)}</span>
-          <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-rose-500" /> Cost: {formatINR(totalExpense)}</span>
+          <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-emerald-500" /> Profit: <strong>{formatINR(netProfit)}</strong></span>
+          <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-rose-500" /> Cost: <strong>{formatINR(totalExpense)}</strong></span>
         </div>
-        <span className="text-[11px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-lg border border-emerald-100">
+        <span className="text-[10px] sm:text-[11px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-lg border border-emerald-100">
           Financial Health: A+
         </span>
       </div>
@@ -1043,56 +1043,56 @@ export function AverageRevenueMetricWidget({ students = [], revenue = 0 }) {
   const ltv = Math.round(arpu * Number(avgTenure));
 
   return (
-    <div className="bg-gradient-to-br from-white via-slate-50/70 to-amber-50/20 rounded-3xl p-5 sm:p-6 border border-slate-200/90 shadow-sm hover:shadow-md transition-all flex flex-col justify-between h-full relative overflow-hidden group">
+    <div className="bg-gradient-to-br from-white via-slate-50/70 to-amber-50/20 rounded-3xl p-4 sm:p-6 border border-slate-200/90 shadow-sm hover:shadow-md transition-all flex flex-col justify-between h-full relative overflow-hidden group">
       <div>
         <div className="flex items-center justify-between gap-2 mb-4">
-          <div className="flex items-center gap-3">
-            <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-amber-500 to-orange-600 text-white flex items-center justify-center shadow-md shadow-amber-500/20">
+          <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
+            <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-2xl bg-gradient-to-br from-amber-500 to-orange-600 text-white flex items-center justify-center shadow-md shadow-amber-500/20 shrink-0">
               <Award className="w-5 h-5" />
             </div>
-            <div>
-              <h3 className="font-black text-slate-900 text-sm sm:text-base leading-tight">
+            <div className="min-w-0">
+              <h3 className="font-black text-slate-900 text-sm sm:text-base leading-tight truncate">
                 ARPU & Student Lifetime Value
               </h3>
-              <p className="text-[11px] text-slate-500 font-semibold">प्रति छात्र औसत कमाई (LTV व मासिक टिकट साइज)</p>
+              <p className="text-[10px] sm:text-[11px] text-slate-500 font-semibold truncate">प्रति छात्र औसत कमाई (LTV व मासिक टिकट साइज)</p>
             </div>
           </div>
-          <span className="text-xs font-black text-amber-700 bg-amber-50 px-3 py-1 rounded-full border border-amber-200 shadow-xs">
+          <span className="text-[10px] sm:text-xs font-black text-amber-700 bg-amber-50 px-2.5 sm:px-3 py-1 rounded-full border border-amber-200 shadow-xs shrink-0">
             ★ VIP Analytics
           </span>
         </div>
 
         {/* 2 Big Fintech KPI Cards */}
-        <div className="grid grid-cols-2 gap-3 mb-4">
-          <div className="p-4 bg-gradient-to-br from-indigo-500 to-indigo-700 text-white rounded-2xl shadow-md relative overflow-hidden">
+        <div className="grid grid-cols-1 xs:grid-cols-2 sm:grid-cols-2 gap-2.5 sm:gap-3 mb-4">
+          <div className="p-3.5 sm:p-4 bg-gradient-to-br from-indigo-500 to-indigo-700 text-white rounded-2xl shadow-md relative overflow-hidden">
             <div className="absolute top-0 right-0 w-24 h-24 bg-white/10 rounded-full blur-xl pointer-events-none" />
-            <p className="text-[10px] text-indigo-200 font-bold uppercase tracking-wider">
+            <p className="text-[9px] sm:text-[10px] text-indigo-200 font-bold uppercase tracking-wider">
               ARPU (Monthly Ticket)
             </p>
-            <p className="text-2xl font-black text-white mt-1">{formatINR(arpu)}</p>
-            <p className="text-[11px] text-indigo-100 font-semibold mt-0.5">Average Fee Per Seat</p>
+            <p className="text-xl sm:text-2xl font-black text-white mt-1">{formatINR(arpu)}</p>
+            <p className="text-[10px] sm:text-[11px] text-indigo-100 font-semibold mt-0.5">Average Fee Per Seat</p>
           </div>
 
-          <div className="p-4 bg-gradient-to-br from-amber-500 to-orange-600 text-white rounded-2xl shadow-md relative overflow-hidden">
+          <div className="p-3.5 sm:p-4 bg-gradient-to-br from-amber-500 to-orange-600 text-white rounded-2xl shadow-md relative overflow-hidden">
             <div className="absolute top-0 right-0 w-24 h-24 bg-white/10 rounded-full blur-xl pointer-events-none" />
-            <p className="text-[10px] text-amber-100 font-bold uppercase tracking-wider">
+            <p className="text-[9px] sm:text-[10px] text-amber-100 font-bold uppercase tracking-wider">
               LTV (Lifetime Value)
             </p>
-            <p className="text-2xl font-black text-white mt-1">{formatINR(ltv)}</p>
-            <p className="text-[11px] text-amber-100 font-semibold mt-0.5">~{avgTenure} Months Retention</p>
+            <p className="text-xl sm:text-2xl font-black text-white mt-1">{formatINR(ltv)}</p>
+            <p className="text-[10px] sm:text-[11px] text-amber-100 font-semibold mt-0.5">~{avgTenure} Months Retention</p>
           </div>
         </div>
 
         {/* Annual Projection Benchmark */}
-        <div className="p-3 bg-white rounded-2xl border border-slate-100 shadow-2xs flex items-center justify-between text-xs text-slate-600 font-semibold">
+        <div className="p-2.5 sm:p-3 bg-white rounded-2xl border border-slate-100 shadow-2xs flex items-center justify-between text-[11px] sm:text-xs text-slate-600 font-semibold">
           <span>Projected Annual Per Seat:</span>
-          <strong className="text-slate-900 font-black">{formatINR(arpu * 12)} / year</strong>
+          <strong className="text-slate-900 font-black">{formatINR(arpu * 12)} / yr</strong>
         </div>
       </div>
 
-      <div className="pt-3 mt-3 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500 font-medium">
+      <div className="pt-3 mt-3 border-t border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-1.5 text-[11px] sm:text-xs text-slate-500 font-medium">
         <span>Average Student Stay: <strong className="text-indigo-700 font-black">{avgTenure} Months</strong></span>
-        <span className="text-[11px] font-bold text-slate-400">LTV Algorithm</span>
+        <span className="text-[10px] sm:text-[11px] font-bold text-slate-400">LTV Algorithm</span>
       </div>
     </div>
   );
@@ -1129,21 +1129,21 @@ export function StudyTimeDistributionWidget({ students = [] }) {
   const polygonPointsStr = radarPoints.map((p) => `${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(' ');
 
   return (
-    <div className="bg-gradient-to-br from-white via-slate-50/70 to-blue-50/20 rounded-3xl p-5 sm:p-6 border border-slate-200/90 shadow-sm hover:shadow-md transition-all flex flex-col justify-between h-full relative overflow-hidden group">
+    <div className="bg-gradient-to-br from-white via-slate-50/70 to-blue-50/20 rounded-3xl p-4 sm:p-6 border border-slate-200/90 shadow-sm hover:shadow-md transition-all flex flex-col justify-between h-full relative overflow-hidden group">
       <div>
         <div className="flex items-center justify-between gap-2 mb-4">
-          <div className="flex items-center gap-3">
-            <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-blue-500 to-indigo-700 text-white flex items-center justify-center shadow-md shadow-blue-500/20">
+          <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
+            <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-2xl bg-gradient-to-br from-blue-500 to-indigo-700 text-white flex items-center justify-center shadow-md shadow-blue-500/20 shrink-0">
               <Compass className="w-5 h-5" />
             </div>
-            <div>
-              <h3 className="font-black text-slate-900 text-sm sm:text-base leading-tight">
+            <div className="min-w-0">
+              <h3 className="font-black text-slate-900 text-sm sm:text-base leading-tight truncate">
                 Study Time Preference Radar
               </h3>
-              <p className="text-[11px] text-slate-500 font-semibold">छात्रों की समय स्लॉट प्राथमिकता रडार चार्ट</p>
+              <p className="text-[10px] sm:text-[11px] text-slate-500 font-semibold truncate">छात्रों की समय स्लॉट प्राथमिकता रडार चार्ट</p>
             </div>
           </div>
-          <span className="text-xs font-black text-blue-700 bg-blue-50 px-3 py-1 rounded-full border border-blue-200 shadow-xs">
+          <span className="text-[10px] sm:text-xs font-black text-blue-700 bg-blue-50 px-2.5 sm:px-3 py-1 rounded-full border border-blue-200 shadow-xs shrink-0">
             {activeStudents.length} Active
           </span>
         </div>
@@ -1151,8 +1151,8 @@ export function StudyTimeDistributionWidget({ students = [] }) {
         {/* SVG Radar + Details List */}
         <div className="grid grid-cols-1 sm:grid-cols-2 items-center gap-4 py-2">
           {/* Radar Web Diagram */}
-          <div className="relative w-44 h-44 mx-auto flex items-center justify-center">
-            <svg className="w-44 h-44" viewBox="0 0 180 180">
+          <div className="relative w-36 h-36 sm:w-44 sm:h-44 mx-auto flex items-center justify-center">
+            <svg className="w-36 h-36 sm:w-44 sm:h-44" viewBox="0 0 180 180">
               {/* Concentric Web Rings */}
               <polygon points="90,30 150,90 90,150 30,90" fill="none" stroke="#e2e8f0" strokeWidth="1" />
               <polygon points="90,50 130,90 90,130 50,90" fill="none" stroke="#f1f5f9" strokeWidth="1" />
@@ -1181,14 +1181,14 @@ export function StudyTimeDistributionWidget({ students = [] }) {
           </div>
 
           {/* Slots Legend */}
-          <div className="space-y-2">
+          <div className="space-y-1.5 sm:space-y-2">
             {slots.map((sl) => {
               const pct = Math.round((sl.count / total) * 100);
               return (
                 <div key={sl.label} className="p-2 rounded-xl bg-white border border-slate-100 shadow-2xs">
                   <div className="flex justify-between items-center text-xs font-bold">
-                    <span className="text-slate-800 text-[11px] truncate max-w-[120px]">{sl.label.split('(')[0]}</span>
-                    <span className="font-black text-slate-900">{sl.count} ({pct}%)</span>
+                    <span className="text-slate-800 text-[10px] sm:text-[11px] truncate max-w-[120px]">{sl.label.split('(')[0]}</span>
+                    <span className="font-black text-slate-900 text-[11px] sm:text-xs">{sl.count} ({pct}%)</span>
                   </div>
                   <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden mt-1.5">
                     <div style={{ width: `${Math.max(5, pct)}%`, backgroundColor: sl.hex }} className="h-full rounded-full transition-all duration-500" />
@@ -1200,9 +1200,9 @@ export function StudyTimeDistributionWidget({ students = [] }) {
         </div>
       </div>
 
-      <div className="pt-3 mt-3 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500 font-medium">
+      <div className="pt-3 mt-3 border-t border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-1.5 text-[11px] sm:text-xs text-slate-500 font-medium">
         <span>Highest Demand: <strong className="text-indigo-700">{[...slots].sort((a, b) => b.count - a.count)[0]?.label.split('(')[0]}</strong></span>
-        <span className="text-[11px] font-bold text-slate-400">Shift Radar</span>
+        <span className="text-[10px] sm:text-[11px] font-bold text-slate-400">Shift Radar</span>
       </div>
     </div>
   );
@@ -1251,35 +1251,35 @@ export function ThermalRushHeatmapWidget({ students = [], seats = [] }) {
   ];
 
   return (
-    <div className="bg-gradient-to-br from-white via-slate-50/70 to-indigo-50/20 rounded-3xl p-5 sm:p-6 border border-slate-200/90 shadow-sm hover:shadow-md transition-all flex flex-col justify-between h-full relative overflow-hidden group">
+    <div className="bg-gradient-to-br from-white via-slate-50/70 to-indigo-50/20 rounded-3xl p-4 sm:p-6 border border-slate-200/90 shadow-sm hover:shadow-md transition-all flex flex-col justify-between h-full relative overflow-hidden group">
       <div>
         <div className="flex items-center justify-between gap-2 mb-4">
-          <div className="flex items-center gap-3">
-            <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-rose-500 to-amber-600 text-white flex items-center justify-center shadow-md shadow-rose-500/20">
+          <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
+            <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-2xl bg-gradient-to-br from-rose-500 to-amber-600 text-white flex items-center justify-center shadow-md shadow-rose-500/20 shrink-0">
               <Grid3X3 className="w-5 h-5" />
             </div>
-            <div>
-              <h3 className="font-black text-slate-900 text-sm sm:text-base leading-tight">
+            <div className="min-w-0">
+              <h3 className="font-black text-slate-900 text-sm sm:text-base leading-tight truncate">
                 7-Day Thermal Rush Heatmap
               </h3>
-              <p className="text-[11px] text-slate-500 font-semibold">साप्ताहिक 7-दिन थर्मल हीट ग्रिड (दिन व घंटेवार)</p>
+              <p className="text-[10px] sm:text-[11px] text-slate-500 font-semibold truncate">साप्ताहिक 7-दिन थर्मल हीट ग्रिड (दिन व घंटेवार)</p>
             </div>
           </div>
-          <span className="text-xs font-black text-rose-700 bg-rose-50 px-3 py-1 rounded-full border border-rose-200 shadow-xs">
+          <span className="text-[10px] sm:text-xs font-black text-rose-700 bg-rose-50 px-2.5 sm:px-3 py-1 rounded-full border border-rose-200 shadow-xs shrink-0">
             🔥 Thermal Matrix
           </span>
         </div>
 
         {selectedCell && (
-          <div className="p-2.5 bg-slate-900 text-white rounded-2xl mb-3 flex items-center justify-between text-xs animate-in fade-in duration-200">
+          <div className="p-2 sm:p-2.5 bg-slate-900 text-white rounded-2xl mb-3 flex items-center justify-between text-xs animate-in fade-in duration-200">
             <span><strong>{selectedCell.day} @ {selectedCell.hour}:00</strong></span>
             <span className="text-emerald-400 font-extrabold">{selectedCell.count} Students ({selectedCell.pct}% Load)</span>
           </div>
         )}
 
-        <div className="overflow-x-auto pb-1">
-          <div className="min-w-[320px]">
-            <div className="grid grid-cols-10 gap-1 text-[10px] font-bold text-slate-400 mb-1 text-center">
+        <div className="overflow-x-auto scrollbar-thin pb-2 -mx-2 px-2 sm:mx-0 sm:px-0">
+          <div className="min-w-[340px]">
+            <div className="grid grid-cols-10 gap-1 text-[9px] sm:text-[10px] font-bold text-slate-400 mb-1 text-center">
               <span className="text-left pl-1">Day</span>
               {sampledHours.map((h) => (
                 <span key={h}>{h}:00</span>
@@ -1287,8 +1287,8 @@ export function ThermalRushHeatmapWidget({ students = [], seats = [] }) {
             </div>
 
             {days.map((d, dIdx) => (
-              <div key={d} className="grid grid-cols-10 gap-1.5 items-center mb-1.5">
-                <span className="text-[11px] font-extrabold text-slate-600 text-left pl-1">{d}</span>
+              <div key={d} className="grid grid-cols-10 gap-1 sm:gap-1.5 items-center mb-1.5">
+                <span className="text-[10px] sm:text-[11px] font-extrabold text-slate-600 text-left pl-1">{d}</span>
                 {sampledHours.map((h) => {
                   const cell = getHeatLevel(dIdx, h);
                   return (
@@ -1296,7 +1296,7 @@ export function ThermalRushHeatmapWidget({ students = [], seats = [] }) {
                       key={h}
                       onMouseEnter={() => setSelectedCell(cell)}
                       onMouseLeave={() => setSelectedCell(null)}
-                      className={`h-6 rounded-lg border transition-all cursor-pointer flex items-center justify-center text-[9px] font-black ${cellColors[cell.tier]}`}
+                      className={`h-5 sm:h-6 rounded-md sm:rounded-lg border transition-all cursor-pointer flex items-center justify-center text-[9px] font-black ${cellColors[cell.tier]}`}
                       title={`${cell.day} ${cell.hour}:00 - ${cell.pct}% full`}
                     />
                   );
@@ -1306,22 +1306,22 @@ export function ThermalRushHeatmapWidget({ students = [], seats = [] }) {
           </div>
         </div>
 
-        <div className="flex items-center justify-between pt-2 text-[10px] font-bold text-slate-500">
+        <div className="flex items-center justify-between pt-2 text-[9px] sm:text-[10px] font-bold text-slate-500">
           <span>Cool (खाली)</span>
           <div className="flex items-center gap-1">
-            <span className="w-3.5 h-3.5 rounded bg-slate-100 border border-slate-200" />
-            <span className="w-3.5 h-3.5 rounded bg-emerald-100 border border-emerald-300" />
-            <span className="w-3.5 h-3.5 rounded bg-amber-200 border border-amber-400" />
-            <span className="w-3.5 h-3.5 rounded bg-orange-300 border border-orange-500" />
-            <span className="w-3.5 h-3.5 rounded bg-rose-500 border border-rose-600" />
+            <span className="w-3 h-3 sm:w-3.5 sm:h-3.5 rounded bg-slate-100 border border-slate-200" />
+            <span className="w-3 h-3 sm:w-3.5 sm:h-3.5 rounded bg-emerald-100 border border-emerald-300" />
+            <span className="w-3 h-3 sm:w-3.5 sm:h-3.5 rounded bg-amber-200 border border-amber-400" />
+            <span className="w-3 h-3 sm:w-3.5 sm:h-3.5 rounded bg-orange-300 border border-orange-500" />
+            <span className="w-3 h-3 sm:w-3.5 sm:h-3.5 rounded bg-rose-500 border border-rose-600" />
           </div>
           <span>Packed (पैक)</span>
         </div>
       </div>
 
-      <div className="pt-3 mt-3 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500 font-medium">
+      <div className="pt-3 mt-3 border-t border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-1.5 text-[11px] sm:text-xs text-slate-500 font-medium">
         <span>Highest Heat: <strong className="text-rose-600">Wed & Thu 10 AM - 1 PM</strong></span>
-        <span className="text-[11px] font-bold text-slate-400">7x24 Matrix</span>
+        <span className="text-[10px] sm:text-[11px] font-bold text-slate-400">7x24 Matrix</span>
       </div>
     </div>
   );
@@ -1339,42 +1339,42 @@ export function VisualSeatFloorMapWidget({ seats = [], students = [] }) {
   const freeSeats = Math.max(0, totalSeats - occupiedCount);
 
   return (
-    <div className="bg-gradient-to-br from-white via-slate-50/70 to-indigo-50/20 rounded-3xl p-5 sm:p-6 border border-slate-200/90 shadow-sm hover:shadow-md transition-all flex flex-col justify-between h-full relative overflow-hidden group">
+    <div className="bg-gradient-to-br from-white via-slate-50/70 to-indigo-50/20 rounded-3xl p-4 sm:p-6 border border-slate-200/90 shadow-sm hover:shadow-md transition-all flex flex-col justify-between h-full relative overflow-hidden group">
       <div>
         <div className="flex items-center justify-between gap-2 mb-4">
-          <div className="flex items-center gap-3">
-            <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-indigo-600 to-purple-700 text-white flex items-center justify-center shadow-md shadow-indigo-500/20">
+          <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
+            <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-2xl bg-gradient-to-br from-indigo-600 to-purple-700 text-white flex items-center justify-center shadow-md shadow-indigo-500/20 shrink-0">
               <Armchair className="w-5 h-5" />
             </div>
-            <div>
-              <h3 className="font-black text-slate-900 text-sm sm:text-base leading-tight">
+            <div className="min-w-0">
+              <h3 className="font-black text-slate-900 text-sm sm:text-base leading-tight truncate">
                 Live 2D Seat Floor Matrix
               </h3>
-              <p className="text-[11px] text-slate-500 font-semibold">लाइब्रेरी हॉल का लाइव 2D विज़ुअल मैप</p>
+              <p className="text-[10px] sm:text-[11px] text-slate-500 font-semibold truncate">लाइब्रेरी हॉल का लाइव 2D विज़ुअल मैप</p>
             </div>
           </div>
-          <span className="text-xs font-black text-indigo-700 bg-indigo-50 px-3 py-1 rounded-full border border-indigo-200 shadow-xs">
+          <span className="text-[10px] sm:text-xs font-black text-indigo-700 bg-indigo-50 px-2.5 sm:px-3 py-1 rounded-full border border-indigo-200 shadow-xs shrink-0">
             {freeSeats} Vacant
           </span>
         </div>
 
-        <div className="p-2.5 bg-slate-900 text-white rounded-2xl mb-3 flex items-center justify-between text-xs">
-          <span>
+        <div className="p-2 sm:p-2.5 bg-slate-900 text-white rounded-2xl mb-3 flex items-center justify-between text-xs">
+          <span className="truncate pr-2">
             {hoveredSeat ? (
               <>Seat <strong>{hoveredSeat.seatNumber || hoveredSeat.number || 'N/A'}</strong>: {hoveredSeat.studentId ? '🔴 Booked' : '🟢 Available'}</>
             ) : (
-              <span className="text-slate-400">Hover over any seat for details</span>
+              <span className="text-slate-400">Tap / hover seat for details</span>
             )}
           </span>
           <button
             onClick={() => navigate('/seats')}
-            className="text-[10px] font-bold text-indigo-300 hover:text-white flex items-center gap-1 cursor-pointer"
+            className="text-[10px] font-bold text-indigo-300 hover:text-white flex items-center gap-1 cursor-pointer shrink-0"
           >
             Full Matrix <ChevronRight className="w-3 h-3" />
           </button>
         </div>
 
-        <div className="grid grid-cols-5 sm:grid-cols-6 md:grid-cols-8 gap-2 p-3 bg-white/90 rounded-2xl border border-slate-100 shadow-inner max-h-48 overflow-y-auto">
+        <div className="grid grid-cols-4 xs:grid-cols-5 sm:grid-cols-6 md:grid-cols-8 gap-1.5 sm:gap-2 p-2 sm:p-3 bg-white/90 rounded-2xl border border-slate-100 shadow-inner max-h-48 overflow-y-auto">
           {seats.slice(0, 32).map((st, idx) => {
             const isFilled = st.studentId || (st.assignedStudents && st.assignedStudents.length > 0);
             const isShiftFree = !isFilled && st.hasShiftBookings;
@@ -1385,7 +1385,7 @@ export function VisualSeatFloorMapWidget({ seats = [], students = [] }) {
                 onMouseEnter={() => setHoveredSeat(st)}
                 onMouseLeave={() => setHoveredSeat(null)}
                 onClick={() => navigate('/seats')}
-                className={`p-2 rounded-xl flex flex-col items-center justify-center text-center cursor-pointer transition-all hover:scale-105 ${
+                className={`p-1.5 sm:p-2 rounded-xl flex flex-col items-center justify-center text-center cursor-pointer transition-all hover:scale-105 ${
                   isFilled
                     ? 'bg-purple-50 text-purple-700 border border-purple-200 shadow-2xs'
                     : isShiftFree
@@ -1394,8 +1394,8 @@ export function VisualSeatFloorMapWidget({ seats = [], students = [] }) {
                 }`}
               >
                 <div className="flex items-center gap-1">
-                  <span className={`w-2 h-2 rounded-full ${isFilled ? 'bg-purple-600' : isShiftFree ? 'bg-amber-500' : 'bg-emerald-500 animate-pulse'}`} />
-                  <span className="text-[11px] font-black">{st.seatNumber || st.number || idx + 1}</span>
+                  <span className={`w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full ${isFilled ? 'bg-purple-600' : isShiftFree ? 'bg-amber-500' : 'bg-emerald-500 animate-pulse'}`} />
+                  <span className="text-[10px] sm:text-[11px] font-black">{st.seatNumber || st.number || idx + 1}</span>
                 </div>
               </div>
             );
@@ -1403,12 +1403,12 @@ export function VisualSeatFloorMapWidget({ seats = [], students = [] }) {
         </div>
       </div>
 
-      <div className="pt-3 mt-3 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500 font-medium">
+      <div className="pt-3 mt-3 border-t border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-1.5 text-[11px] sm:text-xs text-slate-500 font-medium">
         <div className="flex items-center gap-3 text-[10px] font-bold">
           <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-emerald-500" /> Free ({freeSeats})</span>
           <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-purple-600" /> Full ({occupiedCount})</span>
         </div>
-        <span className="text-[11px] font-bold text-slate-400">Floor View</span>
+        <span className="text-[10px] sm:text-[11px] font-bold text-slate-400">Floor View</span>
       </div>
     </div>
   );

@@ -535,7 +535,7 @@ export default function Dashboard() {
     switch (id) {
       case 'quickActions':
         return (
-          <div key={id} className="col-span-1 lg:col-span-2">
+          <div key={id} className="col-span-1 md:col-span-2">
             <div className="bg-white rounded-2xl p-3 sm:p-4 border border-slate-200/80 shadow-xs">
               <div className="flex items-center justify-between gap-2 overflow-x-auto scrollbar-hide py-1">
                 <button
@@ -587,7 +587,7 @@ export default function Dashboard() {
 
       case 'todayPulse':
         return (
-          <div key={id} className="col-span-1 lg:col-span-2">
+          <div key={id} className="col-span-1 md:col-span-2">
             <TodayPulse
               todayCollection={todayPulse.todayCollection}
               todayFeesCount={todayPulse.todayFeesCount}
@@ -600,7 +600,7 @@ export default function Dashboard() {
 
       case 'coreStats':
         return (
-          <div key={id} className="col-span-1 lg:col-span-2">
+          <div key={id} className="col-span-1 md:col-span-2">
             <StatsCards stats={stats} hideRevenue={hideRevenueCard} />
           </div>
         );
@@ -780,7 +780,7 @@ export default function Dashboard() {
 
       case 'recentActivity':
         return (
-          <div key={id} className="col-span-1 lg:col-span-2 bg-white rounded-3xl border border-slate-200/80 shadow-xs overflow-hidden flex flex-col">
+          <div key={id} className="col-span-1 md:col-span-2 bg-white rounded-3xl border border-slate-200/80 shadow-xs overflow-hidden flex flex-col">
             <RecentActivity fees={recentFees} />
           </div>
         );
@@ -858,14 +858,14 @@ export default function Dashboard() {
 
       case 'thermalFootfallHeatmap':
         return (
-          <div key={id} className="col-span-1">
+          <div key={id} className="col-span-1 md:col-span-2">
             <ThermalRushHeatmapWidget students={allStudentsList} seats={allSeatsList} />
           </div>
         );
 
       case 'visualSeatMatrixMini':
         return (
-          <div key={id} className="col-span-1">
+          <div key={id} className="col-span-1 md:col-span-2">
             <VisualSeatFloorMapWidget seats={allSeatsList} students={allStudentsList} />
           </div>
         );
@@ -877,16 +877,16 @@ export default function Dashboard() {
 
   return (
     <Layout title="Dashboard">
-      <div className="space-y-5 sm:space-y-6">
+      <div className="space-y-4 sm:space-y-6">
         
         {/* Welcome Header Hero Banner */}
-        <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-indigo-950 via-indigo-900 to-slate-950 p-6 sm:p-8 text-white shadow-xl shadow-indigo-950/20 border border-indigo-800/40">
+        <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-indigo-950 via-indigo-900 to-slate-950 p-5 sm:p-7 md:p-8 text-white shadow-xl shadow-indigo-950/20 border border-indigo-800/40">
           <div className="absolute top-0 right-0 -mt-8 -mr-8 w-64 h-64 rounded-full bg-indigo-500/20 blur-3xl pointer-events-none" />
           <div className="absolute bottom-0 left-1/3 -mb-12 w-48 h-48 rounded-full bg-emerald-500/15 blur-2xl pointer-events-none" />
 
-          <div className="relative z-10 flex flex-col md:flex-row md:items-center md:justify-between gap-5">
+          <div className="relative z-10 flex flex-col md:flex-row md:items-center md:justify-between gap-4 sm:gap-5">
             <div>
-              <div className="flex flex-wrap items-center gap-2 mb-3">
+              <div className="flex flex-wrap items-center gap-2 mb-2.5 sm:mb-3">
                 <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/10 backdrop-blur-md text-xs font-bold text-indigo-200 border border-white/10">
                   <Calendar className="w-3.5 h-3.5 text-indigo-300" />
                   <span>{todayStr}</span>
@@ -897,7 +897,7 @@ export default function Dashboard() {
                 </div>
               </div>
 
-              <h1 className="text-2xl sm:text-3xl lg:text-4xl font-black tracking-tight text-white">
+              <h1 className="text-2xl sm:text-3xl lg:text-4xl font-black tracking-tight text-white leading-tight">
                 Welcome back, {getUserDisplayName(user)} 👋
               </h1>
               <p className="text-indigo-200/90 text-xs sm:text-sm mt-1.5 max-w-xl font-medium leading-relaxed">
@@ -906,11 +906,11 @@ export default function Dashboard() {
             </div>
 
             {/* Quick Action Shortcuts inside Banner */}
-            <div className="flex flex-wrap items-center gap-2.5 pt-1 md:pt-0">
+            <div className="flex flex-wrap items-center gap-2 sm:gap-2.5 pt-1 md:pt-0">
               {showQuickActions && hasPermission('students', 'create') && (
                 <button
                   onClick={() => navigate('/students')}
-                  className="px-4 py-2.5 bg-white text-indigo-950 hover:bg-indigo-50 active:scale-95 rounded-2xl text-xs font-black transition-all shadow-md flex items-center gap-2 cursor-pointer"
+                  className="px-3.5 py-2 sm:px-4 sm:py-2.5 bg-white text-indigo-950 hover:bg-indigo-50 active:scale-95 rounded-2xl text-xs font-black transition-all shadow-md flex items-center gap-2 cursor-pointer"
                 >
                   <UserPlus className="w-4 h-4 text-indigo-600" />
                   <span>+ New Admission</span>
@@ -920,7 +920,7 @@ export default function Dashboard() {
               {showQuickActions && hasPermission('fees', 'create') && (
                 <button
                   onClick={() => navigate('/fees')}
-                  className="px-4 py-2.5 bg-indigo-500/30 hover:bg-indigo-500/50 active:scale-95 text-white border border-white/20 rounded-2xl text-xs font-black transition-all shadow-md flex items-center gap-2 backdrop-blur-md cursor-pointer"
+                  className="px-3.5 py-2 sm:px-4 sm:py-2.5 bg-indigo-500/30 hover:bg-indigo-500/50 active:scale-95 text-white border border-white/20 rounded-2xl text-xs font-black transition-all shadow-md flex items-center gap-2 backdrop-blur-md cursor-pointer"
                 >
                   <IndianRupee className="w-4 h-4 text-emerald-400" />
                   <span>Collect Fee</span>
@@ -930,7 +930,7 @@ export default function Dashboard() {
               {/* 1-Click Widget Visibility Customizer Trigger */}
               <button
                 onClick={() => setIsWidgetSettingsOpen(true)}
-                className="px-3.5 py-2.5 bg-white/15 hover:bg-white/25 active:scale-95 text-white border border-white/20 rounded-2xl text-xs font-bold transition-all shadow-xs flex items-center gap-1.5 cursor-pointer backdrop-blur-md"
+                className="px-3.5 py-2 sm:px-3.5 sm:py-2.5 bg-white/15 hover:bg-white/25 active:scale-95 text-white border border-white/20 rounded-2xl text-xs font-bold transition-all shadow-xs flex items-center gap-1.5 cursor-pointer backdrop-blur-md"
                 title="Customize Dashboard Widgets Visibility"
               >
                 <Sliders className="w-3.5 h-3.5 text-indigo-200" />
@@ -942,7 +942,7 @@ export default function Dashboard() {
 
         {/* Empty State Banner if all widgets are hidden */}
         {!anyWidgetVisible && (
-          <div className="bg-white rounded-3xl p-8 sm:p-12 border border-slate-200/80 shadow-xs text-center flex flex-col items-center justify-center max-w-lg mx-auto my-6">
+          <div className="bg-white rounded-3xl p-6 sm:p-12 border border-slate-200/80 shadow-xs text-center flex flex-col items-center justify-center max-w-lg mx-auto my-6">
             <div className="w-16 h-16 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center mb-4">
               <Sliders className="w-8 h-8" />
             </div>
@@ -962,7 +962,7 @@ export default function Dashboard() {
 
         {/* Dynamic Ordered Widgets Grid */}
         {anyWidgetVisible && (
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 sm:gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
             {widgetOrder.map((widgetId) => {
               if (!widgetVisibilityMap[widgetId]) return null;
               return renderWidgetById(widgetId);

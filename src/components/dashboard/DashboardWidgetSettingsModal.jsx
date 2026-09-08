@@ -198,15 +198,15 @@ export default function DashboardWidgetSettingsModal({
         </div>
 
         {/* Footer Buttons */}
-        <div className="flex items-center justify-between pt-3 border-t border-slate-100">
-          <span className="text-xs text-slate-400 font-medium">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 pt-3 border-t border-slate-100">
+          <span className="text-xs text-slate-400 font-medium text-center sm:text-left">
             Changes apply to your dashboard instantly.
           </span>
-          <div className="flex items-center gap-2">
-            <Button variant="secondary" size="sm" onClick={onClose} type="button">
+          <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
+            <Button variant="secondary" size="sm" onClick={onClose} type="button" className="flex-1 sm:flex-none justify-center">
               Cancel
             </Button>
-            <Button variant="primary" size="sm" onClick={handleApply} type="button">
+            <Button variant="primary" size="sm" onClick={handleApply} type="button" className="flex-1 sm:flex-none justify-center">
               Save & Apply Widgets (लागू करें)
             </Button>
           </div>
