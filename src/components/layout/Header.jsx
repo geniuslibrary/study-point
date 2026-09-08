@@ -44,16 +44,7 @@ const Header = ({ title, onMenuClick, onLogout }) => {
           return diffDays <= 3;
         }).length;
 
-        // 2. Pending fees for month
-        const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-        const currentMonthPaidStudentIds = new Set(
-          fees.filter((f) => f.month === currentMonth && f.status === 'paid').map((f) => f.studentId)
-        );
-        const pendingFeesCount = students.filter(
-          (s) => s.status === 'active' && !currentMonthPaidStudentIds.has(s.id)
-        ).length;
-
-        // 3. Demo Alerts (Last Day of Demo + Demo Expired)
+        // 2. Demo Alerts (Last Day of Demo + Demo Expired)
         const demoAlertsCount = (visitors || []).filter((v) => {
           if (v.status === 'converted' || v.status === 'not_interested' || v.purpose === 'inquiry') {
             return false;
@@ -64,7 +55,7 @@ const Header = ({ title, onMenuClick, onLogout }) => {
           return diffDays <= 0; // 0 = last day, < 0 = expired
         }).length;
 
-        setUnreadCount(expiringCount + pendingFeesCount + demoAlertsCount);
+        setUnreadCount(expiringCount + demoAlertsCount);
       } catch (e) {
         console.error(e);
       }

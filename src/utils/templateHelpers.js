@@ -32,11 +32,41 @@ export const TAG_METADATA = {
 };
 
 export const DEFAULT_WHATSAPP_TEMPLATES = {
+  endingSoonReminder: {
+    title: 'Membership Ending Soon (समाप्ति पूर्व सूचना - 0-3 दिन शेष)',
+    category: 'fees',
+    badge: '⏳ Ending Soon',
+    description: 'Sent 0 to 3 days before membership expiry to prompt timely renewal.',
+    template:
+      'नमस्ते *{student_name}* जी 🙏\n\n*{library_name}* की तरफ से यह सूचना है कि आपकी *Seat #{seat_number} ({shift})* की सदस्यता *{status_phrase}*।\n\n📅 *समाप्ति तिथि (Expiry Date):* {expiry_date}\n\nकृपया अपनी सीट सुरक्षित रखने के लिए समय पर रिन्यू करवाएं ताकि आपकी पढ़ाई में कोई रुकावट न आए। धन्यवाद! ✨\n— *{library_name}*',
+    availableTags: ['student_name', 'library_name', 'seat_number', 'shift', 'status_phrase', 'expiry_date', 'days_left', 'phone'],
+  },
+
+  expiredReminder: {
+    title: 'Membership Expired / Grace Period (सदस्यता समाप्त - 1-2 दिन रिमाइंडर)',
+    category: 'fees',
+    badge: '⚠️ Expired',
+    description: 'Sent when membership expired 1-2 days ago (during the 2-day grace period).',
+    template:
+      'नमस्ते *{student_name}* जी 🙏\n\n*{library_name}* में आपकी *Seat #{seat_number} ({shift})* की सदस्यता *{expiry_date}* को समाप्त हो चुकी है।\n\nकृपया अपनी पसंदीदा सीट सुरक्षित रखने के लिए आज ही रिन्यूअल करवाएं। 2 दिन बाद सीट किसी अन्य छात्र को आवंटित हो सकती है।\n\nधन्यवाद! ✨\n— *{library_name}*',
+    availableTags: ['student_name', 'library_name', 'seat_number', 'shift', 'expiry_date', 'phone'],
+  },
+
+  overdueReminder: {
+    title: 'Critical Overdue Alert (अति-बकाया अंतिम नोटिस - 2+ दिन)',
+    category: 'fees',
+    badge: '🚨 Overdue',
+    description: 'Sent when membership has been expired for more than 2 days.',
+    template:
+      '⚠️ *FINAL NOTICE - {library_name}*\n\nनमस्ते *{student_name}* जी,\nआपकी *Seat #{seat_number} ({shift})* की सदस्यता समाप्त हुए 2 दिन से अधिक हो चुके हैं।\n\nकृपया अपनी सीट खाली होने (Release) से बचाने के लिए तुरंत रिन्यूअल करवाएं अथवा रिसेप्शन पर संपर्क करें।\n\nधन्यवाद! ✨\n— *{library_name}*',
+    availableTags: ['student_name', 'library_name', 'seat_number', 'shift', 'expiry_date', 'phone'],
+  },
+
   expiryReminder: {
     title: 'Subscription Expiry Alert (सब्सक्रिप्शन समाप्ति रिमाइंडर)',
     category: 'fees',
     badge: '⏳ Expiry',
-    description: 'Sent to regular students when their monthly/day membership is expiring or expired.',
+    description: 'General expiry alert for students when their membership is expiring.',
     template:
       'नमस्ते *{student_name}* जी 🙏\n\n*{library_name}* की तरफ से यह रिमाइंडर है कि आपकी *Seat #{seat_number} ({shift})* की वैलिडिटी *{status_phrase}*।\n\n📅 *समाप्ति तिथि (Expiry Date):* {expiry_date}\n\nकृपया अपनी सीट सुरक्षित रखने के लिए समय पर रिन्यूअल करवाएं। धन्यवाद! ✨\n— *{library_name}*',
     availableTags: ['student_name', 'library_name', 'seat_number', 'shift', 'status_phrase', 'expiry_date', 'phone'],
@@ -156,6 +186,30 @@ export const DEFAULT_WHATSAPP_TEMPLATES = {
 
 // Preset Tone Styles for Instant 1-Click Switch
 export const TEMPLATE_PRESETS = {
+  endingSoonReminder: {
+    hinglish:
+      'नमस्ते *{student_name}* जी 🙏\n\n*{library_name}* की तरफ से यह सूचना है कि आपकी *Seat #{seat_number} ({shift})* की सदस्यता *{status_phrase}*।\n\n📅 *समाप्ति तिथि (Expiry Date):* {expiry_date}\n\nकृपया अपनी सीट सुरक्षित रखने के लिए समय पर रिन्यू करवाएं ताकि आपकी पढ़ाई में कोई रुकावट न आए। धन्यवाद! ✨\n— *{library_name}*',
+    english:
+      'Dear *{student_name}*,\n\nThis is a friendly advance reminder that your membership for *Seat #{seat_number} ({shift})* at *{library_name}* is expiring on *{expiry_date}* ({status_phrase}).\n\nPlease renew in advance to retain your seat.\n\nThank you,\n*{library_name}*',
+    short:
+      '⏳ *{library_name}:* Dear {student_name}, your seat #{seat_number} subscription expires on {expiry_date}. Please renew soon to keep your seat reserved!',
+  },
+  expiredReminder: {
+    hinglish:
+      'नमस्ते *{student_name}* जी 🙏\n\n*{library_name}* में आपकी *Seat #{seat_number} ({shift})* की सदस्यता *{expiry_date}* को समाप्त हो चुकी है।\n\nकृपया अपनी पसंदीदा सीट सुरक्षित रखने के लिए आज ही रिन्यूअल करवाएं। 2 दिन बाद सीट किसी अन्य छात्र को आवंटित हो सकती है।\n\nधन्यवाद! ✨\n— *{library_name}*',
+    english:
+      'Dear *{student_name}*,\n\nYour library membership at *{library_name}* (Seat #{seat_number}) expired on *{expiry_date}*.\n\nYou are currently within the 2-day grace period. Please renew today to prevent your seat from being reassigned.\n\nThank you,\n*{library_name}*',
+    short:
+      '⚠️ *{library_name}:* Dear {student_name}, your membership expired on {expiry_date}. Please renew today to keep your seat reserved!',
+  },
+  overdueReminder: {
+    hinglish:
+      '⚠️ *FINAL NOTICE - {library_name}*\n\nनमस्ते *{student_name}* जी,\nआपकी *Seat #{seat_number} ({shift})* की सदस्यता समाप्त हुए 2 दिन से अधिक हो चुके हैं।\n\nकृपया अपनी सीट खाली होने (Release) से बचाने के लिए तुरंत रिन्यूअल करवाएं अथवा रिसेप्शन पर संपर्क करें।\n\nधन्यवाद! ✨\n— *{library_name}*',
+    english:
+      '⚠️ *FINAL OVERDUE NOTICE - {library_name}*\n\nDear *{student_name}*,\nYour membership for *Seat #{seat_number}* is now overdue by more than 2 days.\n\nPlease clear your renewal immediately to prevent immediate release of your seat.\n\nRegards,\n*{library_name}*',
+    short:
+      '🚨 *Critical Overdue:* Dear {student_name}, membership expired >2 days ago at {library_name}. Please renew today to avoid seat cancellation.',
+  },
   expiryReminder: {
     hinglish:
       'नमस्ते *{student_name}* जी 🙏\n\n*{library_name}* की तरफ से यह रिमाइंडर है कि आपकी *Seat #{seat_number} ({shift})* की वैलिडिटी *{status_phrase}*।\n\n📅 *समाप्ति तिथि (Expiry Date):* {expiry_date}\n\nकृपया अपनी सीट सुरक्षित रखने के लिए समय पर रिन्यूअल करवाएं। धन्यवाद! ✨\n— *{library_name}*',
@@ -410,6 +464,10 @@ export const renderTemplate = (templateString, data = {}) => {
 
   if (normalized.expiry_date && !normalized.due_date) normalized.due_date = normalized.expiry_date;
   if (normalized.due_date && !normalized.expiry_date) normalized.expiry_date = normalized.due_date;
+
+  if (normalized.days_left === undefined && normalized.diffDays !== undefined) {
+    normalized.days_left = Math.abs(normalized.diffDays);
+  }
 
   let result = templateString;
   Object.keys(normalized).forEach((key) => {

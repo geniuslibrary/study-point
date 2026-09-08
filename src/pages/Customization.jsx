@@ -533,7 +533,7 @@ export default function Customization() {
             }`}
           >
             <MessageSquare className="w-4 h-4" />
-            <span>💬 WhatsApp Templates</span>
+            <span>💬 WhatsApp & Notifications</span>
           </button>
         </div>
 
@@ -940,6 +940,51 @@ export default function Customization() {
                 <Plus className="w-4 h-4" />
                 <span>+ Create Custom Template</span>
               </button>
+            </div>
+
+            {/* 3-Stage Expiry & Notification Integration Guide Banner */}
+            <div className="bg-gradient-to-r from-amber-50 via-orange-50 to-rose-50 border border-amber-200/80 rounded-2xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs shadow-2xs">
+              <div className="flex items-start gap-3">
+                <div className="w-9 h-9 rounded-xl bg-indigo-600 text-white flex items-center justify-center font-bold text-sm shrink-0 shadow-2xs mt-0.5 sm:mt-0">
+                  🔔
+                </div>
+                <div>
+                  <h4 className="font-extrabold text-slate-900 text-sm">
+                    3-Stage Automated Expiry & Overdue Notifications
+                  </h4>
+                  <p className="text-slate-600 text-[11px] mt-0.5 leading-relaxed">
+                    Fee Tracker aur Notification Center ab in 3 customizable templates se synchronized hain:
+                    <br className="hidden sm:inline" />
+                    <strong>⏳ 1. Ending Soon (0-3 Din):</strong> Advance renewal reminder •{' '}
+                    <strong>⚠️ 2. Expired (1-2 Din Grace):</strong> Seat protection notice •{' '}
+                    <strong>🚨 3. Overdue ({'>'}2 Din):</strong> Final notice & Left option.
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-1.5 shrink-0 self-end sm:self-center">
+                <button
+                  type="button"
+                  onClick={() => setSelectedTemplateKey('endingSoonReminder')}
+                  className="px-2.5 py-1.5 bg-white hover:bg-amber-100 text-amber-900 border border-amber-300 rounded-xl text-[11px] font-bold transition-colors cursor-pointer shadow-2xs"
+                >
+                  ⏳ Ending Soon
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSelectedTemplateKey('expiredReminder')}
+                  className="px-2.5 py-1.5 bg-white hover:bg-orange-100 text-orange-900 border border-orange-300 rounded-xl text-[11px] font-bold transition-colors cursor-pointer shadow-2xs"
+                >
+                  ⚠️ Expired
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSelectedTemplateKey('overdueReminder')}
+                  className="px-2.5 py-1.5 bg-white hover:bg-rose-100 text-rose-900 border border-rose-300 rounded-xl text-[11px] font-bold transition-colors cursor-pointer shadow-2xs"
+                >
+                  🚨 Overdue
+                </button>
+              </div>
             </div>
 
             {/* Main Studio Grid: Left Editor & Right WhatsApp Mockup */}

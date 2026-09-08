@@ -6,21 +6,19 @@ import {
   AlertTriangle,
   MessageSquare,
   IndianRupee,
-  Armchair,
   CheckCircle2,
   X,
-  ExternalLink,
   ChevronRight,
   UserCheck,
-  UserPlus,
   UserX,
+  AlertCircle,
 } from 'lucide-react';
-import { COLLECTIONS } from '../../utils/constants';
-import { formatDate, formatCurrency, formatReminderTime } from '../../utils/helpers';
+import { COLLECTIONS, SEAT_STATUS } from '../../utils/constants';
+import { formatDate, formatReminderTime } from '../../utils/helpers';
 import { fetchCollectionData, updateDocument, getFirestoreDocRef } from '../../firebase/storageService';
-import { doc, getDoc } from 'firebase/firestore';
-import { db } from '../../firebase/config';
+import { getDoc } from 'firebase/firestore';
 import { getActiveTemplates, renderTemplate } from '../../utils/templateHelpers';
+import StudentLeftOverdueModal from '../fees/StudentLeftOverdueModal';
 
 export default function NotificationPanel({ isOpen, onClose }) {
   const navigate = useNavigate();
@@ -31,7 +29,11 @@ export default function NotificationPanel({ isOpen, onClose }) {
   const [visitors, setVisitors] = useState([]);
   const [libraryName, setLibraryName] = useState('Study Point Library');
   const [loading, setLoading] = useState(true);
-  const [filterTab, setFilterTab] = useState('all'); // 'all' | 'demos' | 'expiring' | 'fees'
+  const [filterTab, setFilterTab] = useState('all'); // 'all' | 'ending_soon' | 'expired' | 'overdue' | 'demos'
+
+  // Modal state for Overdue Left Action
+  const [leftConfirmTarget, setLeftConfirmTarget] = useState(null);
+  const [markingLeftLoading, setMarkingLeftLoading] = useState(false);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -80,8 +82,8 @@ export default function NotificationPanel({ isOpen, onClose }) {
   const now = new Date();
   now.setHours(0, 0, 0, 0);
 
-  // 1. Calculate Students Expiring in <= 3 Days or Already Expired
-  const expiringStudents = students
+  // Group active students with membershipEnd
+  const activeExpiringList = students
     .filter((s) => s.status === 'active' && s.membershipEnd)
     .map((s) => {
       const endD = s.membershipEnd?.toDate
@@ -94,6 +96,9 @@ export default function NotificationPanel({ isOpen, onClose }) {
 
       const seat = seats.find((st) => st.id === s.seatId);
       const section = sections.find((sec) => sec.id === s.sectionId);
+      const fee =
+        fees.find((f) => f.studentId === s.id && f.status === 'pending') ||
+        fees.find((f) => f.studentId === s.id);
 
       return {
         ...s,
@@ -101,31 +106,27 @@ export default function NotificationPanel({ isOpen, onClose }) {
         diffDays,
         seatNumber: seat ? seat.seatNumber : '—',
         sectionName: section ? section.name : '—',
+        seat,
+        fee,
       };
-    })
-    .filter((s) => s.diffDays <= 3) // <= 3 days advance alert!
+    });
+
+  // 1. Ending Soon (0 to 3 Days Remaining)
+  const endingSoonStudents = activeExpiringList
+    .filter((s) => s.diffDays >= 0 && s.diffDays <= 3)
     .sort((a, b) => a.diffDays - b.diffDays);
 
-  // 2. Calculate Pending Fees for Current Month
-  const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-  const currentMonthFees = fees.filter((f) => f.month === currentMonth);
+  // 2. Expired (1 to 2 Days Expired - Grace Period)
+  const expiredStudents = activeExpiringList
+    .filter((s) => s.diffDays < 0 && s.diffDays >= -2)
+    .sort((a, b) => a.diffDays - b.diffDays);
 
-  const pendingFeeStudents = students
-    .filter((s) => s.status === 'active')
-    .map((s) => {
-      const feeRecord = currentMonthFees.find((f) => f.studentId === s.id);
-      const isPaid = feeRecord && feeRecord.status === 'paid';
-      const seat = seats.find((st) => st.id === s.seatId);
-      return {
-        student: s,
-        feeRecord,
-        isPaid,
-        seatNumber: seat ? seat.seatNumber : '—',
-      };
-    })
-    .filter((item) => !item.isPaid);
+  // 3. Overdue (>2 Days Expired - Critical Action)
+  const overdueStudents = activeExpiringList
+    .filter((s) => s.diffDays < -2)
+    .sort((a, b) => a.diffDays - b.diffDays);
 
-  // 3. Demo Alerts: (1) Last Day of Demo (Ending Today) and (2) Demo Expired
+  // 4. Demo Alerts (Last Day of Demo + Demo Expired)
   const demoAlerts = visitors
     .filter((v) => {
       if (v.status === 'converted' || v.status === 'not_interested' || v.purpose === 'inquiry') {
@@ -155,7 +156,11 @@ export default function NotificationPanel({ isOpen, onClose }) {
     .filter((v) => v.isToday || v.isExpired)
     .sort((a, b) => a.diffDays - b.diffDays);
 
-  const totalAlertsCount = expiringStudents.length + pendingFeeStudents.length + demoAlerts.length;
+  const totalAlertsCount =
+    endingSoonStudents.length +
+    expiredStudents.length +
+    overdueStudents.length +
+    demoAlerts.length;
 
   const isDateToday = (dateStr) => {
     if (!dateStr) return false;
@@ -167,75 +172,81 @@ export default function NotificationPanel({ isOpen, onClose }) {
     ...students.filter(
       (s) =>
         isDateToday(s.lastReminderAt) ||
-        isDateToday(s.lastExpiryReminderAt) ||
-        (s.lastFeeReminderMonth === currentMonth && isDateToday(s.lastFeeReminderAt))
+        isDateToday(s.lastExpiryReminderAt)
     ),
     ...visitors.filter((v) => isDateToday(v.lastReminderAt)),
   ].length;
 
-  const handleWhatsAppReminder = async (student, type = 'expiry') => {
+  const handleWhatsAppReminder = async (student, type = 'ending_soon') => {
     const cleanPhone = (student.phone || '').replace(/\D/g, '');
     const phoneWithCountry = cleanPhone.length === 10 ? `91${cleanPhone}` : cleanPhone;
     const currentTemplates = getActiveTemplates();
 
     let message = '';
-    if (type === 'expiry') {
-      let statusPhrase = '';
-      if (student.diffDays > 0) {
-        statusPhrase = `${student.diffDays} दिन बाद (${formatDate(student.expiryDate)}) समाप्त होने वाला है`;
-      } else if (student.diffDays < 0) {
-        statusPhrase = `${Math.abs(student.diffDays)} दिन पहले (${formatDate(student.expiryDate)}) समाप्त हो चुका है`;
-      } else {
-        statusPhrase = `आज (${formatDate(student.expiryDate)}) समाप्त हो रहा है`;
-      }
+    const expiryFormatted = formatDate(student.expiryDate);
+    const absDays = Math.abs(student.diffDays);
 
-      message = renderTemplate(currentTemplates.expiryReminder?.template, {
+    if (type === 'ending_soon') {
+      const statusPhrase =
+        student.diffDays === 0
+          ? 'आज समाप्त हो रही है'
+          : student.diffDays === 1
+          ? 'कल समाप्त होने वाली है (1 दिन शेष)'
+          : `${student.diffDays} दिन बाद (${expiryFormatted}) समाप्त होने वाली है`;
+
+      const tpl = currentTemplates.endingSoonReminder?.template || currentTemplates.expiryReminder?.template;
+      message = renderTemplate(tpl, {
         student_name: student.name || 'Student',
         library_name: libraryName,
         seat_number: student.seatNumber || '—',
         shift: student.shiftTiming || 'Shift',
         status_phrase: statusPhrase,
-        expiry_date: formatDate(student.expiryDate),
+        expiry_date: expiryFormatted,
+        days_left: student.diffDays,
+        phone: student.phone || '',
       });
-    } else {
-      message = renderTemplate(currentTemplates.feeDueReminder?.template, {
+    } else if (type === 'expired') {
+      const statusPhrase = `${absDays} दिन पहले (${expiryFormatted}) समाप्त हो चुकी है`;
+      const tpl = currentTemplates.expiredReminder?.template || currentTemplates.expiryReminder?.template;
+      message = renderTemplate(tpl, {
         student_name: student.name || 'Student',
         library_name: libraryName,
-        month: currentMonth,
-        amount: student.pendingAmount || 0,
         seat_number: student.seatNumber || '—',
+        shift: student.shiftTiming || 'Shift',
+        status_phrase: statusPhrase,
+        expiry_date: expiryFormatted,
+        days_left: absDays,
+        phone: student.phone || '',
+      });
+    } else if (type === 'overdue') {
+      const statusPhrase = `${absDays} दिन पहले (${expiryFormatted}) समाप्त हो चुकी है (Critical Overdue)`;
+      const tpl = currentTemplates.overdueReminder?.template || currentTemplates.expiryReminder?.template;
+      message = renderTemplate(tpl, {
+        student_name: student.name || 'Student',
+        library_name: libraryName,
+        seat_number: student.seatNumber || '—',
+        shift: student.shiftTiming || 'Shift',
+        status_phrase: statusPhrase,
+        expiry_date: expiryFormatted,
+        days_left: absDays,
         phone: student.phone || '',
       });
     }
 
     const nowIso = new Date().toISOString();
     try {
-      if (type === 'expiry') {
-        await updateDocument(COLLECTIONS.STUDENTS, student.id, {
-          lastExpiryReminderAt: nowIso,
-          lastReminderAt: nowIso,
-          lastReminderType: 'expiry',
-        });
-        setStudents((prev) =>
-          prev.map((s) =>
-            s.id === student.id
-              ? { ...s, lastExpiryReminderAt: nowIso, lastReminderAt: nowIso, lastReminderType: 'expiry' }
-              : s
-          )
-        );
-      } else {
-        await updateDocument(COLLECTIONS.STUDENTS, student.id, {
-          lastFeeReminderAt: nowIso,
-          lastFeeReminderMonth: currentMonth,
-        });
-        setStudents((prev) =>
-          prev.map((s) =>
-            s.id === student.id
-              ? { ...s, lastFeeReminderAt: nowIso, lastFeeReminderMonth: currentMonth }
-              : s
-          )
-        );
-      }
+      await updateDocument(COLLECTIONS.STUDENTS, student.id, {
+        lastExpiryReminderAt: nowIso,
+        lastReminderAt: nowIso,
+        lastReminderType: type,
+      });
+      setStudents((prev) =>
+        prev.map((s) =>
+          s.id === student.id
+            ? { ...s, lastExpiryReminderAt: nowIso, lastReminderAt: nowIso, lastReminderType: type }
+            : s
+        )
+      );
     } catch (err) {
       console.error('Error saving reminder timestamp:', err);
     }
@@ -317,6 +328,62 @@ export default function NotificationPanel({ isOpen, onClose }) {
     }
   };
 
+  // Confirm Left Action directly from Notification Center
+  const handleConfirmMarkLeft = async () => {
+    if (!leftConfirmTarget?.student) return;
+    setMarkingLeftLoading(true);
+    try {
+      const { student, fee } = leftConfirmTarget;
+
+      // 1. Free physical seat if student has an assigned seat
+      if (student.seatId) {
+        const remainingStudents = students.filter(
+          (s) => s.seatId === student.seatId && s.status === 'active' && s.id !== student.id
+        );
+        const hasFullDay = remainingStudents.some((s) => !s.shift || s.shift === 'full_day');
+        const hasFirstHalf = remainingStudents.some((s) => s.shift === 'first_half');
+        const hasSecondHalf = remainingStudents.some((s) => s.shift === 'second_half');
+
+        let newStatus = SEAT_STATUS.AVAILABLE;
+        if (hasFullDay || (hasFirstHalf && hasSecondHalf) || remainingStudents.length >= 2) {
+          newStatus = SEAT_STATUS.OCCUPIED;
+        } else if (remainingStudents.length > 0) {
+          newStatus = SEAT_STATUS.PARTIALLY_OCCUPIED;
+        }
+
+        const primaryStudent = remainingStudents[0] || null;
+
+        await updateDocument(COLLECTIONS.SEATS, student.seatId, {
+          status: newStatus,
+          studentId: primaryStudent ? primaryStudent.id : null,
+        });
+      }
+
+      // 2. Mark student status as 'left'
+      await updateDocument(COLLECTIONS.STUDENTS, student.id, {
+        status: 'left',
+        seatId: '',
+        leftDate: new Date().toISOString(),
+      });
+
+      // 3. Mark fee notes if fee exists
+      if (fee?.id) {
+        await updateDocument(COLLECTIONS.FEES, fee.id, {
+          notes: ((fee.notes || '') + ' | Student Left (Seat Freed)').trim(),
+        });
+      }
+
+      // Update local state to immediately vanish from list
+      setStudents((prev) => prev.filter((s) => s.id !== student.id));
+      setLeftConfirmTarget(null);
+    } catch (err) {
+      console.error('Error marking student left from notifications:', err);
+      alert('Error marking student as left. Please try again.');
+    } finally {
+      setMarkingLeftLoading(false);
+    }
+  };
+
   if (!isOpen) return null;
 
   return (
@@ -325,7 +392,7 @@ export default function NotificationPanel({ isOpen, onClose }) {
       <div className="fixed inset-0 z-50 bg-gray-900/30 backdrop-blur-2xs" onClick={onClose} />
 
       {/* Dropdown Container */}
-      <div className="fixed top-16 right-3 sm:right-6 z-50 w-[94vw] sm:w-[460px] max-h-[85vh] bg-white rounded-2xl shadow-2xl border border-gray-200 overflow-hidden flex flex-col animate-in fade-in zoom-in-95 duration-150">
+      <div className="fixed top-16 right-3 sm:right-6 z-50 w-[94vw] sm:w-[480px] max-h-[85vh] bg-white rounded-2xl shadow-2xl border border-gray-200 overflow-hidden flex flex-col animate-in fade-in zoom-in-95 duration-150">
         {/* Header */}
         <div className="p-4 bg-gradient-to-r from-indigo-600 to-indigo-700 text-white flex items-center justify-between shrink-0">
           <div className="flex items-center gap-2.5">
@@ -348,8 +415,8 @@ export default function NotificationPanel({ isOpen, onClose }) {
           </button>
         </div>
 
-        {/* Tab Filters */}
-        <div className="flex items-center border-b border-gray-100 bg-gray-50/80 px-3 py-2 gap-1.5 shrink-0 text-xs font-bold overflow-x-auto scrollbar-hide">
+        {/* Tab Filters matching Fees Module */}
+        <div className="flex items-center border-b border-gray-100 bg-gray-50/90 px-3 py-2 gap-1.5 shrink-0 text-xs font-bold overflow-x-auto scrollbar-hide">
           <button
             onClick={() => setFilterTab('all')}
             className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer whitespace-nowrap ${
@@ -359,6 +426,42 @@ export default function NotificationPanel({ isOpen, onClose }) {
             }`}
           >
             All ({totalAlertsCount})
+          </button>
+
+          <button
+            onClick={() => setFilterTab('ending_soon')}
+            className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer flex items-center gap-1 whitespace-nowrap ${
+              filterTab === 'ending_soon'
+                ? 'bg-amber-500 text-white shadow-xs'
+                : 'text-amber-800 hover:text-amber-900 bg-amber-50'
+            }`}
+          >
+            <Clock className="w-3 h-3" />
+            <span>Ending Soon ({endingSoonStudents.length})</span>
+          </button>
+
+          <button
+            onClick={() => setFilterTab('expired')}
+            className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer flex items-center gap-1 whitespace-nowrap ${
+              filterTab === 'expired'
+                ? 'bg-orange-500 text-white shadow-xs'
+                : 'text-orange-800 hover:text-orange-900 bg-orange-50'
+            }`}
+          >
+            <AlertTriangle className="w-3 h-3" />
+            <span>Expired ({expiredStudents.length})</span>
+          </button>
+
+          <button
+            onClick={() => setFilterTab('overdue')}
+            className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer flex items-center gap-1 whitespace-nowrap ${
+              filterTab === 'overdue'
+                ? 'bg-rose-600 text-white shadow-xs'
+                : 'text-rose-700 hover:text-rose-900 bg-rose-50'
+            }`}
+          >
+            <AlertCircle className="w-3 h-3" />
+            <span>Overdue ({overdueStudents.length})</span>
           </button>
 
           <button
@@ -372,37 +475,13 @@ export default function NotificationPanel({ isOpen, onClose }) {
             <UserCheck className="w-3 h-3" />
             <span>Demo Alerts ({demoAlerts.length})</span>
           </button>
-
-          <button
-            onClick={() => setFilterTab('expiring')}
-            className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer flex items-center gap-1 whitespace-nowrap ${
-              filterTab === 'expiring'
-                ? 'bg-amber-500 text-white shadow-xs'
-                : 'text-amber-800 hover:text-amber-900 bg-amber-50'
-            }`}
-          >
-            <Clock className="w-3 h-3" />
-            <span>3-Day Expiry ({expiringStudents.length})</span>
-          </button>
-
-          <button
-            onClick={() => setFilterTab('fees')}
-            className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer flex items-center gap-1 whitespace-nowrap ${
-              filterTab === 'fees'
-                ? 'bg-red-600 text-white shadow-xs'
-                : 'text-red-700 hover:text-red-900 bg-red-50'
-            }`}
-          >
-            <IndianRupee className="w-3 h-3" />
-            <span>Pending Fees ({pendingFeeStudents.length})</span>
-          </button>
         </div>
 
         {/* Notification List Scroll Area */}
-        <div className="flex-1 overflow-y-auto p-3 space-y-3 divide-y divide-gray-50">
+        <div className="flex-1 overflow-y-auto p-3 space-y-4 divide-y divide-gray-50">
           {loading ? (
             <div className="p-8 text-center text-gray-400 text-xs font-medium">
-              Checking notifications & demo alerts...
+              Checking real-time notifications...
             </div>
           ) : totalAlertsCount === 0 ? (
             <div className="p-8 text-center">
@@ -411,63 +490,53 @@ export default function NotificationPanel({ isOpen, onClose }) {
               </div>
               <p className="text-sm font-bold text-gray-800">Everything is up to date!</p>
               <p className="text-xs text-gray-500 mt-0.5">
-                No demo alerts, expiring memberships, or pending fees.
+                No ending memberships, expired grace periods, overdue dues, or demo alerts.
               </p>
             </div>
           ) : (
             <>
-              {/* 1. DEMO ALERTS (LAST DAY & EXPIRED DEMOS) */}
-              {(filterTab === 'all' || filterTab === 'demos') && demoAlerts.length > 0 && (
+              {/* 1. OVERDUE (>2 DAYS) - CRITICAL ALERTS */}
+              {(filterTab === 'all' || filterTab === 'overdue') && overdueStudents.length > 0 && (
                 <div className="space-y-2 pt-2 first:pt-0">
                   <div className="flex items-center justify-between">
-                    <span className="text-[11px] font-extrabold text-indigo-900 uppercase tracking-wider flex items-center gap-1">
-                      <UserCheck className="w-3.5 h-3.5 text-indigo-600" />
-                      Free Demo Trial Alerts ({demoAlerts.length})
+                    <span className="text-[11px] font-extrabold text-rose-900 uppercase tracking-wider flex items-center gap-1">
+                      <AlertCircle className="w-3.5 h-3.5 text-rose-600" />
+                      Critical Overdue Alerts ({overdueStudents.length})
                     </span>
-                    <span className="text-[10px] bg-indigo-100 text-indigo-800 font-bold px-2 py-0.5 rounded-full">
-                      Action Required
+                    <span className="text-[10px] bg-rose-100 text-rose-800 font-bold px-2 py-0.5 rounded-full">
+                      {'>'}2 Days Overdue
                     </span>
                   </div>
 
-                  {demoAlerts.map((demo) => {
-                    const isToday = demo.isToday;
-                    const reminderInfo = formatReminderTime(demo.lastReminderAt);
+                  {overdueStudents.map((st) => {
+                    const absDays = Math.abs(st.diffDays);
+                    const reminderInfo = formatReminderTime(st.lastExpiryReminderAt || st.lastReminderAt);
 
                     return (
                       <div
-                        key={demo.id}
-                        className={`p-3 rounded-xl border transition-all ${
-                          isToday
-                            ? 'bg-amber-50/70 border-amber-200'
-                            : 'bg-rose-50/70 border-rose-200'
-                        }`}
+                        key={st.id}
+                        className="p-3 rounded-xl border bg-rose-50/60 border-rose-200 transition-all space-y-2"
                       >
                         <div className="flex items-start justify-between gap-2">
-                          <div className="min-w-0">
-                            <div className="flex items-center gap-2">
-                              <p className="font-bold text-gray-900 text-sm leading-tight truncate">
-                                {demo.name}
+                          <div>
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <p className="font-bold text-gray-900 text-sm leading-tight">
+                                {st.name}
                               </p>
-                              <span
-                                className={`text-[10px] font-extrabold px-2 py-0.5 rounded-md ${
-                                  isToday
-                                    ? 'bg-amber-500 text-white animate-pulse'
-                                    : 'bg-rose-600 text-white'
-                                }`}
-                              >
-                                {isToday ? '⏳ Last Day of Demo (Ending Today)' : `🔴 Demo Expired (${Math.abs(demo.diffDays)}d ago)`}
+                              <span className="text-[10px] font-black px-2 py-0.5 rounded-md bg-rose-600 text-white">
+                                🚨 Overdue ({absDays}d ago)
                               </span>
                             </div>
 
                             <p className="text-xs text-gray-600 mt-1 flex flex-wrap items-center gap-2">
-                              <span>📍 {demo.sectionName} • <strong>Seat #{demo.seatNumber}</strong></span>
+                              <span>📍 {st.sectionName} • <strong>Seat #{st.seatNumber}</strong></span>
                               <span>•</span>
-                              <span className="capitalize">⏰ {demo.shift?.replace('_', ' ') || 'Full Day'}</span>
+                              <span>⏰ {st.shiftTiming || 'Full Day'}</span>
                             </p>
 
                             <div className="flex flex-wrap items-center gap-2 mt-1">
                               <p className="text-[11px] text-gray-500">
-                                Trial Date: <strong>{demo.endDateFormatted}</strong> • Phone: {demo.phone}
+                                Expired On: <strong>{formatDate(st.expiryDate)}</strong> • Phone: {st.phone}
                               </p>
                               {reminderInfo ? (
                                 <span
@@ -489,36 +558,44 @@ export default function NotificationPanel({ isOpen, onClose }) {
                           </div>
                         </div>
 
-                        {/* Action Buttons */}
-                        <div className="mt-2.5 pt-2 border-t border-gray-200/60 flex flex-wrap items-center justify-end gap-1.5">
+                        {/* Overdue Action Buttons: Left, WhatsApp & Collect */}
+                        <div className="pt-2 border-t border-rose-200/60 flex flex-wrap items-center justify-end gap-2">
                           <button
-                            onClick={() => handleDemoWhatsApp(demo)}
-                            className={`px-2.5 py-1 text-white rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1 shadow-2xs cursor-pointer whitespace-nowrap ${
+                            type="button"
+                            onClick={() => setLeftConfirmTarget({ student: st, fee: st.fee, seat: st.seat })}
+                            className="px-2.5 py-1 bg-white hover:bg-rose-100 text-rose-700 border border-rose-300 rounded-lg text-xs font-bold transition-colors flex items-center gap-1 shadow-2xs cursor-pointer whitespace-nowrap"
+                            title="Confirm Student Left and free seat"
+                          >
+                            <UserX className="w-3.5 h-3.5 text-rose-600" />
+                            <span>Left (Free Seat)</span>
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => handleWhatsAppReminder(st, 'overdue')}
+                            className={`px-2.5 py-1 text-white rounded-lg text-xs font-bold transition-all flex items-center gap-1 shadow-2xs cursor-pointer whitespace-nowrap ${
                               reminderInfo?.isToday
                                 ? 'bg-emerald-700 hover:bg-emerald-800 ring-1 ring-emerald-400'
-                                : 'bg-emerald-600 hover:bg-emerald-700'
+                                : 'bg-green-600 hover:bg-green-700'
                             }`}
-                            title={reminderInfo?.isToday ? 'Follow-up already sent today. Click to resend' : 'Send WhatsApp Follow-up / Offer'}
+                            title={reminderInfo?.isToday ? 'Reminder already sent today. Click to resend' : 'Send WhatsApp Overdue Warning'}
                           >
                             <MessageSquare className="w-3.5 h-3.5 shrink-0" />
                             <span>{reminderInfo?.isToday ? 'Resend' : 'WhatsApp'}</span>
                           </button>
 
                           <button
-                            onClick={() => handleAdmitDemoStudent(demo)}
-                            className="px-2.5 py-1 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1 shadow-2xs cursor-pointer whitespace-nowrap"
-                            title="Admit as Regular Student"
+                            type="button"
+                            onClick={() => {
+                              onClose();
+                              navigate('/fees', {
+                                state: { statusFilter: 'overdue', collectStudentId: st.id },
+                              });
+                            }}
+                            className="px-2.5 py-1 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-bold transition-all flex items-center gap-1 shadow-2xs cursor-pointer whitespace-nowrap"
                           >
-                            <UserPlus className="w-3.5 h-3.5 shrink-0" />
-                            <span>Admit Student</span>
-                          </button>
-
-                          <button
-                            onClick={() => handleMarkDemoNotInterested(demo)}
-                            className="px-2.5 py-1 bg-slate-100 hover:bg-rose-50 text-slate-700 hover:text-rose-700 border border-slate-200 hover:border-rose-300 rounded-lg text-xs font-bold transition-all shadow-2xs cursor-pointer whitespace-nowrap"
-                            title="Mark Not Interested (Frees trial seat immediately)"
-                          >
-                            Not Interested
+                            <IndianRupee className="w-3.5 h-3.5 shrink-0" />
+                            <span>Collect / Renew</span>
                           </button>
                         </div>
                       </div>
@@ -526,65 +603,148 @@ export default function NotificationPanel({ isOpen, onClose }) {
                   })}
                 </div>
               )}
-              {/* 1. EXPIRING SUBSCRIPTIONS (3 DAYS ADVANCE ALERT) */}
-              {(filterTab === 'all' || filterTab === 'expiring') && expiringStudents.length > 0 && (
-                <div className="space-y-2 pt-2 first:pt-0">
+
+              {/* 2. EXPIRED (1-2 DAYS GRACE) */}
+              {(filterTab === 'all' || filterTab === 'expired') && expiredStudents.length > 0 && (
+                <div className="space-y-2 pt-3 first:pt-0">
                   <div className="flex items-center justify-between">
-                    <span className="text-[11px] font-extrabold text-amber-900 uppercase tracking-wider flex items-center gap-1">
-                      <AlertTriangle className="w-3.5 h-3.5 text-amber-600" />
-                      Subscriptions Expiring Soon (3-Day Alert)
+                    <span className="text-[11px] font-extrabold text-orange-900 uppercase tracking-wider flex items-center gap-1">
+                      <AlertTriangle className="w-3.5 h-3.5 text-orange-600" />
+                      Membership Expired (1-2d Grace) ({expiredStudents.length})
                     </span>
-                    <span className="text-[10px] bg-amber-100 text-amber-800 font-bold px-2 py-0.5 rounded-full">
-                      {expiringStudents.length} Students
+                    <span className="text-[10px] bg-orange-100 text-orange-800 font-bold px-2 py-0.5 rounded-full">
+                      Grace Period
                     </span>
                   </div>
 
-                  {expiringStudents.map((st) => {
-                    const isOverdue = st.diffDays < -2;
-                    const isExpiredGrace = st.diffDays >= -2 && st.diffDays < 0;
-                    const isToday = st.diffDays === 0;
-                    const isEndingSoon = st.diffDays > 0 && st.diffDays <= 3;
-                    const reminderInfo = formatReminderTime(
-                      st.lastExpiryReminderAt || (st.lastReminderType === 'expiry' ? st.lastReminderAt : null)
-                    );
+                  {expiredStudents.map((st) => {
+                    const absDays = Math.abs(st.diffDays);
+                    const reminderInfo = formatReminderTime(st.lastExpiryReminderAt || st.lastReminderAt);
 
                     return (
                       <div
                         key={st.id}
-                        className={`p-3 rounded-xl border transition-all ${
-                          isOverdue
-                            ? 'bg-red-50/60 border-red-200'
-                            : isExpiredGrace
-                            ? 'bg-amber-50/70 border-amber-200'
-                            : isToday
-                            ? 'bg-rose-50/60 border-rose-200'
-                            : 'bg-emerald-50/50 border-emerald-200'
+                        className="p-3 rounded-xl border bg-orange-50/60 border-orange-200 transition-all space-y-2"
+                      >
+                        <div className="flex items-start justify-between gap-2">
+                          <div>
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <p className="font-bold text-gray-900 text-sm leading-tight">
+                                {st.name}
+                              </p>
+                              <span className="text-[10px] font-black px-2 py-0.5 rounded-md bg-orange-600 text-white">
+                                ⚠️ Expired ({absDays}d Grace)
+                              </span>
+                            </div>
+
+                            <p className="text-xs text-gray-600 mt-1 flex flex-wrap items-center gap-2">
+                              <span>📍 {st.sectionName} • <strong>Seat #{st.seatNumber}</strong></span>
+                              <span>•</span>
+                              <span>⏰ {st.shiftTiming || 'Full Day'}</span>
+                            </p>
+
+                            <div className="flex flex-wrap items-center gap-2 mt-1">
+                              <p className="text-[11px] text-gray-500">
+                                Expired: <strong>{formatDate(st.expiryDate)}</strong> • Phone: {st.phone}
+                              </p>
+                              {reminderInfo ? (
+                                <span
+                                  className={`text-[10px] font-bold px-2 py-0.5 rounded-md flex items-center gap-1 ${
+                                    reminderInfo.isToday
+                                      ? 'bg-emerald-100 text-emerald-800 border border-emerald-300'
+                                      : 'bg-slate-100 text-slate-700'
+                                  }`}
+                                >
+                                  <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+                                  <span>{reminderInfo.text}</span>
+                                </span>
+                              ) : (
+                                <span className="text-[10px] font-semibold text-slate-400 bg-slate-100 px-2 py-0.5 rounded-md">
+                                  ⏳ Not sent yet
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Action Buttons: WhatsApp & Collect */}
+                        <div className="pt-2 border-t border-orange-200/60 flex flex-wrap items-center justify-end gap-2">
+                          <button
+                            type="button"
+                            onClick={() => handleWhatsAppReminder(st, 'expired')}
+                            className={`px-2.5 py-1 text-white rounded-lg text-xs font-bold transition-all flex items-center gap-1 shadow-2xs cursor-pointer whitespace-nowrap ${
+                              reminderInfo?.isToday
+                                ? 'bg-emerald-700 hover:bg-emerald-800 ring-1 ring-emerald-400'
+                                : 'bg-green-600 hover:bg-green-700'
+                            }`}
+                            title={reminderInfo?.isToday ? 'Reminder already sent today. Click to resend' : 'Send pre-filled WhatsApp grace reminder'}
+                          >
+                            <MessageSquare className="w-3.5 h-3.5 shrink-0" />
+                            <span>{reminderInfo?.isToday ? 'Resend' : 'WhatsApp'}</span>
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => {
+                              onClose();
+                              navigate('/fees', {
+                                state: { statusFilter: 'expired', collectStudentId: st.id },
+                              });
+                            }}
+                            className="px-2.5 py-1 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-bold transition-all flex items-center gap-1 shadow-2xs cursor-pointer whitespace-nowrap"
+                          >
+                            <IndianRupee className="w-3.5 h-3.5 shrink-0" />
+                            <span>Collect Fee</span>
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+
+              {/* 3. ENDING SOON (0-3 DAYS REMAINING) */}
+              {(filterTab === 'all' || filterTab === 'ending_soon') && endingSoonStudents.length > 0 && (
+                <div className="space-y-2 pt-3 first:pt-0">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[11px] font-extrabold text-amber-900 uppercase tracking-wider flex items-center gap-1">
+                      <Clock className="w-3.5 h-3.5 text-amber-600" />
+                      Ending Soon (0-3 Days Left) ({endingSoonStudents.length})
+                    </span>
+                    <span className="text-[10px] bg-amber-100 text-amber-800 font-bold px-2 py-0.5 rounded-full">
+                      Advance Alert
+                    </span>
+                  </div>
+
+                  {endingSoonStudents.map((st) => {
+                    const isToday = st.diffDays === 0;
+                    const reminderInfo = formatReminderTime(st.lastExpiryReminderAt || st.lastReminderAt);
+
+                    return (
+                      <div
+                        key={st.id}
+                        className={`p-3 rounded-xl border transition-all space-y-2 ${
+                          isToday ? 'bg-rose-50/60 border-rose-200' : 'bg-amber-50/60 border-amber-200'
                         }`}
                       >
                         <div className="flex items-start justify-between gap-2">
                           <div>
-                            <div className="flex items-center gap-2">
+                            <div className="flex items-center gap-2 flex-wrap">
                               <p className="font-bold text-gray-900 text-sm leading-tight">
                                 {st.name}
                               </p>
                               <span
-                                className={`text-[10px] font-extrabold px-2 py-0.5 rounded-md ${
-                                  isOverdue
-                                    ? 'bg-red-600 text-white'
-                                    : isExpiredGrace
-                                    ? 'bg-amber-600 text-white'
-                                    : isToday
+                                className={`text-[10px] font-black px-2 py-0.5 rounded-md ${
+                                  isToday
                                     ? 'bg-rose-600 text-white animate-pulse'
                                     : 'bg-amber-500 text-white'
                                 }`}
                               >
-                                {isOverdue
-                                  ? `Overdue (${Math.abs(st.diffDays)}d ago)`
-                                  : isExpiredGrace
-                                  ? `Expired (${Math.abs(st.diffDays)}d Grace)`
-                                  : isToday
-                                  ? 'Expires TODAY!'
-                                  : `Expires in ${st.diffDays} day${st.diffDays > 1 ? 's' : ''}`}
+                                {isToday
+                                  ? '⏳ Ends TODAY!'
+                                  : st.diffDays === 1
+                                  ? '⏳ 1 Day Left'
+                                  : `⏳ ${st.diffDays} Days Left`}
                               </span>
                             </div>
 
@@ -618,10 +778,11 @@ export default function NotificationPanel({ isOpen, onClose }) {
                           </div>
                         </div>
 
-                        {/* Action Buttons */}
-                        <div className="mt-2.5 pt-2 border-t border-gray-200/60 flex flex-wrap items-center justify-end gap-2">
+                        {/* Action Buttons: WhatsApp & Collect */}
+                        <div className="pt-2 border-t border-amber-200/60 flex flex-wrap items-center justify-end gap-2">
                           <button
-                            onClick={() => handleWhatsAppReminder(st, 'expiry')}
+                            type="button"
+                            onClick={() => handleWhatsAppReminder(st, 'ending_soon')}
                             className={`px-2.5 py-1 text-white rounded-lg text-xs font-bold transition-all flex items-center gap-1 shadow-2xs cursor-pointer whitespace-nowrap ${
                               reminderInfo?.isToday
                                 ? 'bg-emerald-700 hover:bg-emerald-800 ring-1 ring-emerald-400'
@@ -634,13 +795,11 @@ export default function NotificationPanel({ isOpen, onClose }) {
                           </button>
 
                           <button
+                            type="button"
                             onClick={() => {
                               onClose();
                               navigate('/fees', {
-                                state: {
-                                  statusFilter: isOverdue ? 'overdue' : isExpiredGrace ? 'pending' : 'ending_soon',
-                                  collectStudentId: st.id,
-                                },
+                                state: { statusFilter: 'ending_soon', collectStudentId: st.id },
                               });
                             }}
                             className="px-2.5 py-1 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-bold transition-all flex items-center gap-1 shadow-2xs cursor-pointer whitespace-nowrap"
@@ -655,76 +814,108 @@ export default function NotificationPanel({ isOpen, onClose }) {
                 </div>
               )}
 
-              {/* 2. PENDING FEE ALERTS */}
-              {(filterTab === 'all' || filterTab === 'fees') && pendingFeeStudents.length > 0 && (
+              {/* 4. DEMO ALERTS (LAST DAY & EXPIRED DEMOS) */}
+              {(filterTab === 'all' || filterTab === 'demos') && demoAlerts.length > 0 && (
                 <div className="space-y-2 pt-3 first:pt-0">
                   <div className="flex items-center justify-between">
-                    <span className="text-[11px] font-extrabold text-red-900 uppercase tracking-wider flex items-center gap-1">
-                      <IndianRupee className="w-3.5 h-3.5 text-red-600" />
-                      Pending Monthly Fee Dues ({currentMonth})
+                    <span className="text-[11px] font-extrabold text-indigo-900 uppercase tracking-wider flex items-center gap-1">
+                      <UserCheck className="w-3.5 h-3.5 text-indigo-600" />
+                      Free Demo Trial Alerts ({demoAlerts.length})
                     </span>
-                    <span className="text-[10px] bg-red-100 text-red-800 font-bold px-2 py-0.5 rounded-full">
-                      {pendingFeeStudents.length} Due
+                    <span className="text-[10px] bg-indigo-100 text-indigo-800 font-bold px-2 py-0.5 rounded-full">
+                      Action Required
                     </span>
                   </div>
 
-                  {pendingFeeStudents.map(({ student, seatNumber }) => {
-                    const reminderInfo = formatReminderTime(
-                      student.lastFeeReminderMonth === currentMonth ? student.lastFeeReminderAt : null
-                    );
+                  {demoAlerts.map((demo) => {
+                    const isToday = demo.isToday;
+                    const reminderInfo = formatReminderTime(demo.lastReminderAt);
 
                     return (
                       <div
-                        key={student.id}
-                        className="p-3 bg-red-50/40 rounded-xl border border-red-200 flex flex-wrap sm:flex-nowrap items-center justify-between gap-2"
+                        key={demo.id}
+                        className={`p-3 rounded-xl border transition-all ${
+                          isToday
+                            ? 'bg-amber-50/70 border-amber-200'
+                            : 'bg-rose-50/70 border-rose-200'
+                        }`}
                       >
-                        <div className="min-w-0">
-                          <p className="font-bold text-gray-900 text-xs truncate">{student.name}</p>
-                          <p className="text-[11px] text-gray-500">
-                            Seat #{seatNumber} • {student.phone}
-                          </p>
-                          <div className="mt-1">
-                            {reminderInfo ? (
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="min-w-0">
+                            <div className="flex items-center gap-2">
+                              <p className="font-bold text-gray-900 text-sm leading-tight truncate">
+                                {demo.name}
+                              </p>
                               <span
-                                className={`text-[10px] font-bold px-2 py-0.5 rounded-md inline-flex items-center gap-1 ${
-                                  reminderInfo.isToday
-                                    ? 'bg-emerald-100 text-emerald-800 border border-emerald-300'
-                                    : 'bg-slate-100 text-slate-700'
+                                className={`text-[10px] font-extrabold px-2 py-0.5 rounded-md ${
+                                  isToday
+                                    ? 'bg-amber-500 text-white'
+                                    : 'bg-rose-600 text-white'
                                 }`}
                               >
-                                <CheckCircle2 className="w-3 h-3 text-emerald-600" />
-                                <span>{reminderInfo.text}</span>
+                                {isToday ? '⏳ Last Day of Demo (Ending Today)' : '❌ Demo Expired'}
                               </span>
-                            ) : (
-                              <span className="text-[10px] font-semibold text-slate-400 bg-slate-100 px-2 py-0.5 rounded-md inline-flex items-center gap-1">
-                                ⏳ Not sent yet
-                              </span>
-                            )}
+                            </div>
+
+                            <p className="text-xs text-gray-600 mt-1">
+                              📍 {demo.sectionName} • Seat #{demo.seatNumber} • ⏰ {demo.shift || 'Full Day'}
+                            </p>
+
+                            <div className="flex items-center gap-2 mt-1">
+                              <p className="text-[11px] text-gray-500">
+                                Trial Date: <strong>{demo.endDateFormatted}</strong> • Phone: {demo.phone}
+                              </p>
+                              {reminderInfo ? (
+                                <span
+                                  className={`text-[10px] font-bold px-1.5 py-0.5 rounded-md flex items-center gap-1 ${
+                                    reminderInfo.isToday
+                                      ? 'bg-emerald-100 text-emerald-800 border border-emerald-300'
+                                      : 'bg-slate-100 text-slate-700'
+                                  }`}
+                                >
+                                  <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+                                  <span>{reminderInfo.text}</span>
+                                </span>
+                              ) : (
+                                <span className="text-[10px] font-semibold text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded-md">
+                                  ⏳ Not sent yet
+                                </span>
+                              )}
+                            </div>
                           </div>
                         </div>
 
-                        <div className="flex items-center gap-1.5 shrink-0 self-end sm:self-auto">
+                        {/* Action Buttons for Demo: WhatsApp, Admit, Not Interested */}
+                        <div className="mt-2.5 pt-2 border-t border-gray-200/60 flex items-center justify-end gap-2 flex-wrap">
                           <button
-                            onClick={() => handleWhatsAppReminder(student, 'fee')}
+                            type="button"
+                            onClick={() => handleDemoWhatsApp(demo)}
                             className={`px-2.5 py-1 text-white rounded-lg text-xs font-bold transition-all flex items-center gap-1 shadow-2xs cursor-pointer ${
                               reminderInfo?.isToday
                                 ? 'bg-emerald-700 hover:bg-emerald-800 ring-1 ring-emerald-400'
                                 : 'bg-green-600 hover:bg-green-700'
                             }`}
-                            title={reminderInfo?.isToday ? 'Fee reminder already sent today. Click to resend' : 'Send WhatsApp Fee Reminder'}
+                            title={reminderInfo?.isToday ? 'Follow-up already sent today. Click to resend' : 'Send WhatsApp Follow-up / Offer'}
                           >
                             <MessageSquare className="w-3.5 h-3.5" />
-                            <span>{reminderInfo?.isToday ? 'Resend Reminder' : 'WhatsApp Reminder'}</span>
+                            <span>{reminderInfo?.isToday ? 'Resend' : 'WhatsApp'}</span>
                           </button>
 
                           <button
-                            onClick={() => {
-                              onClose();
-                              navigate('/fees');
-                            }}
-                            className="px-2 py-1 bg-red-600 hover:bg-red-700 text-white rounded-lg text-xs font-bold transition-colors cursor-pointer"
+                            type="button"
+                            onClick={() => handleAdmitDemoStudent(demo)}
+                            className="px-2.5 py-1 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-bold transition-colors flex items-center gap-1 shadow-2xs cursor-pointer"
                           >
-                            Collect
+                            <UserCheck className="w-3.5 h-3.5" />
+                            <span>Admit Student</span>
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => handleMarkDemoNotInterested(demo)}
+                            className="px-2 py-1 bg-white hover:bg-gray-100 text-gray-600 border border-gray-200 rounded-lg text-xs font-semibold transition-colors cursor-pointer"
+                          >
+                            Not Interested
                           </button>
                         </div>
                       </div>
@@ -738,19 +929,36 @@ export default function NotificationPanel({ isOpen, onClose }) {
 
         {/* Footer */}
         <div className="p-3 bg-gray-50 border-t border-gray-100 flex items-center justify-between text-xs text-gray-500 shrink-0">
-          <span>🔔 Real-time 3-day notification system</span>
+          <span>🔔 Real-time Ending Soon (0-3d), Expired (1-2d) & Overdue ({'>'}2d) Alerts</span>
           <button
             onClick={() => {
               onClose();
-              navigate('/students');
+              navigate('/fees');
             }}
-            className="text-indigo-600 font-bold hover:underline flex items-center gap-1"
+            className="text-indigo-600 font-bold hover:underline flex items-center gap-1 cursor-pointer"
           >
-            <span>All Students</span>
+            <span>All Fees & Subscriptions</span>
             <ChevronRight className="w-3.5 h-3.5" />
           </button>
         </div>
       </div>
+
+      {/* Student Left Confirmation Modal for Overdue Alerts */}
+      <StudentLeftOverdueModal
+        isOpen={Boolean(leftConfirmTarget)}
+        onClose={() => setLeftConfirmTarget(null)}
+        target={leftConfirmTarget}
+        loading={markingLeftLoading}
+        onConfirmLeft={handleConfirmMarkLeft}
+        onRenew={() => {
+          const st = leftConfirmTarget?.student;
+          setLeftConfirmTarget(null);
+          onClose();
+          navigate('/fees', {
+            state: { statusFilter: 'overdue', collectStudentId: st?.id },
+          });
+        }}
+      />
     </>
   );
 }
