@@ -134,6 +134,7 @@ export default function StaffRoles() {
     isOwner: true,
   });
   const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState('staff'); // 'staff' | 'roles'
 
   // Staff modal states
   const [showModal, setShowModal] = useState(false);
@@ -599,21 +600,26 @@ export default function StaffRoles() {
           <div>
             <h1 className="text-2xl font-bold text-gray-900">Staff & Role Permissions</h1>
             <p className="text-gray-500 text-sm mt-0.5">
-              Manage staff accounts, edit role templates & configure module permissions
+              {activeTab === 'staff'
+                ? 'स्टाफ सदस्य, वेतन (Salary), आधार कार्ड, उपस्थिति व लॉगिन क्रेडेंशियल्स'
+                : 'भूमिकाएं (Role Templates), मॉड्यूल अनुमतियाँ (Permissions) व डैशबोर्ड एक्सेस'}
             </p>
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
-            <Button
-              variant="secondary"
-              icon={<Sparkles className="w-4 h-4 text-purple-600" />}
-              onClick={handleOpenAddRole}
-            >
-              + Create New Role
-            </Button>
-            <Button icon={<UserPlus className="w-4 h-4" />} onClick={handleOpenAdd}>
-              Add New Staff Member
-            </Button>
+            {activeTab === 'staff' ? (
+              <Button icon={<UserPlus className="w-4 h-4" />} onClick={handleOpenAdd}>
+                + Add New Staff Member
+              </Button>
+            ) : (
+              <Button
+                variant="primary"
+                icon={<Sparkles className="w-4 h-4 text-white" />}
+                onClick={handleOpenAddRole}
+              >
+                + Create New Role
+              </Button>
+            )}
           </div>
         </div>
 
@@ -624,79 +630,173 @@ export default function StaffRoles() {
           </div>
         )}
 
-        {/* Roles Presets Banner - All Roles are Editable & Updatable */}
-        <div className="space-y-2.5">
-          <div className="flex items-center justify-between">
-            <h3 className="font-bold text-gray-900 text-sm flex items-center gap-2">
-              <ShieldCheck className="w-4 h-4 text-indigo-600" />
-              <span>Configured Roles & Permissions ({rolesList.length + 1})</span>
-            </h3>
-          </div>
+        {/* 2 Navigation Tabs: Staff and Role Permissions */}
+        <div className="flex border-b border-gray-200 gap-2">
+          <button
+            type="button"
+            onClick={() => setActiveTab('staff')}
+            className={`flex items-center gap-2 py-3 px-5 text-sm font-bold border-b-2 transition-all cursor-pointer ${
+              activeTab === 'staff'
+                ? 'border-indigo-600 text-indigo-600 bg-indigo-50/50 rounded-t-xl'
+                : 'border-transparent text-gray-500 hover:text-gray-800 hover:border-gray-300'
+            }`}
+          >
+            <Users className="w-4 h-4" />
+            <span>Staff (स्टाफ)</span>
+            <span
+              className={`text-xs px-2 py-0.5 rounded-full font-extrabold ${
+                activeTab === 'staff' ? 'bg-indigo-100 text-indigo-700' : 'bg-gray-100 text-gray-600'
+              }`}
+            >
+              {staffList.length}
+            </span>
+          </button>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3.5">
-            {/* Owner Master Card (Now Fully Editable & Updatable) */}
-            <div className="bg-white p-4 rounded-2xl border border-indigo-100 shadow-2xs space-y-1 flex flex-col justify-between hover:border-indigo-300 transition-all">
-              <div>
-                <div className="flex items-center justify-between gap-1">
-                  <div className="flex items-center gap-2 font-bold text-gray-900 text-sm">
-                    <span className="text-base">{ownerRole.emoji || '👑'}</span>
-                    <span className="truncate">{ownerRole.name}</span>
-                  </div>
-                  <div className="flex items-center gap-1 shrink-0">
-                    <button
-                      onClick={() => handleOpenEditRole(ownerRole)}
-                      className="p-1.5 text-indigo-600 hover:bg-indigo-50 rounded-lg cursor-pointer transition-colors"
-                      title="Edit Owner Role & Permissions"
-                    >
-                      <Edit size={14} />
-                    </button>
-                  </div>
+          <button
+            type="button"
+            onClick={() => setActiveTab('roles')}
+            className={`flex items-center gap-2 py-3 px-5 text-sm font-bold border-b-2 transition-all cursor-pointer ${
+              activeTab === 'roles'
+                ? 'border-indigo-600 text-indigo-600 bg-indigo-50/50 rounded-t-xl'
+                : 'border-transparent text-gray-500 hover:text-gray-800 hover:border-gray-300'
+            }`}
+          >
+            <ShieldCheck className="w-4 h-4" />
+            <span>Role Permissions (रोल परमिशन)</span>
+            <span
+              className={`text-xs px-2 py-0.5 rounded-full font-extrabold ${
+                activeTab === 'roles' ? 'bg-indigo-100 text-indigo-700' : 'bg-gray-100 text-gray-600'
+              }`}
+            >
+              {rolesList.length + 1}
+            </span>
+          </button>
+        </div>
+
+        {/* TAB 2 CONTENT: Role Permissions */}
+        {activeTab === 'roles' && (
+          <div className="space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 bg-white p-4 rounded-2xl border border-slate-200 shadow-2xs">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center font-bold">
+                  <ShieldCheck className="w-5 h-5" />
                 </div>
-                <p className="text-xs text-gray-500 leading-relaxed mt-1 line-clamp-2">
-                  {ownerRole.description || 'Full access to all revenue, expenses, audit reports & library settings.'}
-                </p>
-              </div>
-            </div>
-
-            {/* All Configured Roles with Full Edit & Delete Options */}
-            {rolesList.map((r) => (
-              <div
-                key={r.id}
-                className="bg-white p-4 rounded-2xl border border-slate-200 shadow-2xs space-y-1 flex flex-col justify-between hover:border-indigo-300 transition-all"
-              >
                 <div>
-                  <div className="flex items-center justify-between gap-1">
-                    <div className="flex items-center gap-2 font-bold text-gray-900 text-sm">
-                      <span className="text-base">{r.emoji || '💼'}</span>
-                      <span className="truncate">{r.name}</span>
-                    </div>
-                    <div className="flex items-center gap-1 shrink-0">
-                      <button
-                        onClick={() => handleOpenEditRole(r)}
-                        className="p-1.5 text-indigo-600 hover:bg-indigo-50 rounded-lg cursor-pointer transition-colors"
-                        title="Edit Role & Permissions"
-                      >
-                        <Edit size={14} />
-                      </button>
-                      <button
-                        onClick={() => setDeleteRoleTarget(r)}
-                        className="p-1.5 text-rose-600 hover:bg-rose-50 rounded-lg cursor-pointer transition-colors"
-                        title="Delete Role"
-                      >
-                        <Trash2 size={14} />
-                      </button>
-                    </div>
-                  </div>
-                  <p className="text-xs text-gray-500 leading-relaxed mt-1 line-clamp-2">
-                    {r.description || 'Configured staff role template'}
+                  <h3 className="font-bold text-gray-900 text-sm">Configured Roles & Permissions</h3>
+                  <p className="text-xs text-gray-500">
+                    Roles define permissions templates for staff members. Edit any role to modify permissions.
                   </p>
                 </div>
               </div>
-            ))}
-          </div>
-        </div>
 
-        {/* Staff Members List Cards */}
+              <Button
+                variant="secondary"
+                icon={<Sparkles className="w-4 h-4 text-purple-600" />}
+                onClick={handleOpenAddRole}
+                size="sm"
+              >
+                + Create New Role
+              </Button>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {/* Owner Master Card */}
+              <div className="bg-white p-5 rounded-2xl border border-indigo-100 shadow-2xs space-y-3 flex flex-col justify-between hover:border-indigo-300 transition-all">
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between gap-1">
+                    <div className="flex items-center gap-2 font-bold text-gray-900 text-base">
+                      <span className="text-xl">{ownerRole.emoji || '👑'}</span>
+                      <span className="truncate">{ownerRole.name}</span>
+                    </div>
+                    <div className="flex items-center gap-1 shrink-0">
+                      <button
+                        onClick={() => handleOpenEditRole(ownerRole)}
+                        className="p-1.5 text-indigo-600 hover:bg-indigo-50 rounded-lg cursor-pointer transition-colors"
+                        title="Edit Owner Role & Permissions"
+                      >
+                        <Edit size={16} />
+                      </button>
+                    </div>
+                  </div>
+                  <p className="text-xs text-gray-500 leading-relaxed">
+                    {ownerRole.description || 'Full access to all revenue, expenses, audit reports & library settings.'}
+                  </p>
+                </div>
+
+                <div className="pt-3 border-t border-slate-100">
+                  <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block mb-1.5">
+                    Module Access:
+                  </span>
+                  <span className="inline-flex items-center gap-1 text-[11px] font-bold px-2.5 py-1 rounded-lg bg-indigo-50 text-indigo-700 border border-indigo-100">
+                    👑 Full Access (Super Admin)
+                  </span>
+                </div>
+              </div>
+
+              {/* All Configured Roles */}
+              {rolesList.map((r) => {
+                const activeRolePerms = getActivePermissionLabels(r.permissions);
+                return (
+                  <div
+                    key={r.id}
+                    className="bg-white p-5 rounded-2xl border border-slate-200 shadow-2xs space-y-3 flex flex-col justify-between hover:border-indigo-300 transition-all"
+                  >
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between gap-1">
+                        <div className="flex items-center gap-2 font-bold text-gray-900 text-base">
+                          <span className="text-xl">{r.emoji || '💼'}</span>
+                          <span className="truncate">{r.name}</span>
+                        </div>
+                        <div className="flex items-center gap-1 shrink-0">
+                          <button
+                            onClick={() => handleOpenEditRole(r)}
+                            className="p-1.5 text-indigo-600 hover:bg-indigo-50 rounded-lg cursor-pointer transition-colors"
+                            title="Edit Role & Permissions"
+                          >
+                            <Edit size={16} />
+                          </button>
+                          <button
+                            onClick={() => setDeleteRoleTarget(r)}
+                            className="p-1.5 text-rose-600 hover:bg-rose-50 rounded-lg cursor-pointer transition-colors"
+                            title="Delete Role"
+                          >
+                            <Trash2 size={16} />
+                          </button>
+                        </div>
+                      </div>
+                      <p className="text-xs text-gray-500 leading-relaxed">
+                        {r.description || 'Configured staff role template'}
+                      </p>
+                    </div>
+
+                    <div className="pt-3 border-t border-slate-100">
+                      <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block mb-1.5">
+                        Allowed Modules ({activeRolePerms.length}):
+                      </span>
+                      <div className="flex flex-wrap gap-1 max-h-24 overflow-y-auto">
+                        {activeRolePerms.length > 0 ? (
+                          activeRolePerms.map((p) => (
+                            <span
+                              key={p.id}
+                              className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-800 border border-emerald-100"
+                            >
+                              {p.module}
+                            </span>
+                          ))
+                        ) : (
+                          <span className="text-[10px] font-bold text-slate-400 italic">No modules granted</span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* TAB 1 CONTENT: Staff Members */}
+        {activeTab === 'staff' && (
         <div className="space-y-4">
           <div className="flex items-center justify-between">
             <h3 className="font-bold text-gray-900 text-base">
@@ -918,6 +1018,7 @@ export default function StaffRoles() {
             </div>
           )}
         </div>
+      )}
       </div>
 
       {/* Add / Edit Staff Modal */}
