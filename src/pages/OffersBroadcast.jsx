@@ -228,7 +228,7 @@ export default function OffersBroadcast() {
               <h1 className="text-xl font-black text-slate-900">Offer & Broadcast</h1>
             </div>
             <p className="text-xs text-slate-500 mt-1">
-              Message type karein, offer poster attach karein aur ek saath students (chhode huye ya active) ko WhatsApp par bhejein.
+              Message type karein, offer poster attach karein aur ek saath students (Left ya active) ko WhatsApp par bhejein.
             </p>
           </div>
 
@@ -412,7 +412,7 @@ export default function OffersBroadcast() {
                   }`}
                 >
                   <UserX className="w-3.5 h-3.5 text-rose-600" />
-                  <span>Chhode Huye ({leftStudentsCount})</span>
+                  <span>Left ({leftStudentsCount})</span>
                 </button>
 
                 <button
