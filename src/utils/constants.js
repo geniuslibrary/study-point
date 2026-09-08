@@ -78,7 +78,6 @@ export const DEFAULT_ADDONS = [
 
 export const EXPENSE_CATEGORIES = [
   'Electricity',
-  'Staff Salary',
   'Rent',
   'Maintenance / Repairs',
   'Internet/WiFi',

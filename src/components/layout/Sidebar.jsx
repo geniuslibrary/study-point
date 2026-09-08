@@ -118,7 +118,7 @@ const Sidebar = ({ isOpen, setIsOpen, onLogout }) => {
         </div>
 
         {/* User Profile Card & Sign Out */}
-        <div className="p-4 border-t border-slate-100 bg-slate-50/50">
+        <div className="p-4 border-t border-slate-100 bg-slate-50/50 shrink-0">
           <div className="mb-2.5 p-2.5 bg-white rounded-xl border border-slate-200/80 shadow-2xs flex items-center gap-2.5">
             <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 text-white flex items-center justify-center font-extrabold text-xs shadow-xs shrink-0">
               {getUserDisplayName(user).charAt(0).toUpperCase() || 'U'}

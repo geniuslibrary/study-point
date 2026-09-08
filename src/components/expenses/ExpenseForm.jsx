@@ -566,41 +566,7 @@ export default function ExpenseForm({ isOpen, onClose, onSubmit, editData, staff
             </div>
           </div>
 
-          {/* Recurrence Toggle for General & Additional Expenses (Staff Salary has its own automatic monthly schedule) */}
-          {(formMode === 'general' || formMode === 'additional') && (
-            <div className="bg-slate-50 p-3 rounded-xl border border-slate-200 mt-2">
-              <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-2">
-                Expense Frequency (आवृत्ति)
-              </label>
-              <div className="flex items-center gap-6">
-                <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
-                  <input
-                    type="radio"
-                    name="isRecurring"
-                    checked={!formData.isRecurring}
-                    onChange={() => setFormData({ ...formData, isRecurring: false })}
-                    className="w-4 h-4 text-indigo-600 focus:ring-indigo-500"
-                  />
-                  <span className="font-semibold">One Time (केवल इस महीने)</span>
-                </label>
-                <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
-                  <input
-                    type="radio"
-                    name="isRecurring"
-                    checked={formData.isRecurring}
-                    onChange={() => setFormData({ ...formData, isRecurring: true })}
-                    className="w-4 h-4 text-indigo-600 focus:ring-indigo-500"
-                  />
-                  <span className="font-semibold">Monthly Recurring (हर महीने)</span>
-                </label>
-              </div>
-              {formData.isRecurring && (
-                <p className="text-[11px] font-medium text-indigo-600 mt-1.5 flex items-center gap-1">
-                  <Sparkles size={12} /> This expense will automatically be added every month on this date.
-                </p>
-              )}
-            </div>
-          )}
+
 
           <div>
             <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">
