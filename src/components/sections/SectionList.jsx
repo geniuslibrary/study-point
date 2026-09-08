@@ -124,68 +124,6 @@ export default function SectionList({
                 </div>
               </div>
 
-              {/* Occupancy Stat Badges Grid */}
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 mt-4 pt-3.5 border-t border-slate-100">
-                {/* 1. Available */}
-                <div className="bg-gradient-to-br from-emerald-50/90 to-white border border-emerald-200/80 rounded-xl p-2.5 flex items-center gap-2.5 shadow-2xs">
-                  <div className="w-8 h-8 rounded-lg bg-emerald-500 text-white flex items-center justify-center font-black text-sm shrink-0 shadow-2xs">
-                    {availableSeats}
-                  </div>
-                  <div className="min-w-0">
-                    <p className="text-[10px] uppercase font-extrabold tracking-wider text-emerald-800 leading-none">
-                      Available (खाली)
-                    </p>
-                    <p className="text-xs font-bold text-emerald-950 mt-0.5 truncate">
-                      {availableSeats} Seats Free
-                    </p>
-                  </div>
-                </div>
-
-                {/* 2. Fully Occupied */}
-                <div className="bg-gradient-to-br from-indigo-50/90 to-white border border-indigo-200/80 rounded-xl p-2.5 flex items-center gap-2.5 shadow-2xs">
-                  <div className="w-8 h-8 rounded-lg bg-indigo-600 text-white flex items-center justify-center font-black text-sm shrink-0 shadow-2xs">
-                    {fullyOccupiedSeats}
-                  </div>
-                  <div className="min-w-0">
-                    <p className="text-[10px] uppercase font-extrabold tracking-wider text-indigo-800 leading-none">
-                      Occupied (पूरी भरी)
-                    </p>
-                    <p className="text-xs font-bold text-indigo-950 mt-0.5 truncate">
-                      {fullyOccupiedSeats} Full Booked
-                    </p>
-                  </div>
-                </div>
-
-                {/* 3. Partial Shift Free */}
-                <div className="bg-gradient-to-br from-amber-50/90 to-white border border-amber-200/80 rounded-xl p-2.5 flex items-center gap-2.5 shadow-2xs">
-                  <div className="w-8 h-8 rounded-lg bg-amber-500 text-white flex items-center justify-center font-black text-sm shrink-0 shadow-2xs">
-                    {partiallyOccupiedSeats}
-                  </div>
-                  <div className="min-w-0">
-                    <p className="text-[10px] uppercase font-extrabold tracking-wider text-amber-800 leading-none">
-                      Partial (शिफ्ट खाली)
-                    </p>
-                    <p className="text-xs font-bold text-amber-950 mt-0.5 truncate">
-                      {partiallyOccupiedSeats} Shift Open
-                    </p>
-                  </div>
-                </div>
-
-                {/* 4. Total Students */}
-                <div className="bg-gradient-to-br from-slate-50 to-white border border-slate-200/90 rounded-xl p-2.5 flex items-center gap-2.5 shadow-2xs">
-                  <div className="w-8 h-8 rounded-lg bg-slate-700 text-white flex items-center justify-center font-black text-sm shrink-0 shadow-2xs">
-                    {totalStudentsInSection}
-                  </div>
-                  <div className="min-w-0">
-                    <p className="text-[10px] uppercase font-extrabold tracking-wider text-slate-600 leading-none">
-                      Active Students
-                    </p>
-                    <p className="text-xs font-bold text-slate-900 mt-0.5 truncate">
-                      {totalStudentsInSection} Seated
-                    </p>
-                  </div>
-                </div>
-              </div>
 
               {/* Progress Bar with Live Badges */}
               <div className="mt-3 bg-slate-50/80 rounded-xl p-3 border border-slate-100">
