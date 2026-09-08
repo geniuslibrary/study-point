@@ -18,15 +18,16 @@ import {
   ExternalLink,
 } from 'lucide-react';
 import { COLLECTIONS } from '../utils/constants';
-import { fetchCollectionData } from '../firebase/storageService';
+import { fetchCollectionData, getTenantItem } from '../firebase/storageService';
 
 export default function OffersBroadcast() {
   const [students, setStudents] = useState([]);
   const [loading, setLoading] = useState(true);
 
   // 1. Message State
+  const defaultLibName = getTenantItem('library_name', 'Study Point Library');
   const [message, setMessage] = useState(
-    'नमस्ते {name} जी! 🙏\nStudy Point Library की तरफ से आपके लिए एक विशेष ऑफर है!\nअधिक जानकारी व अपनी सीट बुक करने के लिए रिसेप्शन पर संपर्क करें। 📚✨'
+    `नमस्ते {name} जी! 🙏\n${defaultLibName} की तरफ से आपके लिए एक विशेष ऑफर है!\nअधिक जानकारी व अपनी सीट बुक करने के लिए रिसेप्शन पर संपर्क करें। 📚✨`
   );
 
   // 2. Image Attachment State

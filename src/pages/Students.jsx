@@ -26,6 +26,7 @@ import {
   createDocument,
   updateDocument,
   removeDocument,
+  getTenantItem,
 } from '../firebase/storageService';
 
 export default function Students() {
@@ -471,7 +472,7 @@ export default function Students() {
         const assignedSeat = seats.find((s) => s.id === st.seatId);
         const msg = renderTemplate(tpl, {
           student_name: st.name,
-          library_name: localStorage.getItem('studypoint_library_name') || 'Study Point Library',
+          library_name: getTenantItem('library_name', 'Study Point Library'),
           extra_days: extraDays,
           new_expiry_date: newDateFormatted,
           seat_number: assignedSeat?.seatNumber || '—',
