@@ -159,8 +159,8 @@ export default function ExtendMembershipModal({
           </div>
 
           {/* Custom Days Input */}
-          <div className="mt-3 flex items-center gap-3">
-            <span className="text-xs text-slate-500 font-semibold whitespace-nowrap">
+          <div className="mt-3 flex flex-wrap sm:flex-nowrap items-center gap-2 sm:gap-3">
+            <span className="text-xs text-slate-500 font-semibold">
               Or Custom Days (या अपनी पसंद के दिन):
             </span>
             <div className="relative w-32">
@@ -179,7 +179,7 @@ export default function ExtendMembershipModal({
         </div>
 
         {/* New Expiry Date Card */}
-        <div className="bg-emerald-50/80 border border-emerald-200/80 rounded-2xl p-4 flex items-center justify-between gap-3">
+        <div className="bg-emerald-50/80 border border-emerald-200/80 rounded-2xl p-3.5 sm:p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-emerald-600 text-white flex items-center justify-center shrink-0 shadow-xs">
               <CalendarPlus className="w-5 h-5" />
@@ -193,7 +193,7 @@ export default function ExtendMembershipModal({
               </p>
             </div>
           </div>
-          <div className="text-right">
+          <div className="self-end sm:self-auto">
             <span className="inline-flex items-center gap-1 px-3 py-1 bg-white text-emerald-800 rounded-xl border border-emerald-200 text-xs font-extrabold shadow-2xs">
               +{extraDays} Days Extended
             </span>
@@ -276,14 +276,14 @@ export default function ExtendMembershipModal({
         </div>
 
         {/* Actions */}
-        <div className="flex justify-end gap-2.5 pt-2 border-t border-slate-100">
-          <Button type="button" variant="secondary" onClick={onClose} disabled={loading}>
+        <div className="flex flex-col-reverse sm:flex-row justify-end gap-2.5 pt-2 border-t border-slate-100">
+          <Button type="button" variant="secondary" onClick={onClose} disabled={loading} className="w-full sm:w-auto">
             Cancel
           </Button>
           <Button
             type="submit"
             disabled={loading}
-            className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold"
+            className="w-full sm:w-auto bg-indigo-600 hover:bg-indigo-700 text-white font-bold"
           >
             {loading ? 'Extending...' : `Confirm & Extend (+${extraDays} Days)`}
           </Button>

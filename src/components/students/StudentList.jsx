@@ -484,52 +484,63 @@ export default function StudentList({
                 )}
               </div>
 
-              <div className="flex items-center justify-end gap-1.5 pt-1">
+              <div className="pt-2.5 border-t border-slate-100 grid grid-cols-3 sm:flex sm:items-center sm:justify-end gap-1.5">
                 <button
                   onClick={() => onViewProfile(student)}
-                  className="px-2.5 py-1 bg-slate-100 text-slate-700 rounded-lg text-xs font-bold"
+                  className="px-2 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold flex items-center justify-center gap-1 cursor-pointer transition-colors"
+                  title="View Student Profile"
                 >
-                  Profile
+                  <Eye size={13} className="shrink-0 text-slate-600" />
+                  <span>Profile</span>
                 </button>
                 {onExtend && (
                   <button
                     onClick={() => onExtend(student)}
-                    className="px-2.5 py-1 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-lg text-xs font-bold flex items-center gap-1"
+                    className="px-2 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 rounded-xl text-xs font-bold flex items-center justify-center gap-1 cursor-pointer transition-colors"
+                    title="Extend Membership Validity (दिन आगे बढ़ाएं)"
                   >
-                    <CalendarPlus size={12} /> Extend
+                    <CalendarPlus size={13} className="shrink-0 text-emerald-600" />
+                    <span>Extend</span>
                   </button>
                 )}
                 {!isLeft && canCollectFee && (
                   <button
                     onClick={() => onCollectFee(student)}
-                    className="px-2.5 py-1 bg-emerald-600 text-white rounded-lg text-xs font-bold flex items-center gap-1"
+                    className="px-2 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-1 cursor-pointer transition-colors shadow-2xs"
+                    title="Collect Fee"
                   >
-                    <IndianRupee size={12} /> Fee
+                    <IndianRupee size={13} className="shrink-0" />
+                    <span>Fee</span>
                   </button>
                 )}
                 {!isLeft && onToggleStatus && (
                   <button
                     onClick={() => onToggleStatus(student)}
-                    className="px-2.5 py-1 bg-rose-50 hover:bg-rose-100 text-rose-700 rounded-lg text-xs font-bold flex items-center gap-1 cursor-pointer transition-colors"
+                    className="px-2 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 rounded-xl text-xs font-bold flex items-center justify-center gap-1 cursor-pointer transition-colors"
                     title="Mark Left & Free Seat (छोड़ दिया)"
                   >
-                    <UserX size={12} /> Left
+                    <UserX size={13} className="shrink-0 text-rose-600" />
+                    <span>Left</span>
                   </button>
                 )}
                 {canEdit && (
                   <button
                     onClick={() => onEdit(student)}
-                    className="px-2.5 py-1 bg-indigo-50 text-indigo-700 rounded-lg text-xs font-bold"
+                    className="px-2 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 rounded-xl text-xs font-bold flex items-center justify-center gap-1 cursor-pointer transition-colors"
+                    title="Edit Student Admission"
                   >
-                    Edit
+                    <Edit size={13} className="shrink-0 text-indigo-600" />
+                    <span>Edit</span>
                   </button>
                 )}
                 {canDelete && (
                   <button
                     onClick={() => onDelete(student)}
-                    className="px-2.5 py-1 bg-rose-50 text-rose-700 rounded-lg text-xs font-bold"
+                    className="px-2 py-1.5 bg-slate-50 hover:bg-rose-50 text-slate-500 hover:text-rose-700 border border-slate-200 hover:border-rose-200 rounded-xl text-xs font-bold flex items-center justify-center gap-1 cursor-pointer transition-colors"
+                    title="Delete Student Record"
                   >
-                    Delete
+                    <Trash2 size={13} className="shrink-0" />
+                    <span>Delete</span>
                   </button>
                 )}
               </div>

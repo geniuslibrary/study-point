@@ -92,19 +92,19 @@ export default function StudentProfile({
               <img
                 src={student.photo}
                 alt={student.name}
-                className="w-24 h-24 sm:w-28 sm:h-28 rounded-full object-cover shadow-lg shadow-indigo-600/20 border-4 border-white ring-2 ring-indigo-200 shrink-0"
+                className="w-16 h-16 sm:w-24 sm:h-24 rounded-full object-cover shadow-lg shadow-indigo-600/20 border-3 sm:border-4 border-white ring-2 ring-indigo-200 shrink-0"
               />
             ) : (
-              <div className="w-24 h-24 sm:w-28 sm:h-28 bg-indigo-600 rounded-full flex items-center justify-center text-white font-black text-3xl shadow-lg shadow-indigo-600/20 border-4 border-white ring-2 ring-indigo-200 shrink-0">
+              <div className="w-16 h-16 sm:w-24 sm:h-24 bg-indigo-600 rounded-full flex items-center justify-center text-white font-black text-xl sm:text-3xl shadow-lg shadow-indigo-600/20 border-3 sm:border-4 border-white ring-2 ring-indigo-200 shrink-0">
                 {student.name?.charAt(0)?.toUpperCase()}
               </div>
             )}
-            <div>
-              <div className="flex items-center gap-2">
-                <h3 className="text-xl font-extrabold text-slate-900 leading-tight">{student.name}</h3>
+            <div className="min-w-0">
+              <div className="flex items-center gap-2 flex-wrap">
+                <h3 className="text-lg sm:text-xl font-extrabold text-slate-900 leading-tight truncate">{student.name}</h3>
                 <StatusBadge status={student.status || 'active'} size="sm" />
               </div>
-              <div className="flex flex-wrap items-center gap-3 mt-1 text-xs text-slate-600">
+              <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1 text-xs text-slate-600">
                 {student.phone && (
                   <span className="flex items-center gap-1 font-semibold">
                     <Phone className="w-3.5 h-3.5 text-slate-400" /> {student.phone}
@@ -122,17 +122,18 @@ export default function StudentProfile({
             </div>
           </div>
 
-          <div className="flex flex-wrap items-center gap-2 self-end sm:self-auto">
+          <div className="grid grid-cols-3 sm:flex sm:items-center gap-2 w-full sm:w-auto">
             {onExtendStudent && (
               <button
                 onClick={() => {
                   onClose();
                   onExtendStudent(student);
                 }}
-                className="px-3 py-1.5 bg-emerald-600 text-white rounded-xl text-xs font-bold shadow-xs hover:bg-emerald-700 flex items-center gap-1.5 cursor-pointer transition-colors"
+                className="px-2.5 sm:px-3 py-1.5 bg-emerald-600 text-white rounded-xl text-xs font-bold shadow-xs hover:bg-emerald-700 flex items-center justify-center gap-1.5 cursor-pointer transition-colors"
                 title="Extend Membership Days"
               >
-                <CalendarPlus className="w-3.5 h-3.5" /> Extend Days (दिन बढ़ाएं)
+                <CalendarPlus className="w-3.5 h-3.5 shrink-0" />
+                <span>Extend</span>
               </button>
             )}
 
@@ -142,9 +143,10 @@ export default function StudentProfile({
                   onClose();
                   onEditStudent(student);
                 }}
-                className="px-3 py-1.5 bg-white text-indigo-700 border border-indigo-200 rounded-xl text-xs font-bold shadow-xs hover:bg-indigo-50 flex items-center gap-1 cursor-pointer"
+                className="px-2.5 sm:px-3 py-1.5 bg-white text-indigo-700 border border-indigo-200 rounded-xl text-xs font-bold shadow-xs hover:bg-indigo-50 flex items-center justify-center gap-1 cursor-pointer"
               >
-                <Edit className="w-3.5 h-3.5" /> Edit
+                <Edit className="w-3.5 h-3.5 shrink-0" />
+                <span>Edit</span>
               </button>
             )}
 
@@ -154,9 +156,10 @@ export default function StudentProfile({
                   onClose();
                   onDeleteStudent(student);
                 }}
-                className="px-3 py-1.5 bg-rose-50 text-rose-700 border border-rose-200 rounded-xl text-xs font-bold hover:bg-rose-100 flex items-center gap-1 cursor-pointer"
+                className="px-2.5 sm:px-3 py-1.5 bg-rose-50 text-rose-700 border border-rose-200 rounded-xl text-xs font-bold hover:bg-rose-100 flex items-center justify-center gap-1 cursor-pointer"
               >
-                <Trash2 className="w-3.5 h-3.5" /> Delete
+                <Trash2 className="w-3.5 h-3.5 shrink-0" />
+                <span>Delete</span>
               </button>
             )}
           </div>
