@@ -346,61 +346,7 @@ export default function StaffRoles() {
     }
   };
 
-  const handleAddStaffSalaryToExpense = async (staff) => {
-    const salary = Number(staff.salary) || 0;
-    if (salary <= 0) {
-      showToast('इस स्टाफ की सैलरी 0 है, पहले सैलरी सेट करें');
-      return;
-    }
-    const today = new Date();
-    const currentMonthStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
-    const todayStr = today.toISOString().split('T')[0];
 
-    try {
-      const existingExpenses = await fetchCollectionData(COLLECTIONS.EXPENSES);
-      const alreadyAdded = existingExpenses.some((exp) => {
-        const isSalary = exp.category === 'Staff Salary' || exp.expenseType === 'salary';
-        if (!isSalary) return false;
-        const expMonth = exp.month || (exp.date?.seconds ? new Date(exp.date.seconds * 1000).toISOString().substring(0, 7) : String(exp.date).substring(0, 7));
-        return expMonth === currentMonthStr && (exp.staffId === staff.id || exp.salaryDetails?.staffId === staff.id);
-      });
-
-      if (alreadyAdded) {
-        showToast(`इस महीने (${currentMonthStr}) के लिए ${staff.name} की सैलरी पहले से Expenses में दर्ज है!`);
-        return;
-      }
-
-      const newSalaryExpense = {
-        category: 'Staff Salary',
-        amount: salary,
-        date: todayStr,
-        month: currentMonthStr,
-        description: `Staff Salary: ${staff.name} (${staff.role || 'Staff'})`,
-        expenseType: 'salary',
-        staffId: staff.id,
-        isStaffSalaryAuto: true,
-        isRecurring: true,
-        salaryDetails: {
-          staffId: staff.id,
-          staffName: staff.name,
-          role: staff.role || 'Staff',
-          baseSalary: salary,
-          daysInMonth: 30,
-          daysWorked: 30,
-          bonus: 0,
-          deductions: 0,
-          netSalary: salary,
-          paymentMode: 'cash',
-        },
-      };
-
-      await createDocument(COLLECTIONS.EXPENSES, newSalaryExpense);
-      showToast(`सैलरी ₹${salary.toLocaleString('en-IN')} Expenses में सफलतापूर्वक जुड़ गई!`);
-    } catch (err) {
-      console.error(err);
-      showToast('Error adding salary: ' + err.message);
-    }
-  };
 
   const handleDeleteStaffMemberConfirm = async () => {
     if (!deleteStaffTarget) return;

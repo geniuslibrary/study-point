@@ -4,7 +4,7 @@ import Button from '../components/common/Button';
 import Card from '../components/common/Card';
 import Modal from '../components/common/Modal';
 import { COLLECTIONS, SHIFTS } from '../utils/constants';
-import { fetchCollectionData, createDocument, updateDocument, removeDocument } from '../firebase/storageService';
+import { fetchCollectionData, createDocument, updateDocument, removeDocument, getTenantItem } from '../firebase/storageService';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { getActiveTemplates, renderTemplate } from '../utils/templateHelpers';
@@ -208,17 +208,18 @@ export default function Visitors() {
     const phoneWithCountry = cleanPhone.length === 10 ? `91${cleanPhone}` : cleanPhone;
     const currentTemplates = getActiveTemplates();
 
+    const tenantLibraryName = getTenantItem('library_name', 'Study Point Library');
     let message = '';
     if (visitor.purpose === 'demo') {
       message = renderTemplate(currentTemplates.demoEndingToday?.template, {
         student_name: visitor.name || 'Student',
-        library_name: 'Study Point Library',
+        library_name: tenantLibraryName,
         phone: visitor.phone || '',
       });
     } else {
       message = renderTemplate(currentTemplates.visitorWelcome?.template, {
         student_name: visitor.name || 'Student',
-        library_name: 'Study Point Library',
+        library_name: tenantLibraryName,
         phone: visitor.phone || '',
       });
     }

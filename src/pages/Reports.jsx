@@ -185,7 +185,7 @@ export default function Reports() {
   // MONTHLY REPORT CALCULATIONS
   // ----------------------------------------------------
   const monthlyPaidFees = fees.filter(
-    (f) => (f.month === selectedMonth || matchesMonth(f.paidDate, selectedMonth)) && f.status === 'paid'
+    (f) => (f.paidDate ? matchesMonth(f.paidDate, selectedMonth) : f.month === selectedMonth) && f.status === 'paid'
   );
   const monthlyPendingFees = fees.filter(
     (f) => f.month === selectedMonth && f.status !== 'paid'

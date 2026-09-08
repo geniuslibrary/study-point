@@ -1,8 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AlertCircle, MessageSquare, CheckCircle2, IndianRupee, ChevronRight, Phone } from 'lucide-react';
-import { formatCurrency, formatReminderTime } from '../../utils/helpers';
-import { updateDocument } from '../../firebase/storageService';
+import { updateDocument, getTenantItem } from '../../firebase/storageService';
 import { COLLECTIONS } from '../../utils/constants';
 import { getActiveTemplates, renderTemplate } from '../../utils/templateHelpers';
 
@@ -18,7 +17,7 @@ export default function PendingDuesAlert({ pendingFees = [] }) {
     
     const message = renderTemplate(currentTemplates.feeDueReminder?.template, {
       student_name: item.studentName || 'Student',
-      library_name: 'Study Point Library',
+      library_name: getTenantItem('library_name', 'Study Point Library'),
       month: item.month || currentMonth,
       amount: item.amount || 0,
       seat_number: item.seatNumber || '—',

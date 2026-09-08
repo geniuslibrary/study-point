@@ -10,7 +10,7 @@ import {
   CheckCircle2,
 } from 'lucide-react';
 import { formatReminderTime } from '../../utils/helpers';
-import { updateDocument } from '../../firebase/storageService';
+import { updateDocument, getTenantItem } from '../../firebase/storageService';
 import { COLLECTIONS } from '../../utils/constants';
 import { getActiveTemplates, renderTemplate } from '../../utils/templateHelpers';
 
@@ -96,11 +96,12 @@ export default function LiveDemoTracker({
     const phoneWithCountry = cleanPhone.length === 10 ? `91${cleanPhone}` : cleanPhone;
     const currentTemplates = getActiveTemplates();
 
+    const tenantLibraryName = getTenantItem('library_name', 'Study Point Library');
     let message = '';
     if (visitor.info?.type === 'today') {
       message = renderTemplate(currentTemplates.demoEndingToday?.template, {
         student_name: visitor.name || 'Student',
-        library_name: 'Study Point Library',
+        library_name: tenantLibraryName,
         seat_number: visitor.seatNumber || '—',
         shift: visitor.shift || 'Shift',
         phone: visitor.phone || '',
@@ -108,7 +109,7 @@ export default function LiveDemoTracker({
     } else if (visitor.info?.type === 'expired') {
       message = renderTemplate(currentTemplates.demoExpired?.template, {
         student_name: visitor.name || 'Student',
-        library_name: 'Study Point Library',
+        library_name: tenantLibraryName,
         seat_number: visitor.seatNumber || '—',
         shift: visitor.shift || 'Shift',
         phone: visitor.phone || '',
@@ -116,7 +117,7 @@ export default function LiveDemoTracker({
     } else {
       message = renderTemplate(currentTemplates.visitorWelcome?.template, {
         student_name: visitor.name || 'Student',
-        library_name: 'Study Point Library',
+        library_name: tenantLibraryName,
         phone: visitor.phone || '',
       });
     }

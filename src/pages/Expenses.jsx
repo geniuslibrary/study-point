@@ -52,9 +52,19 @@ export default function Expenses() {
         let currentOldId = exp.id;
 
         while (currentNextDue <= today) {
-          const d = new Date(currentNextDue);
-          d.setMonth(d.getMonth() + 1);
-          const nextNextDueStr = d.toISOString().split('T')[0];
+          const [yStr, mStr, dStr] = currentNextDue.split('-');
+          let year = parseInt(yStr, 10);
+          let month = parseInt(mStr, 10);
+          const day = parseInt(dStr, 10);
+
+          month += 1;
+          if (month > 12) {
+            month = 1;
+            year += 1;
+          }
+          const maxDays = new Date(year, month, 0).getDate();
+          const safeDay = Math.min(day, maxDays);
+          const nextNextDueStr = `${year}-${String(month).padStart(2, '0')}-${String(safeDay).padStart(2, '0')}`;
 
           const newExpense = {
             category: exp.category,

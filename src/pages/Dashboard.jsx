@@ -159,12 +159,12 @@ export default function Dashboard() {
       setAllPlansList(allPlans || []);
       setAllStaffList(allStaff || []);
 
-      const activeStudents = currentStudents.filter((s) => s.status === 'active');
+      const activeStudents = (students || []).filter((s) => s.status === 'active');
       const occupiedSeatIds = new Set(activeStudents.map((s) => s.seatId).filter(Boolean));
 
       // Deduplicate seats to get exact physical seat count
       const uniqueSeatsMap = new Map();
-      currentSeats.forEach((seat) => {
+      (allSeats || []).forEach((seat) => {
         const key = `${seat.sectionId}_${Number(seat.seatNumber) || seat.seatNumber}`;
         if (!uniqueSeatsMap.has(key)) uniqueSeatsMap.set(key, seat);
       });

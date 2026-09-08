@@ -33,6 +33,7 @@ import {
 } from 'lucide-react';
 import { formatCurrency, formatDate } from '../../utils/helpers';
 import { getActiveTemplates, renderTemplate } from '../../utils/templateHelpers';
+import { getTenantItem } from '../../firebase/storageService';
 
 // 1. Expiring Memberships in Next 7 Days
 export function ExpiringMembershipsWidget({ students = [], seats = [] }) {
@@ -65,7 +66,7 @@ export function ExpiringMembershipsWidget({ students = [], seats = [] }) {
 
     const message = renderTemplate(currentTemplates.expiryReminder?.template, {
       student_name: item.name || 'Student',
-      library_name: 'Study Point Library',
+      library_name: getTenantItem('library_name', 'Study Point Library'),
       expiry_date: expiryDateStr,
       seat_number: item.seatNumber || '—',
       phone: item.phone || '',

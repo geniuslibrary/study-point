@@ -1,6 +1,7 @@
 import React from "react";
 import { formatCurrency, formatDate } from "../../utils/helpers";
 import { Building2 } from "lucide-react";
+import { getTenantItem } from "../../firebase/storageService";
 
 export default function TransactionStatement({ 
     title, 
@@ -11,6 +12,7 @@ export default function TransactionStatement({
     totalExpense, 
     netProfit 
 }) {
+    const libraryTitle = (getTenantItem('library_name', 'Study Point Library') || 'Study Point Library').toUpperCase();
     // Combine fees and expenses into a single ledger timeline
     const transactions = [];
     
@@ -73,7 +75,7 @@ export default function TransactionStatement({
             <div className="flex justify-between items-start border-b border-gray-200 pb-6 mb-6">
                 <div>
                     <h1 className="text-2xl font-black text-gray-900 flex items-center gap-2">
-                        <Building2 className="text-indigo-600" /> STUDY POINT LIBRARY
+                        <Building2 className="text-indigo-600" /> {libraryTitle}
                     </h1>
                     <p className="text-sm text-gray-500 font-bold mt-1">Official Financial Statement</p>
                 </div>
