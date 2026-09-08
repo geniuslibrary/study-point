@@ -399,7 +399,7 @@ export function SeatOccupancyGaugeWidget({ seats = [], students = [] }) {
 
         {/* Luxury Radial Top Semi-Circle Cockpit Gauge */}
         <div className="flex flex-col items-center justify-center pt-1">
-          <svg className="w-48 sm:w-56 h-auto" viewBox="0 0 200 142">
+          <svg className="w-48 sm:w-56 h-auto" viewBox="0 0 200 145">
             <defs>
               <linearGradient id="gaugeGradient" x1="0%" y1="0%" x2="100%" y2="0%">
                 <stop offset="0%" stopColor="#10b981" />
@@ -407,7 +407,7 @@ export function SeatOccupancyGaugeWidget({ seats = [], students = [] }) {
                 <stop offset="100%" stopColor="#e11d48" />
               </linearGradient>
               <filter id="needleShadow" x="-30%" y="-30%" width="160%" height="160%">
-                <feDropShadow dx="0" dy="2" stdDeviation="2.5" floodColor="#0f172a" floodOpacity="0.35" />
+                <feDropShadow dx="0" dy="1" stdDeviation="2" floodColor="#0f172a" floodOpacity="0.3" />
               </filter>
             </defs>
 
@@ -437,8 +437,8 @@ export function SeatOccupancyGaugeWidget({ seats = [], students = [] }) {
               const rad = Math.PI - (tick / 100) * Math.PI;
               const x1 = 100 + 58 * Math.cos(rad);
               const y1 = 95 - 58 * Math.sin(rad);
-              const x2 = 100 + 64 * Math.cos(rad);
-              const y2 = 95 - 64 * Math.sin(rad);
+              const x2 = 100 + 65 * Math.cos(rad);
+              const y2 = 95 - 65 * Math.sin(rad);
               return (
                 <line
                   key={tick}
@@ -453,41 +453,34 @@ export function SeatOccupancyGaugeWidget({ seats = [], students = [] }) {
               );
             })}
 
-            {/* Needle Indicator */}
+            {/* Needle — body from pivot(95) upward, tip at y=46 stays inside arc track */}
             <g transform={`rotate(${needleAngle} 100 95)`} className="transition-transform duration-1000 ease-out">
-              <line
-                x1="100"
-                y1="95"
-                x2="100"
-                y2="38"
-                stroke="#0f172a"
-                strokeWidth="3.5"
-                strokeLinecap="round"
-                filter="url(#needleShadow)"
-              />
-              <circle cx="100" cy="38" r="3.5" fill="#f43f5e" />
+              {/* Wide base tail (counter side, below pivot) */}
+              <line x1="100" y1="95" x2="100" y2="46" stroke="#1e293b" strokeWidth="3" strokeLinecap="round" filter="url(#needleShadow)" />
+              {/* Bright red tip */}
+              <circle cx="100" cy="48" r="3" fill="#f43f5e" />
             </g>
 
-            {/* Center Pivot Dial */}
-            <circle cx="100" cy="95" r="7" fill="#0f172a" />
-            <circle cx="100" cy="95" r="3.5" fill="#38bdf8" />
+            {/* Center Pivot — small and neat */}
+            <circle cx="100" cy="95" r="6" fill="#1e293b" />
+            <circle cx="100" cy="95" r="3" fill="#38bdf8" />
 
-            {/* Digital HUD Readout - perfectly placed below pivot */}
+            {/* Percentage text — well below pivot, no overlap */}
             <text
               x="100"
-              y="118"
+              y="121"
               textAnchor="middle"
-              className="fill-slate-900"
-              style={{ fontSize: '26px', fontWeight: 900, fontFamily: 'inherit' }}
+              fill="#0f172a"
+              style={{ fontSize: '24px', fontWeight: 900, fontFamily: 'inherit' }}
             >
               {occupancyPct}%
             </text>
             <text
               x="100"
-              y="131"
+              y="134"
               textAnchor="middle"
-              className="fill-slate-400 uppercase tracking-wider"
-              style={{ fontSize: '9px', fontWeight: 800, letterSpacing: '0.08em', fontFamily: 'inherit' }}
+              fill="#94a3b8"
+              style={{ fontSize: '8.5px', fontWeight: 800, letterSpacing: '0.1em', fontFamily: 'inherit' }}
             >
               TOTAL CAPACITY
             </text>
@@ -1278,18 +1271,19 @@ export function ThermalRushHeatmapWidget({ students = [], seats = [] }) {
           </div>
         )}
 
-        <div className="overflow-x-auto scrollbar-thin pb-2 -mx-2 px-2 sm:mx-0 sm:px-0">
-          <div className="min-w-[340px]">
-            <div className="grid grid-cols-10 gap-1 text-[9px] sm:text-[10px] font-bold text-slate-400 mb-1 text-center">
-              <span className="text-left pl-1">Day</span>
+        <div className="overflow-x-auto pb-1">
+          <div className="w-full">
+            {/* Column hour headers */}
+            <div className="grid grid-cols-10 gap-0.5 text-[8px] sm:text-[9px] font-bold text-slate-400 mb-0.5 text-center">
+              <span className="text-left pl-1 text-[9px] font-extrabold text-slate-500">Day</span>
               {sampledHours.map((h) => (
                 <span key={h}>{h}:00</span>
               ))}
             </div>
 
             {days.map((d, dIdx) => (
-              <div key={d} className="grid grid-cols-10 gap-1 sm:gap-1.5 items-center mb-1.5">
-                <span className="text-[10px] sm:text-[11px] font-extrabold text-slate-600 text-left pl-1">{d}</span>
+              <div key={d} className="grid grid-cols-10 gap-0.5 items-center mb-0.5">
+                <span className="text-[9px] sm:text-[10px] font-extrabold text-slate-600 text-left pl-1">{d}</span>
                 {sampledHours.map((h) => {
                   const cell = getHeatLevel(dIdx, h);
                   return (
@@ -1297,7 +1291,7 @@ export function ThermalRushHeatmapWidget({ students = [], seats = [] }) {
                       key={h}
                       onMouseEnter={() => setSelectedCell(cell)}
                       onMouseLeave={() => setSelectedCell(null)}
-                      className={`h-5 sm:h-6 rounded-md sm:rounded-lg border transition-all cursor-pointer flex items-center justify-center text-[9px] font-black ${cellColors[cell.tier]}`}
+                      className={`h-4 sm:h-5 rounded-sm border transition-all cursor-pointer ${cellColors[cell.tier]}`}
                       title={`${cell.day} ${cell.hour}:00 - ${cell.pct}% full`}
                     />
                   );
