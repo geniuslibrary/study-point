@@ -567,7 +567,7 @@ export default function Customization() {
                   }}
                   className="px-3 py-1.5 rounded-xl bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-xs font-bold cursor-pointer transition-colors"
                 >
-                  Enable All (24)
+                  Enable All ({DASHBOARD_WIDGET_OPTIONS.filter((w) => w.id !== 'hideFinancials').length})
                 </button>
                 <button
                   type="button"
@@ -740,7 +740,7 @@ export default function Customization() {
                     💡 <span className="font-bold">Tips:</span> Jo widget sabse upar (#1, #2) hoga wo Dashboard par sabse pehle dikhega. Buttons (⬆️ / ⬇️) se order badal sakte hain ya direct Top (🔝) par bhej sakte hain.
                   </div>
                   <span className="text-[11px] font-black text-indigo-700 bg-white px-2.5 py-1 rounded-full border border-indigo-200 shrink-0 self-start sm:self-auto">
-                    {widgetOrder.filter((id) => dashConfig[id] === true).length} Active / 24 Total
+                    {widgetOrder.filter((id) => dashConfig[id] === true && DASHBOARD_WIDGET_OPTIONS.some((o) => o.id === id)).length} Active / {DASHBOARD_WIDGET_OPTIONS.filter((w) => w.id !== 'hideFinancials').length} Total
                   </span>
                 </div>
 
