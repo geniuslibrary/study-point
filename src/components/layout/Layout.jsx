@@ -15,17 +15,18 @@ const Layout = ({ children, title = 'Dashboard' }) => {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50/70 flex overflow-x-hidden">
+    <div className="h-screen bg-slate-50/70 flex overflow-hidden">
       <Sidebar
         isOpen={isSidebarOpen}
         setIsOpen={setIsSidebarOpen}
         onLogout={handleLogout}
       />
 
-      <div className="flex-1 flex flex-col min-w-0">
+      <div className="flex-1 flex flex-col min-w-0 h-screen overflow-hidden">
         <Header
           title={title}
           onMenuClick={() => setIsSidebarOpen(true)}
+          onLogout={handleLogout}
         />
 
         <main className="flex-1 p-3 sm:p-5 lg:p-7 pb-28 md:pb-8 overflow-y-auto min-w-0">
