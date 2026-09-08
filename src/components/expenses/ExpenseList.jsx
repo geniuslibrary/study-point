@@ -77,17 +77,6 @@ export default function ExpenseList({ expenses, onEdit, onDelete }) {
                   </td>
                   <td className="px-5 py-3.5 text-xs text-gray-700 max-w-sm">
                     <div className="font-medium text-gray-900">{expense.description || '—'}</div>
-                    {expense.isStaffSalaryAuto ? (
-                      <span className="inline-flex items-center gap-1 text-[10px] font-bold text-indigo-700 bg-indigo-50 border border-indigo-200 px-2 py-0.5 rounded-md mt-1">
-                        <Users className="w-3 h-3 text-indigo-500" />
-                        <span>Auto-Scheduled Monthly Salary</span>
-                      </span>
-                    ) : expense.isRecurring ? (
-                      <span className="inline-flex items-center gap-1 text-[10px] font-bold text-purple-700 bg-purple-50 border border-purple-200 px-2 py-0.5 rounded-md mt-1">
-                        <Calendar className="w-3 h-3 text-purple-500" />
-                        <span>Monthly Recurring</span>
-                      </span>
-                    ) : null}
                   </td>
                   <td className="px-5 py-3.5 whitespace-nowrap text-sm font-bold text-red-600 text-right">
                     {formatCurrency(expense.amount)}

@@ -155,7 +155,6 @@ export default function StaffRoles() {
     email: '',
     password: '',
     phone: '',
-    monthlySalary: '',
     role: 'role_receptionist',
     roleLabel: '🛎️ Receptionist',
     status: 'active',
@@ -219,7 +218,6 @@ export default function StaffRoles() {
       email: '',
       password: '',
       phone: '',
-      monthlySalary: '',
       role: defaultRole.id,
       roleLabel: defaultRole.label || `${defaultRole.emoji || '💼'} ${defaultRole.name}`,
       status: 'active',
@@ -250,7 +248,6 @@ export default function StaffRoles() {
       email: staff.email || '',
       password: staff.password || '',
       phone: staff.phone || '',
-      monthlySalary: staff.monthlySalary !== undefined && staff.monthlySalary !== null ? String(staff.monthlySalary) : '',
       role: initialRole,
       roleLabel: initialRoleLabel,
       status: staff.status || 'active',
@@ -317,24 +314,6 @@ export default function StaffRoles() {
     });
   };
 
-  const handleQuickToggleStatus = async (staff, targetStatus) => {
-    try {
-      await updateDocument(COLLECTIONS.STAFF_USERS, staff.id, {
-        status: targetStatus,
-        leftDate: targetStatus === 'left' ? new Date().toISOString() : null,
-      });
-      showToast(
-        targetStatus === 'left'
-          ? `${staff.name} marked as Left (Monthly salary auto-generation stopped)`
-          : `${staff.name} re-activated as active staff`
-      );
-      await fetchData();
-    } catch (err) {
-      console.error(err);
-      showToast('Error updating staff status');
-    }
-  };
-
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!formData.name.trim() || !formData.email.trim() || !formData.password.trim()) {
@@ -342,18 +321,12 @@ export default function StaffRoles() {
       return;
     }
 
-    const payload = {
-      ...formData,
-      monthlySalary: formData.monthlySalary !== '' ? Number(formData.monthlySalary) || 0 : 0,
-      leftDate: formData.status === 'left' ? (editStaff?.leftDate || new Date().toISOString()) : null,
-    };
-
     try {
       if (editStaff) {
-        await updateDocument(COLLECTIONS.STAFF_USERS, editStaff.id, payload);
+        await updateDocument(COLLECTIONS.STAFF_USERS, editStaff.id, formData);
         showToast(`Staff member "${formData.name}" updated successfully!`);
       } else {
-        await createDocument(COLLECTIONS.STAFF_USERS, payload);
+        await createDocument(COLLECTIONS.STAFF_USERS, formData);
         showToast(`New staff member "${formData.name}" created successfully!`);
       }
       setShowModal(false);
@@ -674,14 +647,12 @@ export default function StaffRoles() {
                             </h4>
                             <span
                               className={`text-[10px] font-black uppercase px-2 py-0.5 rounded-full ${
-                                staff.status === 'left'
-                                  ? 'bg-rose-100 text-rose-700 border border-rose-200'
-                                  : staff.status === 'inactive'
-                                  ? 'bg-slate-100 text-slate-600 border border-slate-200'
-                                  : 'bg-emerald-100 text-emerald-800 border border-emerald-200'
+                                staff.status !== 'inactive'
+                                  ? 'bg-emerald-100 text-emerald-800 border border-emerald-200'
+                                  : 'bg-rose-100 text-rose-700 border border-rose-200'
                               }`}
                             >
-                              {staff.status === 'left' ? '🔴 Left (छोड़ दिया)' : staff.status === 'inactive' ? '⚪ Inactive' : '🟢 Active'}
+                              {staff.status !== 'inactive' ? 'Active' : 'Inactive'}
                             </span>
                           </div>
 
@@ -689,21 +660,6 @@ export default function StaffRoles() {
                             <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-lg text-xs font-bold bg-indigo-50 text-indigo-700 border border-indigo-200">
                               {displayRole}
                             </span>
-                            {Number(staff.monthlySalary) > 0 && (
-                              <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-lg text-xs font-bold border ${
-                                staff.status === 'left'
-                                  ? 'bg-slate-100 text-slate-500 border-slate-200 line-through'
-                                  : 'bg-emerald-50 text-emerald-800 border-emerald-200'
-                              }`}>
-                                <IndianRupee className="w-3 h-3" />
-                                <span>₹{Number(staff.monthlySalary).toLocaleString('en-IN')}/month</span>
-                                {staff.status === 'left' ? (
-                                  <span className="text-[9px] no-underline font-normal text-rose-600">(Stopped)</span>
-                                ) : (
-                                  <span className="text-[9px] font-normal text-emerald-600">(Auto-adds)</span>
-                                )}
-                              </span>
-                            )}
                             {staff.phone && (
                               <span className="text-xs text-slate-500 font-medium">
                                 📞 {staff.phone}
@@ -713,27 +669,8 @@ export default function StaffRoles() {
                         </div>
                       </div>
 
-                      {/* Edit, Toggle Left & Delete Buttons */}
+                      {/* Edit & Delete Buttons */}
                       <div className="flex items-center gap-1 shrink-0">
-                        {staff.status === 'left' ? (
-                          <button
-                            type="button"
-                            onClick={() => handleQuickToggleStatus(staff, 'active')}
-                            className="px-2.5 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 rounded-xl text-xs font-bold transition-colors cursor-pointer flex items-center gap-1"
-                            title="Re-activate staff (resumes monthly salary in Expenses)"
-                          >
-                            <span>🟢 Re-activate</span>
-                          </button>
-                        ) : (
-                          <button
-                            type="button"
-                            onClick={() => handleQuickToggleStatus(staff, 'left')}
-                            className="px-2.5 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 rounded-xl text-xs font-bold transition-colors cursor-pointer flex items-center gap-1"
-                            title="Mark staff as Left (stops monthly salary from being added to Expenses)"
-                          >
-                            <span>🚪 Mark Left</span>
-                          </button>
-                        )}
                         <button
                           onClick={() => handleOpenEdit(staff)}
                           className="p-2 text-indigo-600 hover:bg-indigo-50 rounded-xl transition-colors cursor-pointer"
@@ -913,8 +850,8 @@ export default function StaffRoles() {
             </div>
           </div>
 
-          {/* Login Email, Password, Monthly Salary & Account Status */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 bg-slate-50 p-3.5 rounded-2xl border border-slate-200">
+          {/* Login Email, Password & Account Status */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 bg-slate-50 p-3.5 rounded-2xl border border-slate-200">
             <div>
               <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1 flex items-center gap-1">
                 <Mail className="w-3.5 h-3.5 text-indigo-600" />
@@ -947,21 +884,6 @@ export default function StaffRoles() {
 
             <div>
               <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1 flex items-center gap-1">
-                <IndianRupee className="w-3.5 h-3.5 text-indigo-600" />
-                <span>Monthly Salary (मासिक वेतन)</span>
-              </label>
-              <input
-                type="number"
-                min="0"
-                value={formData.monthlySalary}
-                onChange={(e) => setFormData({ ...formData, monthlySalary: e.target.value })}
-                placeholder="e.g. 8000"
-                className="w-full px-3 py-2 border border-slate-300 rounded-xl text-xs bg-white font-bold text-emerald-800 focus:ring-2 focus:ring-indigo-500"
-              />
-            </div>
-
-            <div>
-              <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1 flex items-center gap-1">
                 <ShieldCheck className="w-3.5 h-3.5 text-indigo-600" />
                 <span>Account Status</span>
               </label>
@@ -970,17 +892,11 @@ export default function StaffRoles() {
                 onChange={(e) => setFormData({ ...formData, status: e.target.value })}
                 className="w-full px-3 py-2 border border-slate-300 rounded-xl text-xs bg-white font-bold text-slate-800 focus:ring-2 focus:ring-indigo-500"
               >
-                <option value="active">🟢 Active (कार्यरत - सैलरी चालू)</option>
-                <option value="left">🔴 Left (छोड़ दिया - सैलरी बंद)</option>
-                <option value="inactive">⚪ Inactive (अक्रिय)</option>
+                <option value="active">🟢 Active (चालू)</option>
+                <option value="inactive">🔴 Inactive (बंद)</option>
               </select>
             </div>
           </div>
-          {Number(formData.monthlySalary) > 0 && formData.status !== 'left' && (
-            <p className="text-[11px] text-emerald-700 font-semibold bg-emerald-50 px-3 py-1.5 rounded-xl border border-emerald-200">
-              💡 यह वेतन (₹{Number(formData.monthlySalary).toLocaleString('en-IN')}) हर महीने <strong>Expenses & Utility</strong> में स्वतः (automatically) सैलरी खर्च के रूप में जुड़ेगा जब तक स्टेटस 'Left' न किया जाए।
-            </p>
-          )}
 
           {/* Granular Module-by-Module Permission Matrix */}
           <div>
