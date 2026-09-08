@@ -15,6 +15,8 @@ import {
   ArrowUpDown,
   RotateCcw,
   Tag,
+  UserX,
+  Clock,
 } from 'lucide-react';
 
 export default function FeeTracker({
@@ -24,12 +26,13 @@ export default function FeeTracker({
   seats = [],
   onCollect,
   onViewReceipt,
+  onMarkLeft,
   selectedMonth,
   onMonthChange,
   initialStatusFilter = 'all',
 }) {
   const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState(initialStatusFilter); // all | paid | pending | overdue
+  const [statusFilter, setStatusFilter] = useState(initialStatusFilter); // all | paid | ending_soon | pending | overdue
   const [sectionFilter, setSectionFilter] = useState('all');
 
   useEffect(() => {
@@ -55,6 +58,54 @@ export default function FeeTracker({
     return seat?.seatNumber || null;
   };
 
+  // Helper to calculate days difference relative to today
+  // diff > 0: upcoming (e.g. 1, 2, 3 days left)
+  // diff === 0: today
+  // diff < 0: overdue (e.g. -1, -2, -3 days overdue)
+  const getFeeDiffDays = (fee) => {
+    const student = getStudent(fee.studentId);
+    const dateStr = fee.periodEnd || fee.dueDate || student?.membershipEnd;
+    if (!dateStr) return null;
+    try {
+      const target = new Date(dateStr);
+      target.setHours(0, 0, 0, 0);
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      return Math.round((target - today) / (1000 * 60 * 60 * 24));
+    } catch (e) {
+      return null;
+    }
+  };
+
+  // Calculate live counts for each filter category
+  const statusCounts = useMemo(() => {
+    let all = 0;
+    let paid = 0;
+    let ending_soon = 0;
+    let pending = 0;
+    let overdue = 0;
+
+    fees.forEach((f) => {
+      if (selectedMonth && f.month !== selectedMonth) return;
+      const st = getStudent(f.studentId);
+      if (sectionFilter !== 'all' && st?.sectionId !== sectionFilter) return;
+
+      const diff = getFeeDiffDays(f);
+      const isP = f.status === 'paid';
+      const isEnd = diff !== null && diff >= 0 && diff <= 3 && st?.status !== 'left';
+      const isO = !isP && diff !== null && diff < -2;
+      const isPend = !isP && (diff === null || diff >= -2);
+
+      all++;
+      if (isP) paid++;
+      if (isEnd) ending_soon++;
+      if (isPend) pending++;
+      if (isO) overdue++;
+    });
+
+    return { all, paid, ending_soon, pending, overdue };
+  }, [fees, students, selectedMonth, sectionFilter]);
+
   // Comprehensive Search & Multi-Filter Logic
   const filteredFees = useMemo(() => {
     return fees.filter((fee) => {
@@ -68,14 +119,17 @@ export default function FeeTracker({
       if (selectedMonth && fee.month !== selectedMonth) return false;
 
       // 2. Status Filter
+      const diffDays = getFeeDiffDays(fee);
+      const isPaid = fee.status === 'paid';
+      const isOverdue = !isPaid && diffDays !== null && diffDays < -2;
+      const isPending = !isPaid && (diffDays === null || diffDays >= -2);
+      const isEndingSoon = diffDays !== null && diffDays >= 0 && diffDays <= 3 && student?.status !== 'left';
+
       if (statusFilter !== 'all') {
-        if (statusFilter === 'paid' && fee.status !== 'paid') return false;
-        if (statusFilter === 'pending' && fee.status === 'paid') return false;
-        if (statusFilter === 'overdue') {
-          if (fee.status === 'paid') return false;
-          const due = fee.dueDate ? new Date(fee.dueDate) : null;
-          if (!due || due >= new Date()) return false;
-        }
+        if (statusFilter === 'paid' && !isPaid) return false;
+        if (statusFilter === 'ending_soon' && !isEndingSoon) return false;
+        if (statusFilter === 'pending' && !isPending) return false;
+        if (statusFilter === 'overdue' && !isOverdue) return false;
       }
 
       // 3. Section Filter
@@ -164,25 +218,35 @@ export default function FeeTracker({
             </select>
           </div>
 
-          {/* Status Filter Buttons */}
-          <div className="flex items-center bg-white p-1 rounded-xl border border-slate-200 shadow-2xs">
+          {/* Status Filter Buttons with Live Counts */}
+          <div className="flex flex-wrap items-center bg-white p-1 rounded-xl border border-slate-200 shadow-2xs gap-1">
             {[
-              { id: 'all', label: 'All Status' },
-              { id: 'paid', label: '🟢 Paid' },
-              { id: 'pending', label: '🟡 Pending' },
-              { id: 'overdue', label: '🔴 Overdue' },
+              { id: 'all', label: 'All Status', count: statusCounts.all },
+              { id: 'paid', label: '🟢 Paid', count: statusCounts.paid },
+              { id: 'ending_soon', label: '⏳ Ending Soon (0-3 Days)', count: statusCounts.ending_soon },
+              { id: 'pending', label: '🟡 Pending (0-2 Days)', count: statusCounts.pending },
+              { id: 'overdue', label: '🔴 Overdue (>2 Days)', count: statusCounts.overdue },
             ].map((st) => (
               <button
                 key={st.id}
                 type="button"
                 onClick={() => setStatusFilter(st.id)}
-                className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
                   statusFilter === st.id
                     ? 'bg-indigo-600 text-white shadow-xs'
                     : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
                 }`}
               >
-                {st.label}
+                <span>{st.label}</span>
+                <span
+                  className={`text-[10px] px-1.5 py-0.2 rounded-full font-black ${
+                    statusFilter === st.id
+                      ? 'bg-indigo-700/90 text-white'
+                      : 'bg-slate-100 text-slate-600'
+                  }`}
+                >
+                  {st.count}
+                </span>
               </button>
             ))}
           </div>
@@ -234,6 +298,9 @@ export default function FeeTracker({
               const discount = Number(fee.discountAmount) || Number(student?.discountAmount) || 0;
               const addonTotal = fee.addonCharges ? Object.values(fee.addonCharges).reduce((s, v) => s + (Number(v) || 0), 0) : 0;
               const baseRate = Number(fee.baseFee) || (Number(fee.amount) + discount - addonTotal);
+              const diffDays = getFeeDiffDays(fee);
+              const isOverdue = fee.status !== 'paid' && diffDays !== null && diffDays < -2;
+              const isEndingSoon = diffDays !== null && diffDays >= 0 && diffDays <= 3 && student?.status !== 'left';
 
               return (
                 <tr key={fee.id} className="hover:bg-slate-50/80 transition-colors">
@@ -305,15 +372,68 @@ export default function FeeTracker({
                   </td>
 
                   <td className="px-5 py-3.5 text-xs text-slate-500">
-                    {formatDate(fee.dueDate || fee.paidDate)}
+                    <p className="font-bold text-slate-800">
+                      {formatDate(fee.dueDate || fee.periodEnd || fee.paidDate)}
+                    </p>
+                    {diffDays !== null && (
+                      <p
+                        className={`text-[10px] font-extrabold mt-0.5 ${
+                          diffDays < -2
+                            ? 'text-rose-600'
+                            : diffDays <= 0
+                            ? 'text-amber-600'
+                            : diffDays <= 3
+                            ? 'text-indigo-600'
+                            : 'text-slate-400'
+                        }`}
+                      >
+                        {diffDays === 0
+                          ? 'Due Today'
+                          : diffDays > 0
+                          ? `${diffDays} days left`
+                          : `${Math.abs(diffDays)} days overdue`}
+                      </p>
+                    )}
                   </td>
 
                   <td className="px-5 py-3.5">
-                    <StatusBadge status={fee.status} />
+                    {fee.status === 'paid' ? (
+                      <div>
+                        <StatusBadge status="paid" />
+                        {isEndingSoon && (
+                          <div className="mt-1">
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-black bg-amber-50 text-amber-900 border border-amber-200">
+                              ⏳ {diffDays === 0 ? 'Ends Today' : diffDays === 1 ? '1 Day Left' : `${diffDays} Days Left`}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                    ) : isOverdue ? (
+                      <div>
+                        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-black bg-rose-50 text-rose-700 border border-rose-200">
+                          <AlertCircle className="w-3 h-3 text-rose-600" />
+                          <span>Overdue ({Math.abs(diffDays)}d)</span>
+                        </span>
+                      </div>
+                    ) : (
+                      <div>
+                        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-amber-50 text-amber-800 border border-amber-200">
+                          {diffDays === 0
+                            ? 'Due Today'
+                            : diffDays === -1
+                            ? 'Due (1d Grace)'
+                            : diffDays === -2
+                            ? 'Due (2d Grace)'
+                            : diffDays > 0
+                            ? `Pending (${diffDays}d left)`
+                            : 'Pending'}
+                        </span>
+                      </div>
+                    )}
                   </td>
 
                   <td className="px-5 py-3.5 text-right">
-                    <div className="flex justify-end gap-1.5">
+                    <div className="flex justify-end gap-1.5 items-center">
                       {fee.status !== 'paid' && (
                         <button
                           onClick={() => onCollect(fee)}
@@ -324,6 +444,7 @@ export default function FeeTracker({
                           <span>Collect</span>
                         </button>
                       )}
+
                       {fee.status === 'paid' && (
                         <button
                           onClick={() => onViewReceipt(fee)}
@@ -332,6 +453,28 @@ export default function FeeTracker({
                         >
                           <FileText className="w-3.5 h-3.5" />
                           <span>Bill / PDF</span>
+                        </button>
+                      )}
+
+                      {fee.status === 'paid' && isEndingSoon && (
+                        <button
+                          onClick={() => onCollect(fee)}
+                          className="px-2.5 py-1.5 bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200 rounded-xl text-xs font-bold flex items-center gap-1 transition-all cursor-pointer shadow-2xs"
+                          title="Renew Membership"
+                        >
+                          <RotateCcw className="w-3.5 h-3.5 text-amber-600" />
+                          <span>Renew</span>
+                        </button>
+                      )}
+
+                      {isOverdue && student?.status !== 'left' && onMarkLeft && (
+                        <button
+                          onClick={() => onMarkLeft(fee, student, seats.find((s) => s.id === student?.seatId))}
+                          className="px-2.5 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 rounded-xl text-xs font-bold flex items-center gap-1 transition-all cursor-pointer shadow-2xs"
+                          title="Mark Student Left & Free Seat"
+                        >
+                          <UserX className="w-3.5 h-3.5 text-rose-600" />
+                          <span>Left & Free Seat</span>
                         </button>
                       )}
                     </div>
@@ -350,6 +493,9 @@ export default function FeeTracker({
           const seatNum = getSeatNumber(fee.studentId);
           const discount = Number(fee.discountAmount) || Number(student?.discountAmount) || 0;
           const addonTotal = fee.addonCharges ? Object.values(fee.addonCharges).reduce((s, v) => s + (Number(v) || 0), 0) : 0;
+          const diffDays = getFeeDiffDays(fee);
+          const isOverdue = fee.status !== 'paid' && diffDays !== null && diffDays < -2;
+          const isEndingSoon = diffDays !== null && diffDays >= 0 && diffDays <= 3 && student?.status !== 'left';
 
           return (
             <div key={fee.id} className="p-4 space-y-2.5">
@@ -375,16 +521,42 @@ export default function FeeTracker({
                     </p>
                   </div>
                 </div>
-                <StatusBadge status={fee.status} size="sm" />
+
+                {fee.status === 'paid' ? (
+                  <div className="text-right">
+                    <StatusBadge status="paid" size="sm" />
+                    {isEndingSoon && (
+                      <span className="block mt-1 text-[10px] font-black text-amber-800 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200">
+                        ⏳ {diffDays === 0 ? 'Ends Today' : diffDays === 1 ? '1d Left' : `${diffDays}d Left`}
+                      </span>
+                    )}
+                  </div>
+                ) : isOverdue ? (
+                  <span className="px-2 py-0.5 rounded-full text-xs font-black bg-rose-50 text-rose-700 border border-rose-200 flex items-center gap-1">
+                    <AlertCircle className="w-3 h-3 text-rose-600" /> Overdue ({Math.abs(diffDays)}d)
+                  </span>
+                ) : (
+                  <span className="px-2 py-0.5 rounded-full text-xs font-bold bg-amber-50 text-amber-800 border border-amber-200">
+                    {diffDays === 0 ? 'Due Today' : diffDays === -1 ? 'Due (1d Grace)' : diffDays === -2 ? 'Due (2d Grace)' : diffDays > 0 ? `Pending (${diffDays}d)` : 'Pending'}
+                  </span>
+                )}
               </div>
 
-              <div className="text-xs text-slate-600 bg-slate-50 p-2 rounded-xl">
-                <span className="text-slate-400 font-medium block text-[10px] uppercase">Billing Period:</span>
-                <span className="font-bold text-indigo-900">
-                  {fee.periodStart && fee.periodEnd
-                    ? `${formatDate(fee.periodStart)} to ${formatDate(fee.periodEnd)}`
-                    : formatMonthDisplay(fee.month)}
-                </span>
+              <div className="text-xs text-slate-600 bg-slate-50 p-2 rounded-xl flex items-center justify-between">
+                <div>
+                  <span className="text-slate-400 font-medium block text-[10px] uppercase">Billing Period</span>
+                  <span className="font-bold text-indigo-900">
+                    {fee.periodStart && fee.periodEnd
+                      ? `${formatDate(fee.periodStart)} to ${formatDate(fee.periodEnd)}`
+                      : formatMonthDisplay(fee.month)}
+                  </span>
+                </div>
+                <div className="text-right">
+                  <span className="text-slate-400 font-medium block text-[10px] uppercase">Due Date</span>
+                  <span className="font-bold text-slate-800">
+                    {formatDate(fee.dueDate || fee.periodEnd || fee.paidDate)}
+                  </span>
+                </div>
               </div>
 
               <div className="flex items-center justify-between pt-1">
@@ -405,11 +577,11 @@ export default function FeeTracker({
                   </div>
                 </div>
 
-                <div className="flex gap-1.5">
+                <div className="flex flex-wrap gap-1.5 justify-end">
                   {fee.status !== 'paid' && (
                     <button
                       onClick={() => onCollect(fee)}
-                      className="px-3.5 py-1.5 bg-emerald-600 text-white rounded-xl text-xs font-bold flex items-center gap-1 shadow-xs"
+                      className="px-3 py-1.5 bg-emerald-600 text-white rounded-xl text-xs font-bold flex items-center gap-1 shadow-xs cursor-pointer"
                     >
                       <IndianRupee className="w-3.5 h-3.5" />
                       <span>Collect</span>
@@ -418,10 +590,28 @@ export default function FeeTracker({
                   {fee.status === 'paid' && (
                     <button
                       onClick={() => onViewReceipt(fee)}
-                      className="px-3.5 py-1.5 bg-indigo-600 text-white rounded-xl text-xs font-bold flex items-center gap-1 shadow-xs"
+                      className="px-3 py-1.5 bg-indigo-600 text-white rounded-xl text-xs font-bold flex items-center gap-1 shadow-xs cursor-pointer"
                     >
                       <FileText className="w-3.5 h-3.5" />
                       <span>Bill / PDF</span>
+                    </button>
+                  )}
+                  {fee.status === 'paid' && isEndingSoon && (
+                    <button
+                      onClick={() => onCollect(fee)}
+                      className="px-2.5 py-1.5 bg-amber-500 text-white rounded-xl text-xs font-bold flex items-center gap-1 shadow-xs cursor-pointer"
+                    >
+                      <RotateCcw className="w-3.5 h-3.5" />
+                      <span>Renew</span>
+                    </button>
+                  )}
+                  {isOverdue && student?.status !== 'left' && onMarkLeft && (
+                    <button
+                      onClick={() => onMarkLeft(fee, student, seats.find((s) => s.id === student?.seatId))}
+                      className="px-2.5 py-1.5 bg-rose-600 text-white rounded-xl text-xs font-bold flex items-center gap-1 shadow-xs cursor-pointer"
+                    >
+                      <UserX className="w-3.5 h-3.5" />
+                      <span>Left & Free Seat</span>
                     </button>
                   )}
                 </div>

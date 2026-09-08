@@ -4,6 +4,7 @@ import Layout from '../components/layout/Layout';
 import FeeTracker from '../components/fees/FeeTracker';
 import CollectFeeModal from '../components/fees/CollectFeeModal';
 import FeeReceipt from '../components/fees/FeeReceipt';
+import ConfirmDialog from '../components/common/ConfirmDialog';
 import Button from '../components/common/Button';
 import {
   IndianRupee,
@@ -15,7 +16,7 @@ import {
   AlertCircle,
   Sparkles,
 } from 'lucide-react';
-import { COLLECTIONS } from '../utils/constants';
+import { COLLECTIONS, SEAT_STATUS } from '../utils/constants';
 import { formatCurrency, getMonthYear, calculateSeatAddonCharges, getStoredAddons } from '../utils/helpers';
 import {
   fetchCollectionData,
@@ -39,6 +40,8 @@ export default function Fees() {
   const [selectedMonth, setSelectedMonth] = useState(getMonthYear());
   const [collectFee, setCollectFee] = useState(null);
   const [receiptFee, setReceiptFee] = useState(null);
+  const [leftConfirmTarget, setLeftConfirmTarget] = useState(null);
+  const [markingLeftLoading, setMarkingLeftLoading] = useState(false);
 
   // Automatic Background Dues Synchronizer
   const autoSyncMonthlyDues = async (currentFees, activeStudents, allPlans, allSeats, allAddons) => {
@@ -397,6 +400,60 @@ export default function Fees() {
     await fetchData();
   };
 
+  const handleConfirmMarkLeft = async () => {
+    if (!leftConfirmTarget?.student) return;
+    setMarkingLeftLoading(true);
+    try {
+      const { student, fee } = leftConfirmTarget;
+
+      // 1. Free physical seat if student has an assigned seat
+      if (student.seatId) {
+        const remainingStudents = students.filter(
+          (s) => s.seatId === student.seatId && s.status === 'active' && s.id !== student.id
+        );
+        const hasFullDay = remainingStudents.some((s) => !s.shift || s.shift === 'full_day');
+        const hasFirstHalf = remainingStudents.some((s) => s.shift === 'first_half');
+        const hasSecondHalf = remainingStudents.some((s) => s.shift === 'second_half');
+
+        let newStatus = SEAT_STATUS.AVAILABLE;
+        if (hasFullDay || (hasFirstHalf && hasSecondHalf) || remainingStudents.length >= 2) {
+          newStatus = SEAT_STATUS.OCCUPIED;
+        } else if (remainingStudents.length > 0) {
+          newStatus = SEAT_STATUS.PARTIALLY_OCCUPIED;
+        }
+
+        const primaryStudent = remainingStudents[0] || null;
+
+        await updateDocument(COLLECTIONS.SEATS, student.seatId, {
+          status: newStatus,
+          studentId: primaryStudent ? primaryStudent.id : null,
+        });
+      }
+
+      // 2. Mark student status as 'left'
+      await updateDocument(COLLECTIONS.STUDENTS, student.id, {
+        status: 'left',
+        seatId: '',
+        leftDate: new Date().toISOString(),
+      });
+
+      // 3. Mark fee notes if fee exists
+      if (fee?.id) {
+        await updateDocument(COLLECTIONS.FEES, fee.id, {
+          notes: ((fee.notes || '') + ' | Student Left (Seat Freed)').trim(),
+        });
+      }
+
+      setLeftConfirmTarget(null);
+      await fetchData();
+    } catch (err) {
+      console.error('Error marking student left:', err);
+      alert('Student ko left mark karne mein dikkat aayi. Kripya punah prayas karein.');
+    } finally {
+      setMarkingLeftLoading(false);
+    }
+  };
+
   const currentMonth = getMonthYear();
   const todayStr = new Date().toISOString().split('T')[0];
 
@@ -463,6 +520,7 @@ export default function Fees() {
           seats={seats}
           onCollect={setCollectFee}
           onViewReceipt={setReceiptFee}
+          onMarkLeft={(fee, student, seat) => setLeftConfirmTarget({ fee, student, seat })}
           selectedMonth={selectedMonth}
           onMonthChange={setSelectedMonth}
           initialStatusFilter={targetStatusFilter}
@@ -488,6 +546,17 @@ export default function Fees() {
         student={receiptStudent}
         section={receiptSection}
         seat={receiptSeat}
+      />
+
+      <ConfirmDialog
+        isOpen={!!leftConfirmTarget}
+        onClose={() => setLeftConfirmTarget(null)}
+        onConfirm={handleConfirmMarkLeft}
+        title="Student ko Left mark karein aur Seat free karein?"
+        message={`Kya aap sure hain ki "${leftConfirmTarget?.student?.name}" ko Left mark karna hai? Isse student status "Left" ho jayega aur unki Seat #${leftConfirmTarget?.seat?.seatNumber || '—'} turant FREE (Available) ho jayegi.`}
+        confirmText="Haan, Left & Free Seat"
+        variant="danger"
+        loading={markingLeftLoading}
       />
     </Layout>
   );
