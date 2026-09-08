@@ -95,8 +95,8 @@ export default function FeeTracker({
 
       const diff = getFeeDiffDays(f);
       const isP = f.status === 'paid';
-      const isO = !isP && diff !== null && diff < -2;
-      const isExp = !isP && diff !== null && diff < 0 && diff >= -2;
+      const isO = !isP && diff !== null && diff < -2 && st?.status !== 'left';
+      const isExp = !isP && diff !== null && diff < 0 && diff >= -2 && st?.status !== 'left';
       const isEnd = diff !== null && diff >= 0 && diff <= 3 && st?.status !== 'left';
 
       all++;
@@ -124,8 +124,8 @@ export default function FeeTracker({
       // 2. Status Filter
       const diffDays = getFeeDiffDays(fee);
       const isPaid = fee.status === 'paid';
-      const isOverdue = !isPaid && diffDays !== null && diffDays < -2;
-      const isExpired = !isPaid && diffDays !== null && diffDays < 0 && diffDays >= -2;
+      const isOverdue = !isPaid && diffDays !== null && diffDays < -2 && student?.status !== 'left';
+      const isExpired = !isPaid && diffDays !== null && diffDays < 0 && diffDays >= -2 && student?.status !== 'left';
       const isEndingSoon = diffDays !== null && diffDays >= 0 && diffDays <= 3 && student?.status !== 'left';
 
       if (statusFilter !== 'all') {

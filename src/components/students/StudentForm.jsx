@@ -287,8 +287,13 @@ export default function StudentForm({
       }
 
       if (editData && editData.seatId === seat.id) {
-        isAvailable = true;
-        statusHint = 'Current Assigned Seat';
+        if (!isAvailable) {
+          statusHint = `Current Seat - Shift Conflict! (${statusHint})`;
+        } else {
+          statusHint = seatStudents.length > 0
+            ? `Current Assigned Seat (Shared with ${seatStudents.map((s) => s.name).join(', ')})`
+            : 'Current Assigned Seat';
+        }
       }
 
       return {
@@ -313,6 +318,14 @@ export default function StudentForm({
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!formData.name.trim() || !formData.phone.trim()) return;
+
+    if (formData.seatId && formData.status !== 'left') {
+      const chosenSeat = seatOptions.find((s) => s.id === formData.seatId);
+      if (chosenSeat && !chosenSeat.isAvailable) {
+        alert(`⚠️ Seat Collision Warning:\n${chosenSeat.statusHint}\n\nKripya is shift ke liye doosri seat select karein ya compatible shift rakhein.`);
+        return;
+      }
+    }
 
     setLoading(true);
     try {
@@ -732,14 +745,27 @@ export default function StudentForm({
               >
                 <option value="">Select available seat</option>
                 {seatOptions
-                  .filter((s) => s.isAvailable)
+                  .filter((s) => s.isAvailable || (editData && editData.seatId === s.id))
                   .sort((a, b) => (Number(a.seatNumber) || 0) - (Number(b.seatNumber) || 0))
                   .map((s) => (
-                    <option key={s.id} value={s.id}>
+                    <option
+                      key={s.id}
+                      value={s.id}
+                      className={!s.isAvailable ? 'text-rose-600 font-semibold bg-rose-50' : ''}
+                    >
                       Seat #{s.seatNumber} — {s.statusHint}
                     </option>
                   ))}
               </select>
+
+              {formData.seatId && seatOptions.find((s) => s.id === formData.seatId && !s.isAvailable) && (
+                <div className="mt-2 p-2.5 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-xs font-semibold flex items-center gap-2">
+                  <span className="text-base">⚠️</span>
+                  <span>
+                    <strong>Shift Conflict:</strong> {seatOptions.find((s) => s.id === formData.seatId)?.statusHint}. Kripya shift badlein ya doosri seat select karein.
+                  </span>
+                </div>
+              )}
             </div>
           </div>
         )}

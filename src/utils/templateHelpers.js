@@ -387,13 +387,34 @@ export const DASHBOARD_CONFIG_STORAGE_KEY = 'studypoint_dashboard_config';
 export const DASHBOARD_ORDER_STORAGE_KEY = 'studypoint_dashboard_order';
 export const STAFF_DASHBOARD_CONFIG_STORAGE_KEY = 'studypoint_staff_dashboard_config';
 
-// Replace placeholders in template
+// Replace placeholders in template with robust alias support
 export const renderTemplate = (templateString, data = {}) => {
   if (!templateString) return '';
+
+  const normalized = { ...data };
+
+  // Common aliases mapping
+  if (normalized.student_name && !normalized.name) normalized.name = normalized.student_name;
+  if (normalized.name && !normalized.student_name) normalized.student_name = normalized.name;
+
+  if (normalized.amount !== undefined && normalized.pending_amount === undefined) normalized.pending_amount = normalized.amount;
+  if (normalized.pending_amount !== undefined && normalized.amount === undefined) normalized.amount = normalized.pending_amount;
+  if (normalized.amount !== undefined && normalized.fee_amount === undefined) normalized.fee_amount = normalized.amount;
+  if (normalized.fee_amount !== undefined && normalized.amount === undefined) normalized.amount = normalized.fee_amount;
+
+  if (normalized.library_name && !normalized.libraryName) normalized.libraryName = normalized.library_name;
+  if (normalized.libraryName && !normalized.library_name) normalized.library_name = normalized.libraryName;
+
+  if (normalized.seat_number !== undefined && normalized.seatNumber === undefined) normalized.seatNumber = normalized.seat_number;
+  if (normalized.seatNumber !== undefined && normalized.seat_number === undefined) normalized.seat_number = normalized.seatNumber;
+
+  if (normalized.expiry_date && !normalized.due_date) normalized.due_date = normalized.expiry_date;
+  if (normalized.due_date && !normalized.expiry_date) normalized.expiry_date = normalized.due_date;
+
   let result = templateString;
-  Object.keys(data).forEach((key) => {
+  Object.keys(normalized).forEach((key) => {
     const regex = new RegExp(`\\{${key}\\}`, 'g');
-    result = result.replace(regex, data[key] !== undefined && data[key] !== null ? String(data[key]) : '');
+    result = result.replace(regex, normalized[key] !== undefined && normalized[key] !== null ? String(normalized[key]) : '');
   });
   return result;
 };

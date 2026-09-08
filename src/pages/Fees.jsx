@@ -228,13 +228,16 @@ export default function Fees() {
       let startDate = new Date();
       if (student.membershipEnd) {
         const mEnd = student.membershipEnd.toDate ? student.membershipEnd.toDate() : new Date(student.membershipEnd);
-        if (!isNaN(mEnd.getTime())) startDate = mEnd;
+        if (!isNaN(mEnd.getTime())) {
+          // If previous membership expired in the past, roll over start date to today
+          startDate = mEnd < today ? new Date(today) : mEnd;
+        }
       } else if (student.membershipStart) {
         const mStart = student.membershipStart.toDate ? student.membershipStart.toDate() : new Date(student.membershipStart);
-        if (!isNaN(mStart.getTime())) startDate = mStart;
+        if (!isNaN(mStart.getTime())) startDate = mStart < today ? new Date(today) : mStart;
       } else if (student.joinDate) {
         const jDate = student.joinDate.toDate ? student.joinDate.toDate() : new Date(student.joinDate);
-        if (!isNaN(jDate.getTime())) startDate = jDate;
+        if (!isNaN(jDate.getTime())) startDate = jDate < today ? new Date(today) : jDate;
       }
 
       let endDate;
