@@ -84,7 +84,6 @@ export default function FeeTracker({
     let paid = 0;
     let pending = 0;
     let ending_soon = 0;
-    let expired = 0;
     let overdue = 0;
 
     fees.forEach((f) => {
@@ -94,8 +93,7 @@ export default function FeeTracker({
 
       const diff = getFeeDiffDays(f);
       const isP = f.status === 'paid';
-      const isO = !isP && diff !== null && diff < -2;
-      const isExp = !isP && diff !== null && diff < 0 && diff >= -2;
+      const isO = !isP && diff !== null && diff < 0;
       const isEnd = !isP && diff !== null && diff >= 0 && diff <= 3 && st?.status !== 'left';
       const isPend = !isP && (diff === null || diff > 3);
 
@@ -103,11 +101,10 @@ export default function FeeTracker({
       if (isP) paid++;
       if (isPend) pending++;
       if (isEnd) ending_soon++;
-      if (isExp) expired++;
       if (isO) overdue++;
     });
 
-    return { all, paid, pending, ending_soon, expired, overdue };
+    return { all, paid, pending, ending_soon, overdue };
   }, [fees, students, selectedMonth, sectionFilter]);
 
   // Comprehensive Search & Multi-Filter Logic
@@ -125,8 +122,7 @@ export default function FeeTracker({
       // 2. Status Filter
       const diffDays = getFeeDiffDays(fee);
       const isPaid = fee.status === 'paid';
-      const isOverdue = !isPaid && diffDays !== null && diffDays < -2;
-      const isExpired = !isPaid && diffDays !== null && diffDays < 0 && diffDays >= -2;
+      const isOverdue = !isPaid && diffDays !== null && diffDays < 0;
       const isEndingSoon = !isPaid && diffDays !== null && diffDays >= 0 && diffDays <= 3 && student?.status !== 'left';
       const isPending = !isPaid && (diffDays === null || diffDays > 3);
 
@@ -134,8 +130,7 @@ export default function FeeTracker({
         if (statusFilter === 'paid' && !isPaid) return false;
         if (statusFilter === 'pending' && !isPending) return false;
         if (statusFilter === 'ending_soon' && !isEndingSoon) return false;
-        if (statusFilter === 'expired' && !isExpired) return false;
-        if (statusFilter === 'overdue' && !isOverdue) return false;
+        if ((statusFilter === 'overdue' || statusFilter === 'expired') && !isOverdue) return false;
       }
 
       // 3. Section Filter
@@ -231,7 +226,6 @@ export default function FeeTracker({
               { id: 'paid', label: 'Paid', count: statusCounts.paid, dot: 'bg-emerald-500', active: 'bg-emerald-600 text-white' },
               { id: 'pending', label: 'Pending', count: statusCounts.pending, dot: 'bg-indigo-500', active: 'bg-indigo-600 text-white' },
               { id: 'ending_soon', label: 'Ending Soon', count: statusCounts.ending_soon, dot: 'bg-amber-500', active: 'bg-amber-500 text-white' },
-              { id: 'expired', label: 'Expired', count: statusCounts.expired, dot: 'bg-orange-500', active: 'bg-orange-600 text-white' },
               { id: 'overdue', label: 'Overdue', count: statusCounts.overdue, dot: 'bg-rose-500', active: 'bg-rose-600 text-white' },
             ].map((st) => {
               const isActive = statusFilter === st.id;
@@ -308,8 +302,7 @@ export default function FeeTracker({
               const addonTotal = fee.addonCharges ? Object.values(fee.addonCharges).reduce((s, v) => s + (Number(v) || 0), 0) : 0;
               const baseRate = Number(fee.baseFee) || (Number(fee.amount) + discount - addonTotal);
               const diffDays = getFeeDiffDays(fee);
-              const isOverdue = fee.status !== 'paid' && diffDays !== null && diffDays < -2;
-              const isExpired = fee.status !== 'paid' && diffDays !== null && diffDays < 0 && diffDays >= -2;
+              const isOverdue = fee.status !== 'paid' && diffDays !== null && diffDays < 0;
               const isEndingSoon = diffDays !== null && diffDays >= 0 && diffDays <= 3 && student?.status !== 'left';
               const isPending = fee.status !== 'paid' && (diffDays === null || diffDays > 3);
 
@@ -426,13 +419,6 @@ export default function FeeTracker({
                           <span>Overdue ({Math.abs(diffDays)}d)</span>
                         </span>
                       </div>
-                    ) : isExpired ? (
-                      <div>
-                        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-black bg-orange-50 text-orange-700 border border-orange-200">
-                          <AlertTriangle className="w-3.5 h-3.5 text-orange-600" />
-                          <span>Expired ({Math.abs(diffDays)}d)</span>
-                        </span>
-                      </div>
                     ) : isEndingSoon ? (
                       <div>
                         <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-black bg-amber-50 text-amber-900 border border-amber-300 shadow-2xs">
@@ -514,8 +500,7 @@ export default function FeeTracker({
           const discount = Number(fee.discountAmount) || Number(student?.discountAmount) || 0;
           const addonTotal = fee.addonCharges ? Object.values(fee.addonCharges).reduce((s, v) => s + (Number(v) || 0), 0) : 0;
           const diffDays = getFeeDiffDays(fee);
-          const isOverdue = fee.status !== 'paid' && diffDays !== null && diffDays < -2;
-          const isExpired = fee.status !== 'paid' && diffDays !== null && diffDays < 0 && diffDays >= -2;
+          const isOverdue = fee.status !== 'paid' && diffDays !== null && diffDays < 0;
           const isEndingSoon = diffDays !== null && diffDays >= 0 && diffDays <= 3 && student?.status !== 'left';
           const isPending = fee.status !== 'paid' && (diffDays === null || diffDays > 3);
 
@@ -556,10 +541,6 @@ export default function FeeTracker({
                 ) : isOverdue ? (
                   <span className="px-2 py-0.5 rounded-full text-xs font-black bg-rose-50 text-rose-700 border border-rose-200 flex items-center gap-1">
                     <AlertCircle className="w-3 h-3 text-rose-600" /> Overdue ({Math.abs(diffDays)}d)
-                  </span>
-                ) : isExpired ? (
-                  <span className="px-2 py-0.5 rounded-full text-xs font-black bg-orange-50 text-orange-700 border border-orange-200 flex items-center gap-1">
-                    <AlertTriangle className="w-3 h-3 text-orange-600" /> Expired ({Math.abs(diffDays)}d)
                   </span>
                 ) : isEndingSoon ? (
                   <span className="px-2 py-0.5 rounded-full text-xs font-black bg-amber-50 text-amber-900 border border-amber-300 flex items-center gap-1">
