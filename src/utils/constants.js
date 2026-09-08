@@ -11,6 +11,8 @@ export const COLLECTIONS = {
   ROLE_PRESETS: 'rolePresets',
   VISITORS: 'visitors',
   STAFF_MEMBERS: 'staffMembers',
+  OFFERS: 'offers',
+  BROADCAST_LOGS: 'broadcastLogs',
 };
 
 export const SHIFTS = [
@@ -59,15 +61,16 @@ export const FEE_STATUS = {
 
 export const STUDENT_STATUS = {
   ACTIVE: 'active',
-  INACTIVE: 'inactive',
+  LEFT: 'left',
+  EXPIRED: 'expired',
 };
 
 export const PAYMENT_MODES = [
-  { id: 'cash', label: '💵 Cash (नकद)' },
-  { id: 'upi', label: '📱 UPI / QR (GPay/PhonePe)' },
-  { id: 'bank', label: '🏦 Bank Transfer / Net Banking' },
-  { id: 'card', label: '💳 Card' },
-  { id: 'other', label: '📝 Other' },
+  { id: 'cash', label: 'Cash (नकद)', color: 'green' },
+  { id: 'upi', label: 'UPI / Online (QR)', color: 'blue' },
+  { id: 'bank_transfer', label: 'Bank Transfer (IMPS/NEFT)', color: 'purple' },
+  { id: 'card', label: 'Debit / Credit Card', color: 'indigo' },
+  { id: 'cheque', label: 'Cheque', color: 'amber' },
 ];
 
 export const DEFAULT_ADDONS = [
@@ -106,6 +109,7 @@ export const PERMISSION_MODULES = [
   { id: 'fees', label: 'Fees & Receipts', actions: ['view', 'create', 'edit', 'delete'] },
   { id: 'reports', label: 'Daily & Monthly Reports', actions: ['view'] },
   { id: 'memberships', label: 'Membership Plans & Offers', actions: ['view', 'create', 'edit', 'delete'] },
+  { id: 'offers', label: 'Offers & Broadcast (प्रचार)', actions: ['view', 'create', 'edit', 'delete'] },
   { id: 'expenses', label: 'Expenses & Financials', actions: ['view', 'create', 'edit', 'delete'] },
   { id: 'settings', label: 'Library Settings', actions: ['view', 'edit'] },
   { id: 'staff', label: 'Staff & Role Management', actions: ['view', 'create', 'edit', 'delete'] },
@@ -123,6 +127,7 @@ export const ROLE_PRESETS = {
       fees: { view: true, create: true, edit: true, delete: true },
       reports: { view: true },
       memberships: { view: true, create: true, edit: true, delete: true },
+      offers: { view: true, create: true, edit: true, delete: true },
       expenses: { view: true, create: true, edit: true, delete: true },
       settings: { view: true, edit: true },
       staff: { view: true, create: true, edit: true, delete: true },
@@ -139,6 +144,7 @@ export const ROLE_PRESETS = {
       fees: { view: true, create: true, edit: true, delete: false },
       reports: { view: false },
       memberships: { view: true, create: false, edit: false, delete: false },
+      offers: { view: true, create: false, edit: false, delete: false },
       expenses: { view: false, create: false, edit: false, delete: false },
       settings: { view: false, edit: false },
       staff: { view: false, create: false, edit: false, delete: false },
@@ -155,6 +161,7 @@ export const ROLE_PRESETS = {
       fees: { view: true, create: true, edit: true, delete: false },
       reports: { view: true },
       memberships: { view: true, create: true, edit: true, delete: false },
+      offers: { view: true, create: true, edit: true, delete: false },
       expenses: { view: true, create: true, edit: false, delete: false },
       settings: { view: false, edit: false },
       staff: { view: false, create: false, edit: false, delete: false },
@@ -175,6 +182,7 @@ export const NAV_ITEMS = [
   { path: '/fees', label: 'Fees', icon: 'IndianRupee', module: 'fees' },
   { path: '/reports', label: 'Reports', icon: 'BarChart3', module: 'reports' },
   { path: '/memberships', label: 'Memberships', icon: 'CreditCard', module: 'memberships' },
+  { path: '/offers', label: 'Offers & Broadcast', icon: 'Megaphone', module: 'offers' },
   { path: '/expenses', label: 'Expenses', icon: 'Receipt', module: 'expenses' },
   { path: '/staff', label: 'Staff & Roles', icon: 'ShieldCheck', module: 'staff' },
   { path: '/settings', label: 'Settings', icon: 'Settings', module: 'settings' },
