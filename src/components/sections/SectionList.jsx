@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ChevronDown, ChevronUp, Edit, Trash2, Building2, Users, CheckCircle2, Clock, Armchair } from 'lucide-react';
+import { ChevronDown, ChevronUp, Edit, Trash2, Building2, Users, PlusCircle, CheckCircle2, Clock, Armchair } from 'lucide-react';
 import SeatGrid from './SeatGrid';
 
 export default function SectionList({
