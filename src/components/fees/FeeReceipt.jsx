@@ -68,7 +68,19 @@ export default function FeeReceipt({ isOpen, onClose, fee, student, section, sea
   const librarySignature = libraryInfo.signatureUrl || '';
   const receiptNo = `SP-${String(fee.month || '').replace('-', '') || '2026'}-${(fee.id || '001').slice(-4).toUpperCase()}`;
 
-  const duration = Number(fee.planDuration) || (fee.periodStart && fee.periodEnd ? Math.max(1, Math.round((new Date(fee.periodEnd) - new Date(fee.periodStart)) / (30 * 24 * 60 * 60 * 1000))) : 1);
+  const isDayPlan = Boolean(
+    fee.isDayBased ||
+    fee.durationUnit === 'days' ||
+    (fee.planName && (fee.planName.toLowerCase().includes('day') || fee.planName.toLowerCase().includes('extension')))
+  );
+
+  const durationDays = isDayPlan
+    ? (Number(fee.durationDays) || (fee.periodStart && fee.periodEnd ? Math.max(1, Math.round((new Date(fee.periodEnd) - new Date(fee.periodStart)) / (24 * 60 * 60 * 1000))) : 10))
+    : null;
+
+  const duration = isDayPlan
+    ? Math.max(1, Math.round((durationDays || 10) / 30))
+    : (Number(fee.planDuration) || (fee.periodStart && fee.periodEnd ? Math.max(1, Math.round((new Date(fee.periodEnd) - new Date(fee.periodStart)) / (30 * 24 * 60 * 60 * 1000))) : 1));
 
   // Compute final addon charges (from fee.addonCharges or from seat's active addons)
   let finalAddonCharges = fee.addonCharges && Object.keys(fee.addonCharges).length > 0 ? { ...fee.addonCharges } : {};
@@ -86,9 +98,14 @@ export default function FeeReceipt({ isOpen, onClose, fee, student, section, sea
     ? (Object.keys(fee.addonCharges || {}).length > 0 ? Number(fee.amount) : Math.max(0, baseRate + addonTotal - discountAmt))
     : Math.max(0, baseRate + addonTotal - discountAmt);
 
-  const planTitle = fee.planName
-    ? `${fee.planName}${duration ? ` (${duration} Month${duration > 1 ? 's' : ''})` : ''}`
-    : `Monthly Membership (${formatMonthDisplay(fee.month)})`;
+  let planTitle = fee.planName || (isDayPlan ? `${durationDays} Days Plan` : `Monthly Membership (${formatMonthDisplay(fee.month)})`);
+  if (!planTitle.toLowerCase().includes('day') && !planTitle.toLowerCase().includes('extension') && !planTitle.toLowerCase().includes('month')) {
+    if (isDayPlan) {
+      planTitle = `${planTitle} (${durationDays} Days)`;
+    } else if (duration) {
+      planTitle = `${planTitle} (${duration} Month${duration > 1 ? 's' : ''})`;
+    }
+  }
 
   const validityText = fee.periodStart && fee.periodEnd
     ? `${formatDate(fee.periodStart)} to ${formatDate(fee.periodEnd)}`

@@ -7,6 +7,7 @@ import StudentList from '../components/students/StudentList';
 import StudentForm from '../components/students/StudentForm';
 import StudentProfile from '../components/students/StudentProfile';
 import ExtendMembershipModal from '../components/students/ExtendMembershipModal';
+import FeeReceipt from '../components/fees/FeeReceipt';
 import { Plus, Loader2 } from 'lucide-react';
 import { COLLECTIONS, SEAT_STATUS, STUDENT_STATUS } from '../utils/constants';
 import {
@@ -47,6 +48,7 @@ export default function Students() {
   const [statusTarget, setStatusTarget] = useState(null);
   const [extendStudent, setExtendStudent] = useState(null);
   const [extendingLoading, setExtendingLoading] = useState(false);
+  const [extensionReceiptFee, setExtensionReceiptFee] = useState(null);
 
   const canCreate = hasPermission('students', 'create');
   const canEdit = hasPermission('students', 'edit');
@@ -222,6 +224,8 @@ export default function Students() {
     if (newStudentData.status === 'active') {
       const monthStr = `${joinD.getFullYear()}-${String(joinD.getMonth() + 1).padStart(2, '0')}`;
       const feeDocId = `fee_${docRecord.id}_${monthStr.replace('-', '_')}`;
+      const isDay = Boolean(newStudentData.isDayBased);
+      const feeDurationDays = isDay ? (Number(newStudentData.durationDays) || Number(newStudentData.customDays) || 10) : null;
       await createDocument(
         COLLECTIONS.FEES,
         {
@@ -236,9 +240,13 @@ export default function Students() {
           month: monthStr,
           paymentMode: '',
           notes: '',
-          planId: plan?.id || '',
-          planName: formData.planName || (plan?.name || 'Standard Plan'),
-          planDuration: duration,
+          planId: plan?.id || formData.membershipPlanId || (isDay ? 'custom_days' : ''),
+          planName: formData.planName || (plan?.name || (isDay ? `${feeDurationDays} Days Plan` : 'Standard Plan')),
+          planDuration: isDay ? feeDurationDays : duration,
+          durationUnit: isDay ? 'days' : 'months',
+          durationDays: isDay ? feeDurationDays : null,
+          durationMonths: isDay ? null : duration,
+          isDayBased: isDay,
           periodStart: joinD.toISOString(),
           periodEnd: membershipEnd.toISOString(),
         },
@@ -329,16 +337,23 @@ export default function Students() {
     // Also update any pending fee records for this student to reflect new discount / plan / facilities
     const pendingStudentFee = fees.find((f) => f.studentId === editData.id && f.status === 'pending');
     if (pendingStudentFee) {
+      const isDay = Boolean(updatedData.isDayBased);
+      const feeDurationDays = isDay ? (Number(updatedData.durationDays) || Number(updatedData.customDays) || 10) : null;
       await updateDocument(COLLECTIONS.FEES, pendingStudentFee.id, {
         baseFee,
         discountAmount: discount,
         addonCharges,
         amount: Math.max(0, baseFee + addonTotal - discount),
-        planId: plan?.id || pendingStudentFee.planId,
-        planName: plan?.name || pendingStudentFee.planName,
-        planDuration: duration,
+        planId: plan?.id || formData.membershipPlanId || (isDay ? 'custom_days' : pendingStudentFee.planId),
+        planName: formData.planName || plan?.name || pendingStudentFee.planName,
+        planDuration: isDay ? feeDurationDays : duration,
+        durationUnit: isDay ? 'days' : 'months',
+        durationDays: isDay ? feeDurationDays : null,
+        durationMonths: isDay ? null : duration,
+        isDayBased: isDay,
         periodStart: joinD.toISOString(),
         periodEnd: membershipEnd.toISOString(),
+        dueDate: membershipEnd.toISOString(),
       });
     }
 
@@ -418,13 +433,17 @@ export default function Students() {
       }
 
       // 3. Create fee record if feeAmount > 0
+      let createdFeeDoc = null;
       if (feeAmount > 0) {
         const todayStr = new Date().toISOString();
-        const monthYear = new Date().toLocaleString('default', { month: 'short', year: 'numeric' });
-        await createDocument(COLLECTIONS.FEES, {
+        const todayDateOnly = todayStr.split('T')[0];
+        const monthCode = todayDateOnly.slice(0, 7);
+        const feePayload = {
           studentId: st.id,
           studentName: st.name,
           studentPhone: st.phone,
+          sectionId: st.sectionId || '',
+          seatId: st.seatId || '',
           planId: st.membershipPlanId || 'custom_days',
           planName: `Extension (+${extraDays} Days)`,
           amount: feeAmount,
@@ -434,17 +453,24 @@ export default function Students() {
           addonCharges: {},
           status: 'paid',
           paymentMode: paymentMode || 'cash',
-          paymentDate: todayStr,
+          paidDate: todayStr,
+          date: todayDateOnly,
           periodStart: todayStr,
           periodEnd: newExpiryDate,
-          billingMonth: monthYear,
+          month: monthCode,
+          isDayBased: true,
+          durationDays: extraDays,
+          durationUnit: 'days',
+          planDuration: extraDays,
           receiptNumber: `EXT-${Date.now().toString().slice(-6)}`,
           notes: notes || `Membership extended by ${extraDays} days`,
           collectedBy: 'Admin',
-        });
+        };
+        const docRecord = await createDocument(COLLECTIONS.FEES, feePayload);
+        createdFeeDoc = { id: docRecord.id, ...feePayload };
       }
 
-      // 4. WhatsApp Confirmation
+      // 4. WhatsApp Confirmation (if requested from extend modal)
       if (sendWhatsApp && st.phone) {
         const phoneClean = st.phone.replace(/[^0-9]/g, '');
         const phoneWithCountry = phoneClean.length === 10 ? `91${phoneClean}` : phoneClean;
@@ -471,6 +497,11 @@ export default function Students() {
 
       setExtendStudent(null);
       await fetchData();
+
+      // 5. Automatically open receipt modal so user can view/print/download the extension bill
+      if (createdFeeDoc) {
+        setExtensionReceiptFee(createdFeeDoc);
+      }
     } catch (err) {
       console.error('Error extending student membership:', err);
       alert('Membership extend karne mein dikkat aayi. Kripya punah prayas karein.');
@@ -600,6 +631,17 @@ export default function Students() {
         onExtend={handleExtendMembership}
         loading={extendingLoading}
       />
+
+      {extensionReceiptFee && (
+        <FeeReceipt
+          isOpen={!!extensionReceiptFee}
+          onClose={() => setExtensionReceiptFee(null)}
+          fee={extensionReceiptFee}
+          student={students.find((s) => s.id === extensionReceiptFee.studentId)}
+          seat={seats.find((s) => s.id === extensionReceiptFee.seatId)}
+          section={sections.find((sec) => sec.id === extensionReceiptFee.sectionId)}
+        />
+      )}
     </Layout>
   );
 }

@@ -18,6 +18,9 @@ export default function CollectFeeModal({
   addonPricing = [],
 }) {
   const [selectedPlanId, setSelectedPlanId] = useState('');
+  const [isCustomDays, setIsCustomDays] = useState(false);
+  const [customDays, setCustomDays] = useState('10');
+  const [customFeeAmount, setCustomFeeAmount] = useState('400');
   const [discountAmount, setDiscountAmount] = useState('');
   const [paymentMode, setPaymentMode] = useState('cash');
   const [notes, setNotes] = useState('');
@@ -27,23 +30,70 @@ export default function CollectFeeModal({
   const [validityStart, setValidityStart] = useState('');
   const [validityEnd, setValidityEnd] = useState('');
 
-  // Helper to calculate end date from start date and duration months
-  const computeEndDate = (startDateStr, durationMonths) => {
+  // Helper to calculate end date from start date and duration (days or months)
+  const computeEndDate = (startDateStr, planObj) => {
     if (!startDateStr) return '';
     try {
       const [y, m, d] = startDateStr.split('-').map(Number);
       const start = new Date(y, m - 1, d);
-      const end = new Date(y, m - 1 + (Number(durationMonths) || 1), d);
+      
+      const isDay = Boolean(
+        planObj?.isDayBased ||
+        planObj?.durationUnit === 'days' ||
+        (planObj?.durationDays && !planObj?.durationMonths)
+      );
+
+      if (isDay) {
+        const days = Number(planObj?.durationDays) || 10;
+        const end = new Date(start);
+        end.setDate(end.getDate() + days);
+        return formatDateInput(end);
+      }
+
+      const durationMonths = Number(planObj?.durationMonths) || 1;
+      const end = new Date(y, m - 1 + durationMonths, d);
       return formatDateInput(end);
     } catch (e) {
       const now = new Date();
-      return formatDateInput(new Date(now.getFullYear(), now.getMonth() + (Number(durationMonths) || 1), now.getDate()));
+      return formatDateInput(new Date(now.getFullYear(), now.getMonth() + 1, now.getDate()));
     }
   };
 
   useEffect(() => {
     if (student || fee) {
-      const currentPlanId = student?.membershipPlanId || fee?.planId || (plans[0]?.id || '');
+      const isCustom = Boolean(
+        student?.membershipPlanId === 'custom_days' ||
+        student?.isCustomDays ||
+        fee?.planId === 'custom_days' ||
+        fee?.isCustomDays
+      );
+
+      const isDay = Boolean(
+        isCustom ||
+        student?.isDayBased ||
+        fee?.isDayBased ||
+        student?.durationUnit === 'days' ||
+        fee?.durationUnit === 'days'
+      );
+
+      const defaultDays = String(student?.customDays || student?.durationDays || fee?.durationDays || '10');
+      const defaultFee = String(
+        student?.customFeeAmount ||
+        student?.planPrice ||
+        (isDay && (!fee?.baseFee || Number(fee.baseFee) >= 800) ? '400' : fee?.baseFee) ||
+        (isDay ? '400' : '800')
+      );
+
+      setIsCustomDays(isCustom);
+      setCustomDays(defaultDays);
+      setCustomFeeAmount(defaultFee);
+
+      let currentPlanId = '';
+      if (isCustom) {
+        currentPlanId = 'custom_days';
+      } else {
+        currentPlanId = student?.membershipPlanId || fee?.planId || (plans[0]?.id || '');
+      }
       setSelectedPlanId(currentPlanId);
 
       const disc =
@@ -57,18 +107,60 @@ export default function CollectFeeModal({
       setPaymentMode('cash');
       setNotes(fee?.notes || '');
 
-      const activeP = plans.find((p) => p.id === currentPlanId) || plan || { durationMonths: 1 };
-      const dur = Number(activeP.durationMonths) || 1;
+      // Build temp active plan to calculate correct initial end date
+      let tempActivePlan;
+      if (isCustom || currentPlanId === 'custom_days') {
+        tempActivePlan = {
+          id: 'custom_days',
+          name: `${defaultDays} Days Custom Plan`,
+          price: Number(defaultFee) || 0,
+          durationDays: Number(defaultDays) || 10,
+          durationUnit: 'days',
+          isDayBased: true,
+        };
+      } else {
+        const found = plans.find((p) => p.id === currentPlanId) || plan;
+        if (found) {
+          const isPlanDay = found.durationUnit === 'days' || (found.durationDays && !found.durationMonths);
+          tempActivePlan = {
+            ...found,
+            isDayBased: isPlanDay,
+            durationDays: isPlanDay ? (Number(found.durationDays) || 7) : null,
+            durationMonths: isPlanDay ? 1 : (Number(found.durationMonths) || 1),
+          };
+        } else if (student?.isDayBased || student?.customDays || isDay) {
+          tempActivePlan = {
+            id: student?.membershipPlanId || 'custom_days',
+            name: student?.planName || `${student?.durationDays || 10} Days Plan`,
+            price: Number(student?.planPrice) || Number(student?.customFeeAmount) || 400,
+            durationDays: Number(student?.durationDays || student?.customDays) || 10,
+            durationUnit: 'days',
+            isDayBased: true,
+          };
+        } else {
+          tempActivePlan = {
+            name: 'Standard Monthly Plan',
+            price: 800,
+            durationMonths: 1,
+            durationUnit: 'months',
+            isDayBased: false,
+          };
+        }
+      }
 
       // Determine initial start date:
       let initStart = formatDateInput(new Date());
 
-      if (fee?.periodStart) {
-        initStart = formatDateInput(fee.periodStart);
-      } else if (student?.joinDate) {
+      if (isDay && student?.membershipStart) {
+        initStart = formatDateInput(student.membershipStart);
+      } else if (isDay && student?.joinDate) {
         initStart = formatDateInput(student.joinDate);
+      } else if (fee?.periodStart) {
+        initStart = formatDateInput(fee.periodStart);
       } else if (student?.membershipStart) {
         initStart = formatDateInput(student.membershipStart);
+      } else if (student?.joinDate) {
+        initStart = formatDateInput(student.joinDate);
       }
 
       // If student already has completed fees in the past and has an active cycle ending in future (renewal):
@@ -79,43 +171,131 @@ export default function CollectFeeModal({
         }
       }
 
+      // Determine initial end date:
+      let initEnd = '';
+      if (isDay && student?.membershipEnd) {
+        initEnd = formatDateInput(student.membershipEnd);
+      } else if (fee?.periodEnd && (!isDay || fee.isDayBased)) {
+        initEnd = formatDateInput(fee.periodEnd);
+      } else if (student?.membershipEnd && !student?.hasPaidBefore) {
+        initEnd = formatDateInput(student.membershipEnd);
+      } else {
+        initEnd = computeEndDate(initStart, tempActivePlan);
+      }
+
       setValidityStart(initStart);
-      setValidityEnd(computeEndDate(initStart, dur));
+      setValidityEnd(initEnd);
     }
   }, [student, fee, plans, isOpen]);
 
-  const activePlan = plans.find((p) => p.id === selectedPlanId) || plan || {
-    name: 'Standard Monthly Plan',
-    price: 800,
-    durationMonths: 1,
-  };
+  // Active Plan determination
+  let activePlan;
+  if (selectedPlanId === 'custom_days' || isCustomDays) {
+    const cDays = Number(customDays) || 10;
+    const cFee = Number(customFeeAmount) || 0;
+    activePlan = {
+      id: 'custom_days',
+      name: `${cDays} Days Custom Plan`,
+      price: cFee,
+      durationDays: cDays,
+      durationMonths: null,
+      durationUnit: 'days',
+      isDayBased: true,
+    };
+  } else {
+    const foundPlan = plans.find((p) => p.id === selectedPlanId);
+    if (foundPlan) {
+      const isDay = foundPlan.durationUnit === 'days' || (foundPlan.durationDays && !foundPlan.durationMonths);
+      activePlan = {
+        ...foundPlan,
+        isDayBased: isDay,
+        durationDays: isDay ? (Number(foundPlan.durationDays) || 7) : null,
+        durationMonths: isDay ? 1 : (Number(foundPlan.durationMonths) || 1),
+      };
+    } else if (student?.isDayBased || student?.customDays) {
+      activePlan = {
+        id: student.membershipPlanId || 'custom_days',
+        name: student.planName || `${student.durationDays || 10} Days Plan`,
+        price: Number(student.planPrice) || Number(student.customFeeAmount) || 400,
+        durationDays: Number(student.durationDays || student.customDays) || 10,
+        durationMonths: null,
+        durationUnit: 'days',
+        isDayBased: true,
+      };
+    } else {
+      activePlan = plan || plans[0] || {
+        id: 'standard_1m',
+        name: 'Standard Monthly Plan',
+        price: 800,
+        durationMonths: 1,
+        durationUnit: 'months',
+        isDayBased: false,
+      };
+    }
+  }
 
   const planPrice = Number(activePlan.price) || 0;
-  const duration = Number(activePlan.durationMonths) || 1;
+  const isDayPlan = Boolean(activePlan.isDayBased);
+  const durationDays = activePlan.durationDays || 10;
+  const durationMonths = activePlan.durationMonths || 1;
+  const durationLabel = isDayPlan ? `${durationDays} Days (दिन)` : `${durationMonths} Month${durationMonths > 1 ? 's' : ''}`;
 
   // When plan changes, re-calculate validityEnd based on current validityStart
   const handlePlanChange = (newPlanId) => {
     setSelectedPlanId(newPlanId);
-    const newPlan = plans.find((p) => p.id === newPlanId);
-    const newDur = Number(newPlan?.durationMonths) || 1;
-    if (validityStart) {
-      setValidityEnd(computeEndDate(validityStart, newDur));
+    if (newPlanId === 'custom_days') {
+      setIsCustomDays(true);
+      const cDays = Number(customDays) || 10;
+      const cFee = Number(customFeeAmount) || 400;
+      const customP = {
+        id: 'custom_days',
+        name: `${cDays} Days Custom Plan`,
+        price: cFee,
+        durationDays: cDays,
+        isDayBased: true,
+      };
+      if (validityStart) {
+        setValidityEnd(computeEndDate(validityStart, customP));
+      }
+    } else {
+      setIsCustomDays(false);
+      const newPlan = plans.find((p) => p.id === newPlanId);
+      if (validityStart && newPlan) {
+        setValidityEnd(computeEndDate(validityStart, newPlan));
+      }
     }
+  };
+
+  const handleCustomDaysChange = (val) => {
+    setCustomDays(val);
+    const cDays = Number(val) || 10;
+    const customP = {
+      isDayBased: true,
+      durationDays: cDays,
+    };
+    if (validityStart) {
+      setValidityEnd(computeEndDate(validityStart, customP));
+    }
+  };
+
+  const handleCustomFeeChange = (val) => {
+    setCustomFeeAmount(val);
   };
 
   // When user edits validityStart, auto recalculate validityEnd
   const handleStartDateChange = (newStartDate) => {
     setValidityStart(newStartDate);
     if (newStartDate) {
-      setValidityEnd(computeEndDate(newStartDate, duration));
+      setValidityEnd(computeEndDate(newStartDate, activePlan));
     }
   };
 
   // Calculate Addon Charges dynamically
+  const addonDurationFactor = isDayPlan ? Math.max(1, Math.round(durationDays / 30)) : durationMonths;
   const { charges: addonCharges, total: addonTotal } = calculateSeatAddonCharges(
     seat?.addons,
     addonPricing && addonPricing.length > 0 ? addonPricing : getStoredAddons(),
-    duration
+    addonDurationFactor
   );
 
   const discount = discountAmount === '' ? 0 : Number(discountAmount) || 0;
@@ -126,7 +306,17 @@ export default function CollectFeeModal({
     setLoading(true);
     try {
       const startDateObj = validityStart ? new Date(validityStart) : new Date();
-      const endDateObj = validityEnd ? new Date(validityEnd) : new Date(startDateObj.getFullYear(), startDateObj.getMonth() + duration, startDateObj.getDate());
+      let endDateObj;
+      if (validityEnd) {
+        endDateObj = new Date(validityEnd);
+      } else {
+        endDateObj = new Date(startDateObj);
+        if (isDayPlan) {
+          endDateObj.setDate(endDateObj.getDate() + durationDays);
+        } else {
+          endDateObj.setMonth(endDateObj.getMonth() + durationMonths);
+        }
+      }
 
       await onSubmit({
         amount: totalPayable,
@@ -137,7 +327,11 @@ export default function CollectFeeModal({
         notes,
         planId: activePlan.id,
         planName: activePlan.name,
-        planDuration: duration,
+        planDuration: isDayPlan ? durationDays : durationMonths,
+        durationUnit: isDayPlan ? 'days' : 'months',
+        durationDays: isDayPlan ? durationDays : null,
+        durationMonths: isDayPlan ? null : durationMonths,
+        isDayBased: isDayPlan,
         periodStart: startDateObj.toISOString(),
         periodEnd: endDateObj.toISOString(),
       });
@@ -154,7 +348,7 @@ export default function CollectFeeModal({
         let addonSummary = '';
         if (Object.keys(addonCharges).length > 0) {
           addonSummary = Object.entries(addonCharges)
-            .map(([n, a]) => `🔒 *${n} Add-on:* ₹${a} (${duration} Mo)\n`)
+            .map(([n, a]) => `🔒 *${n} Add-on:* ₹${a} (${durationLabel})\n`)
             .join('');
         }
 
@@ -243,11 +437,24 @@ export default function CollectFeeModal({
               onChange={(e) => handlePlanChange(e.target.value)}
               className="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl text-sm font-semibold bg-white focus:ring-2 focus:ring-indigo-500"
             >
-              {plans.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.name} — ₹{p.price} ({p.durationMonths} Month{p.durationMonths > 1 ? 's' : ''})
+              <optgroup label="📋 Standard / Pre-configured Plans">
+                {plans.map((p) => {
+                  const isDay = p.durationUnit === 'days' || (p.durationDays && !p.durationMonths);
+                  const durText = isDay
+                    ? `${p.durationDays || 7} Days (दिन)`
+                    : `${p.durationMonths || 1} Month${(p.durationMonths || 1) > 1 ? 's' : ''}`;
+                  return (
+                    <option key={p.id} value={p.id}>
+                      {p.name} — ₹{p.price} ({durText})
+                    </option>
+                  );
+                })}
+              </optgroup>
+              <optgroup label="🗓️ Custom Days (कस्टम दिन)">
+                <option value="custom_days">
+                  🗓️ Custom Days (कस्टम दिन - जैसे 10 दिन, 15 दिन)
                 </option>
-              ))}
+              </optgroup>
             </select>
           </div>
 
@@ -267,12 +474,46 @@ export default function CollectFeeModal({
           </div>
         </div>
 
+        {/* If Custom Days is selected, show inputs for Days and Fee Amount */}
+        {(selectedPlanId === 'custom_days' || isCustomDays) && (
+          <div className="p-3.5 bg-amber-50/90 rounded-2xl border border-amber-200 grid grid-cols-1 sm:grid-cols-2 gap-3 animate-fadeIn">
+            <div>
+              <label className="block text-xs font-bold text-amber-900 mb-1">
+                Number of Days (दिनों की संख्या) *
+              </label>
+              <input
+                type="number"
+                min="1"
+                required
+                value={customDays}
+                onChange={(e) => handleCustomDaysChange(e.target.value)}
+                placeholder="e.g. 10"
+                className="w-full px-3 py-2 border border-amber-300 rounded-xl text-sm font-bold text-amber-950 bg-white focus:ring-2 focus:ring-amber-500"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-bold text-amber-900 mb-1">
+                Fee Amount for {customDays || 0} Days (फीस ₹) *
+              </label>
+              <input
+                type="number"
+                min="0"
+                required
+                value={customFeeAmount}
+                onChange={(e) => handleCustomFeeChange(e.target.value)}
+                placeholder="e.g. 400"
+                className="w-full px-3 py-2 border border-amber-300 rounded-xl text-sm font-bold text-amber-950 bg-white focus:ring-2 focus:ring-amber-500"
+              />
+            </div>
+          </div>
+        )}
+
         {/* Membership Validity Period Configuration (Joining Date -> Valid Till) */}
         <div className="p-4 bg-emerald-50/80 rounded-2xl border border-emerald-200 text-xs text-emerald-950 space-y-2.5">
           <div className="flex items-center justify-between">
             <span className="font-bold flex items-center gap-1.5 text-emerald-900">
               <Calendar className="w-4 h-4 text-emerald-600" />
-              <span>Membership Bill Validity Period ({duration} Month{duration > 1 ? 's' : ''}):</span>
+              <span>Membership Bill Validity Period ({durationLabel}):</span>
             </span>
             <span className="font-black bg-emerald-100 text-emerald-900 px-2.5 py-0.5 rounded-md text-[11px]">
               {validityStart && validityEnd ? `${formatDate(validityStart)} से ${formatDate(validityEnd)}` : ''}
@@ -311,7 +552,7 @@ export default function CollectFeeModal({
         {/* Itemized Breakdown Table */}
         <div className="space-y-2 bg-slate-50 p-4 rounded-2xl border border-slate-200 text-xs">
           <div className="flex justify-between">
-            <span className="text-slate-600 font-medium">{activePlan.name} ({duration} Mo)</span>
+            <span className="text-slate-600 font-medium">{activePlan.name} ({durationLabel})</span>
             <span className="font-bold text-slate-900">{formatCurrency(planPrice)}</span>
           </div>
 

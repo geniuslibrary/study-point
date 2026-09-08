@@ -60,37 +60,76 @@ export default function Fees() {
         }
 
         const seat = allSeats.find((s) => s.id === student.seatId);
-        const plan = allPlans.find((p) => p.id === student.membershipPlanId) || {
-          price: fee.baseFee || 800,
-          durationMonths: fee.planDuration || 1,
-        };
-        const duration = Number(fee.planDuration) || Number(plan.durationMonths) || 1;
-        const baseFee = Number(fee.baseFee) || Number(plan.price) || 800;
+        const isDay = Boolean(
+          student.isDayBased ||
+          student.membershipPlanId === 'custom_days' ||
+          fee.isDayBased ||
+          fee.durationUnit === 'days' ||
+          student.durationUnit === 'days'
+        );
+
+        const plan = allPlans.find((p) => p.id === (fee.planId || student.membershipPlanId));
+        const durationDays = isDay
+          ? (Number(student.customDays) || Number(student.durationDays) || Number(fee.durationDays) || Number(plan?.durationDays) || 10)
+          : null;
+        const duration = isDay ? durationDays : (Number(fee.planDuration) || Number(plan?.durationMonths) || 1);
+
+        const correctBaseFee = isDay
+          ? (Number(student.customFeeAmount) || Number(student.planPrice) || Number(plan?.price) || (fee.baseFee && fee.baseFee < 800 ? Number(fee.baseFee) : 400))
+          : (plan ? Number(plan.price) : (Number(fee.baseFee) || 800));
+
+        const baseFee = fee.status === 'pending' ? correctBaseFee : (Number(fee.baseFee) || correctBaseFee);
         const discount = fee.discountAmount !== undefined ? Number(fee.discountAmount) : (Number(student.discountAmount) || 0);
 
+        const addonDurationFactor = isDay ? Math.max(1, Math.round(durationDays / 30)) : duration;
         const { charges: addonCharges, total: addonTotal } = calculateSeatAddonCharges(
           seat?.addons,
           activeAddonsList,
-          duration
+          addonDurationFactor
         );
 
-        // Check if addonCharges need updating
+        const newAmount = Math.max(0, baseFee + addonTotal - discount);
+
+        // Check if addonCharges or baseFee or validity dates need updating for pending fees
         const currentAddonKeys = Object.keys(fee.addonCharges || {});
         const newAddonKeys = Object.keys(addonCharges);
         const needsAddonSync =
           currentAddonKeys.length !== newAddonKeys.length ||
           newAddonKeys.some((k) => fee.addonCharges?.[k] !== addonCharges[k]);
 
-        if (needsAddonSync && fee.status !== 'paid') {
-          const newAmount = Math.max(0, baseFee + addonTotal - discount);
-          const updatedPayload = {
-            baseFee,
-            discountAmount: discount,
-            addonCharges,
-            amount: newAmount,
-          };
-          updateDocument(COLLECTIONS.FEES, fee.id, updatedPayload).catch(console.warn);
-          return { ...fee, ...updatedPayload };
+        if (fee.status === 'pending') {
+          const newPeriodEnd = (isDay && student.membershipEnd) ? student.membershipEnd : fee.periodEnd;
+          const newPeriodStart = (isDay && (student.membershipStart || student.joinDate)) ? (student.membershipStart || student.joinDate) : fee.periodStart;
+          const newPlanName = isDay
+            ? (student.planName || `${durationDays} Days Plan`)
+            : (plan?.name || fee.planName || 'Standard Monthly Plan');
+          const newPlanId = plan?.id || student.membershipPlanId || (isDay ? 'custom_days' : (fee.planId || ''));
+
+          if (
+            fee.baseFee !== baseFee ||
+            fee.amount !== newAmount ||
+            needsAddonSync ||
+            fee.isDayBased !== isDay ||
+            (newPeriodEnd && fee.periodEnd !== newPeriodEnd)
+          ) {
+            const updatedPayload = {
+              baseFee,
+              discountAmount: discount,
+              addonCharges,
+              amount: newAmount,
+              isDayBased: isDay,
+              durationUnit: isDay ? 'days' : 'months',
+              durationDays: isDay ? durationDays : null,
+              durationMonths: isDay ? null : duration,
+              planDuration: duration,
+              planName: newPlanName,
+              planId: newPlanId,
+              periodStart: newPeriodStart || fee.periodStart,
+              periodEnd: newPeriodEnd || fee.periodEnd,
+            };
+            updateDocument(COLLECTIONS.FEES, fee.id, updatedPayload).catch(console.warn);
+            return { ...fee, ...updatedPayload };
+          }
         }
 
         return fee;
@@ -123,7 +162,7 @@ export default function Fees() {
         const mEnd = student.membershipEnd.toDate ? student.membershipEnd.toDate() : new Date(student.membershipEnd);
         mEnd.setHours(0, 0, 0, 0);
         if (mEnd >= today) {
-          return false; // Student is still actively valid under their multi-month plan
+          return false; // Student is still actively valid under their plan
         }
       }
 
@@ -140,16 +179,27 @@ export default function Fees() {
     const newFeeRecords = [];
 
     for (const student of missingStudents) {
+      const isDay = Boolean(
+        student.isDayBased ||
+        student.membershipPlanId === 'custom_days' ||
+        student.durationUnit === 'days'
+      );
       const plan = allPlans.find((p) => p.id === student.membershipPlanId);
       const seat = allSeats.find((s) => s.id === student.seatId);
-      const baseFee = plan ? Number(plan.price) : 800;
+      const durationDays = isDay
+        ? (Number(student.customDays) || Number(student.durationDays) || Number(plan?.durationDays) || 10)
+        : null;
+      const duration = isDay ? durationDays : (Number(plan?.durationMonths) || 1);
+      const baseFee = isDay
+        ? (Number(student.customFeeAmount) || Number(student.planPrice) || Number(plan?.price) || 400)
+        : (plan ? Number(plan.price) : 800);
       const discount = Number(student.discountAmount) || 0;
-      const duration = Number(plan?.durationMonths) || 1;
 
+      const addonDurationFactor = isDay ? Math.max(1, Math.round(durationDays / 30)) : duration;
       const { charges: addonCharges, total: addonTotal } = calculateSeatAddonCharges(
         seat?.addons,
         activeAddonsList,
-        duration
+        addonDurationFactor
       );
 
       // Calculate start date (continuation from previous membershipEnd or joinDate)
@@ -157,19 +207,23 @@ export default function Fees() {
       if (student.membershipEnd) {
         const mEnd = student.membershipEnd.toDate ? student.membershipEnd.toDate() : new Date(student.membershipEnd);
         if (!isNaN(mEnd.getTime())) startDate = mEnd;
-      } else if (student.joinDate) {
-        const jDate = student.joinDate.toDate ? student.joinDate.toDate() : new Date(student.joinDate);
-        if (!isNaN(jDate.getTime())) startDate = jDate;
       } else if (student.membershipStart) {
         const mStart = student.membershipStart.toDate ? student.membershipStart.toDate() : new Date(student.membershipStart);
         if (!isNaN(mStart.getTime())) startDate = mStart;
+      } else if (student.joinDate) {
+        const jDate = student.joinDate.toDate ? student.joinDate.toDate() : new Date(student.joinDate);
+        if (!isNaN(jDate.getTime())) startDate = jDate;
       }
 
-      const endDate = new Date(startDate.getFullYear(), startDate.getMonth() + duration, startDate.getDate());
+      let endDate;
+      if (isDay) {
+        endDate = new Date(startDate);
+        endDate.setDate(endDate.getDate() + durationDays);
+      } else {
+        endDate = new Date(startDate.getFullYear(), startDate.getMonth() + duration, startDate.getDate());
+      }
 
-      const dueDate = new Date();
-      dueDate.setDate(10);
-      if (dueDate < new Date()) dueDate.setMonth(dueDate.getMonth() + 1);
+      const dueDate = new Date(endDate);
 
       const feePayload = {
         studentId: student.id,
@@ -183,9 +237,13 @@ export default function Fees() {
         month: currentMonth,
         paymentMode: '',
         notes: '',
-        planId: plan?.id || '',
-        planName: plan?.name || 'Standard Monthly Plan',
+        planId: plan?.id || (isDay ? 'custom_days' : ''),
+        planName: isDay ? (student.planName || `${durationDays} Days Plan`) : (plan?.name || 'Standard Monthly Plan'),
         planDuration: duration,
+        durationUnit: isDay ? 'days' : 'months',
+        durationDays: isDay ? durationDays : null,
+        durationMonths: isDay ? null : duration,
+        isDayBased: isDay,
         periodStart: startDate.toISOString(),
         periodEnd: endDate.toISOString(),
       };
@@ -251,12 +309,32 @@ export default function Fees() {
         if (studentPendingFee) {
           setCollectFee(studentPendingFee);
         } else {
-          const targetPlan = plans.find((p) => p.id === targetStudent.membershipPlanId) || plans[0] || { price: 800, durationMonths: 1 };
-          const dur = Number(targetPlan?.durationMonths) || 1;
-          const base = Number(targetPlan?.price) || 800;
+          const isDay = Boolean(
+            targetStudent.isDayBased ||
+            targetStudent.membershipPlanId === 'custom_days' ||
+            targetStudent.durationUnit === 'days'
+          );
+          const targetPlan = plans.find((p) => p.id === targetStudent.membershipPlanId);
+          const durDays = isDay
+            ? (Number(targetStudent.customDays) || Number(targetStudent.durationDays) || Number(targetPlan?.durationDays) || 10)
+            : null;
+          const dur = isDay ? durDays : (Number(targetPlan?.durationMonths) || 1);
+          const base = isDay
+            ? (Number(targetStudent.customFeeAmount) || Number(targetStudent.planPrice) || Number(targetPlan?.price) || 400)
+            : (Number(targetPlan?.price) || 800);
           const disc = Number(targetStudent.discountAmount) || 0;
           const targetSeat = seats.find((s) => s.id === targetStudent.seatId);
-          const { charges, total } = calculateSeatAddonCharges(targetSeat?.addons, addonPricing, dur);
+          const durFactor = isDay ? Math.max(1, Math.round(durDays / 30)) : dur;
+          const { charges, total } = calculateSeatAddonCharges(targetSeat?.addons, addonPricing, durFactor);
+
+          const periodStart = targetStudent.membershipStart || targetStudent.joinDate || new Date().toISOString();
+          let periodEnd = targetStudent.membershipEnd;
+          if (!periodEnd) {
+            const d = new Date(periodStart);
+            if (isDay) d.setDate(d.getDate() + durDays);
+            else d.setMonth(d.getMonth() + dur);
+            periodEnd = d.toISOString();
+          }
 
           const tempFee = {
             id: `fee_${targetStudent.id}_${getMonthYear().replace('-', '_')}`,
@@ -266,10 +344,18 @@ export default function Fees() {
             discountAmount: disc,
             addonCharges: charges,
             month: getMonthYear(),
-            planId: targetPlan?.id || '',
-            planName: targetPlan?.name || 'Standard Monthly Plan',
+            planId: targetPlan?.id || (isDay ? 'custom_days' : ''),
+            planName: targetStudent.planName || targetPlan?.name || (isDay ? `${durDays} Days Plan` : 'Standard Monthly Plan'),
             planDuration: dur,
-            periodStart: targetStudent.membershipEnd || targetStudent.joinDate || new Date().toISOString(),
+            isDayBased: isDay,
+            durationDays: durDays,
+            durationMonths: isDay ? null : dur,
+            durationUnit: isDay ? 'days' : 'months',
+            isCustomDays: targetStudent.membershipPlanId === 'custom_days' || targetStudent.isCustomDays,
+            customDays: durDays,
+            customFeeAmount: base,
+            periodStart: periodStart,
+            periodEnd: periodEnd,
           };
           setCollectFee(tempFee);
         }
