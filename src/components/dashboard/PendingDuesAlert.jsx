@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AlertCircle, MessageSquare, CheckCircle2, IndianRupee, ChevronRight, Phone } from 'lucide-react';
+import { formatCurrency, formatReminderTime } from '../../utils/helpers';
 import { updateDocument, getTenantItem } from '../../firebase/storageService';
 import { COLLECTIONS } from '../../utils/constants';
 import { getActiveTemplates, renderTemplate } from '../../utils/templateHelpers';

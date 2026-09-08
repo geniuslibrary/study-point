@@ -496,16 +496,6 @@ export default function Dashboard() {
           </div>
         );
 
-      case 'quickSeatSearch':
-        return (
-          <div key={id} className="col-span-1">
-            <QuickSeatSearchWidget
-              seats={allSeatsList}
-              students={allStudentsList}
-              sections={allSectionsList}
-            />
-          </div>
-        );
 
       case 'occupancyOverview':
         return (
