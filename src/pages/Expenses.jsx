@@ -101,13 +101,13 @@ export default function Expenses() {
           continue;
         }
 
-        // If staff is marked 'left', check leftDate
+        // If staff is marked 'left', stop expense generation
         if (staff.status === 'left') {
           const leftMonth = staff.leftDate ? staff.leftDate.substring(0, 7) : null;
           if (leftMonth && selectedMonth > leftMonth) {
             continue;
           }
-          if (!leftMonth && selectedMonth >= currentMonth) {
+          if (selectedMonth >= currentMonth) {
             continue;
           }
         }

@@ -141,6 +141,8 @@ export default function StaffRoles() {
   const [staffMemberFormData, setStaffMemberFormData] = useState({
     name: '',
     phone: '',
+    role: 'Receptionist',
+    status: 'active',
     salary: '',
     joinDate: new Date().toISOString().split('T')[0],
     photo: '',
@@ -266,6 +268,8 @@ export default function StaffRoles() {
     setStaffMemberFormData({
       name: '',
       phone: '',
+      role: 'Receptionist',
+      status: 'active',
       salary: '',
       joinDate: new Date().toISOString().split('T')[0],
       photo: '',
@@ -279,6 +283,8 @@ export default function StaffRoles() {
     setStaffMemberFormData({
       name: staff.name || '',
       phone: staff.phone || '',
+      role: staff.role || 'Receptionist',
+      status: staff.status || 'active',
       salary: staff.salary !== undefined && staff.salary !== null ? String(staff.salary) : '',
       joinDate: staff.joinDate || new Date().toISOString().split('T')[0],
       photo: staff.photo || '',
@@ -297,10 +303,13 @@ export default function StaffRoles() {
     const payload = {
       name: staffMemberFormData.name.trim(),
       phone: staffMemberFormData.phone.trim(),
+      role: staffMemberFormData.role.trim() || 'Staff',
+      status: staffMemberFormData.status || 'active',
       salary: staffMemberFormData.salary !== '' ? Number(staffMemberFormData.salary) || 0 : 0,
       joinDate: staffMemberFormData.joinDate || new Date().toISOString().split('T')[0],
       photo: staffMemberFormData.photo || '',
       aadharPhoto: staffMemberFormData.aadharPhoto || '',
+      leftDate: staffMemberFormData.status === 'left' ? (editStaffMember?.leftDate || new Date().toISOString().split('T')[0]) : null,
     };
 
     try {
@@ -316,6 +325,80 @@ export default function StaffRoles() {
     } catch (err) {
       console.error(err);
       showToast('Error saving staff member: ' + err.message);
+    }
+  };
+
+  const handleQuickToggleStaffStatus = async (staff, targetStatus) => {
+    try {
+      await updateDocument(COLLECTIONS.STAFF_MEMBERS, staff.id, {
+        status: targetStatus,
+        leftDate: targetStatus === 'left' ? new Date().toISOString().split('T')[0] : null,
+      });
+      showToast(
+        targetStatus === 'left'
+          ? `${staff.name} को 'Left' मार्क किया गया (अब Expense add होना बंद हो गया)`
+          : `${staff.name} को पुनः 'Active' कर दिया गया`
+      );
+      await fetchStaffMembersData();
+    } catch (err) {
+      console.error(err);
+      showToast('Error updating staff status');
+    }
+  };
+
+  const handleAddStaffSalaryToExpense = async (staff) => {
+    const salary = Number(staff.salary) || 0;
+    if (salary <= 0) {
+      showToast('इस स्टाफ की सैलरी 0 है, पहले सैलरी सेट करें');
+      return;
+    }
+    const today = new Date();
+    const currentMonthStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
+    const todayStr = today.toISOString().split('T')[0];
+
+    try {
+      const existingExpenses = await fetchCollectionData(COLLECTIONS.EXPENSES);
+      const alreadyAdded = existingExpenses.some((exp) => {
+        const isSalary = exp.category === 'Staff Salary' || exp.expenseType === 'salary';
+        if (!isSalary) return false;
+        const expMonth = exp.month || (exp.date?.seconds ? new Date(exp.date.seconds * 1000).toISOString().substring(0, 7) : String(exp.date).substring(0, 7));
+        return expMonth === currentMonthStr && (exp.staffId === staff.id || exp.salaryDetails?.staffId === staff.id);
+      });
+
+      if (alreadyAdded) {
+        showToast(`इस महीने (${currentMonthStr}) के लिए ${staff.name} की सैलरी पहले से Expenses में दर्ज है!`);
+        return;
+      }
+
+      const newSalaryExpense = {
+        category: 'Staff Salary',
+        amount: salary,
+        date: todayStr,
+        month: currentMonthStr,
+        description: `Staff Salary: ${staff.name} (${staff.role || 'Staff'})`,
+        expenseType: 'salary',
+        staffId: staff.id,
+        isStaffSalaryAuto: true,
+        isRecurring: true,
+        salaryDetails: {
+          staffId: staff.id,
+          staffName: staff.name,
+          role: staff.role || 'Staff',
+          baseSalary: salary,
+          daysInMonth: 30,
+          daysWorked: 30,
+          bonus: 0,
+          deductions: 0,
+          netSalary: salary,
+          paymentMode: 'cash',
+        },
+      };
+
+      await createDocument(COLLECTIONS.EXPENSES, newSalaryExpense);
+      showToast(`सैलरी ₹${salary.toLocaleString('en-IN')} Expenses में सफलतापूर्वक जुड़ गई!`);
+    } catch (err) {
+      console.error(err);
+      showToast('Error adding salary: ' + err.message);
     }
   };
 
@@ -976,13 +1059,18 @@ export default function StaffRoles() {
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {staffMembers.map((staff) => {
                   const joinDay = staff.joinDate ? parseInt(staff.joinDate.split('-')[2], 10) : null;
+                  const isLeft = staff.status === 'left';
+                  const roleLabel = staff.role || 'Staff';
+
                   return (
                     <div
                       key={staff.id}
-                      className="bg-white rounded-2xl p-5 border border-slate-200 shadow-xs space-y-4 hover:border-indigo-300 transition-all flex flex-col justify-between"
+                      className={`bg-white rounded-2xl p-5 border shadow-xs space-y-4 transition-all flex flex-col justify-between ${
+                        isLeft ? 'border-rose-200 bg-rose-50/20' : 'border-slate-200 hover:border-indigo-300'
+                      }`}
                     >
                       <div className="space-y-3">
-                        {/* Top: Photo, Name, Phone & Actions */}
+                        {/* Top: Photo, Name, Role, Status & Actions */}
                         <div className="flex items-start justify-between gap-3">
                           <div className="flex items-center gap-3 min-w-0">
                             {staff.photo ? (
@@ -997,17 +1085,31 @@ export default function StaffRoles() {
                               </div>
                             )}
                             <div className="min-w-0">
-                              <h4 className="font-extrabold text-slate-900 text-base leading-tight truncate">
-                                {staff.name}
-                              </h4>
-                              {staff.phone ? (
-                                <p className="text-xs text-slate-500 flex items-center gap-1 mt-1 font-medium">
-                                  <Phone size={12} className="text-slate-400" />
-                                  <span>{staff.phone}</span>
-                                </p>
-                              ) : (
-                                <p className="text-xs text-slate-400 mt-1 italic">No phone</p>
-                              )}
+                              <div className="flex flex-wrap items-center gap-1.5">
+                                <h4 className="font-extrabold text-slate-900 text-base leading-tight truncate">
+                                  {staff.name}
+                                </h4>
+                                <span
+                                  className={`text-[10px] font-black uppercase px-2 py-0.5 rounded-full ${
+                                    isLeft
+                                      ? 'bg-rose-100 text-rose-700 border border-rose-200'
+                                      : 'bg-emerald-100 text-emerald-800 border border-emerald-200'
+                                  }`}
+                                >
+                                  {isLeft ? '🔴 Left' : '🟢 Active'}
+                                </span>
+                              </div>
+                              <div className="flex items-center gap-1.5 mt-1">
+                                <span className="inline-flex items-center text-[11px] font-bold px-2 py-0.5 rounded-md bg-indigo-50 text-indigo-700 border border-indigo-100">
+                                  {roleLabel}
+                                </span>
+                                {staff.phone && (
+                                  <p className="text-xs text-slate-500 flex items-center gap-1 font-medium">
+                                    <Phone size={11} className="text-slate-400" />
+                                    <span>{staff.phone}</span>
+                                  </p>
+                                )}
+                              </div>
                             </div>
                           </div>
 
@@ -1066,12 +1168,53 @@ export default function StaffRoles() {
                           )}
                         </div>
 
-                        {/* Expense auto-sync note */}
-                        {Number(staff.salary) > 0 && (
-                          <div className="bg-emerald-50/70 p-2 rounded-xl border border-emerald-100 text-[11px] text-emerald-800 font-medium leading-relaxed">
-                            🔄 हर महीने {joinDay ? `${joinDay} तारीख` : 'जॉइनिंग डेट'} को Expenses में स्वतः जुड़ेगा।
+                        {/* Expense auto-sync or Left alert */}
+                        {isLeft ? (
+                          <div className="bg-rose-50 p-2.5 rounded-xl border border-rose-200 text-xs text-rose-700 font-semibold flex items-center gap-1.5">
+                            <span className="shrink-0 font-bold">⚠️</span>
+                            <span>स्टाफ छोड़ चुका है (Left) — Expenses में सैलरी जुड़ना बंद है।</span>
                           </div>
+                        ) : (
+                          Number(staff.salary) > 0 && (
+                            <div className="bg-emerald-50/70 p-2 rounded-xl border border-emerald-100 text-[11px] text-emerald-800 font-medium leading-relaxed">
+                              🔄 हर महीने {joinDay ? `${joinDay} तारीख` : 'जॉइनिंग डेट'} को Expenses में स्वतः जुड़ेगा।
+                            </div>
+                          )
                         )}
+
+                        {/* Action Buttons: Add to Expenses & Active/Left toggle */}
+                        <div className="pt-2 border-t border-slate-100 flex flex-wrap items-center gap-2">
+                          {!isLeft && Number(staff.salary) > 0 && (
+                            <button
+                              type="button"
+                              onClick={() => handleAddStaffSalaryToExpense(staff)}
+                              className="flex-1 inline-flex items-center justify-center gap-1 px-2.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold shadow-2xs transition-colors cursor-pointer"
+                              title="Record this month's salary in Expenses right now"
+                            >
+                              <IndianRupee size={13} />
+                              <span>Add to Expenses</span>
+                            </button>
+                          )}
+
+                          {isLeft ? (
+                            <button
+                              type="button"
+                              onClick={() => handleQuickToggleStaffStatus(staff, 'active')}
+                              className="flex-1 inline-flex items-center justify-center gap-1 px-2.5 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 rounded-xl text-xs font-bold transition-colors cursor-pointer"
+                            >
+                              <span>🟢 Reactivate (चालू करें)</span>
+                            </button>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={() => handleQuickToggleStaffStatus(staff, 'left')}
+                              className="inline-flex items-center justify-center gap-1 px-2.5 py-1.5 bg-slate-100 hover:bg-rose-50 text-slate-700 hover:text-rose-700 border border-slate-200 hover:border-rose-200 rounded-xl text-xs font-bold transition-colors cursor-pointer"
+                              title="Mark this staff as Left"
+                            >
+                              <span>🚪 Mark Left (छोड़ दिया)</span>
+                            </button>
+                          )}
+                        </div>
                       </div>
                     </div>
                   );
@@ -1699,6 +1842,42 @@ export default function StaffRoles() {
                 placeholder="e.g. 9876543210"
                 className="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 font-medium"
               />
+            </div>
+          </div>
+
+          {/* Role / Designation & Account Status */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
+                Staff Role (पद / कार्य) *
+              </label>
+              <select
+                value={staffMemberFormData.role}
+                onChange={(e) => setStaffMemberFormData({ ...staffMemberFormData, role: e.target.value })}
+                className="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl text-sm bg-white font-bold text-slate-800 focus:ring-2 focus:ring-indigo-500"
+              >
+                <option value="Receptionist">🛎️ Receptionist (रिसेप्शनिस्ट)</option>
+                <option value="Worker / Cleaner">🧹 Worker / Cleaner (सफाई / वर्कर)</option>
+                <option value="Branch Manager">👔 Branch Manager (मैनेजर)</option>
+                <option value="Security Guard">🛡️ Security Guard (सुरक्षा गार्ड)</option>
+                <option value="Helper / Peon">🤝 Helper / Peon (हेल्पर)</option>
+                <option value="Night Incharge">🌙 Night Incharge (नाईट इंचार्ज)</option>
+                <option value="Other">💼 Other (अन्य)</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
+                Account Status (कार्यरत / छोड़ दिया)
+              </label>
+              <select
+                value={staffMemberFormData.status}
+                onChange={(e) => setStaffMemberFormData({ ...staffMemberFormData, status: e.target.value })}
+                className="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl text-sm bg-white font-bold text-slate-800 focus:ring-2 focus:ring-indigo-500"
+              >
+                <option value="active">🟢 Active (कार्यरत - सैलरी चालू)</option>
+                <option value="left">🔴 Left (छोड़ दिया - खर्च बंद)</option>
+              </select>
             </div>
           </div>
 
