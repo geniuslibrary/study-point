@@ -1,10 +1,22 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import Layout from '../components/layout/Layout';
 import Button from '../components/common/Button';
 import ConfirmDialog from '../components/common/ConfirmDialog';
 import PlanForm from '../components/memberships/PlanForm';
 import PlanList from '../components/memberships/PlanList';
-import { Plus, Loader2, CheckCircle2 } from 'lucide-react';
+import {
+  Plus,
+  Loader2,
+  CheckCircle2,
+  Search,
+  Calendar,
+  CalendarDays,
+  Flame,
+  Users,
+  Layers,
+  Sparkles,
+  Zap,
+} from 'lucide-react';
 import { COLLECTIONS } from '../utils/constants';
 import {
   fetchCollectionData,
@@ -22,6 +34,8 @@ export default function Memberships() {
   const [deleteData, setDeleteData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [toastMessage, setToastMessage] = useState('');
+  const [searchTerm, setSearchTerm] = useState('');
+  const [selectedTab, setSelectedTab] = useState('all'); // 'all' | 'days' | 'months' | 'offers' | 'shifts'
 
   const fetchData = async () => {
     setLoading(true);
@@ -107,6 +121,41 @@ export default function Memberships() {
     }
   };
 
+  // Stat metrics
+  const stats = useMemo(() => {
+    const total = plans.length;
+    const dayPlans = plans.filter(
+      (p) => p.durationUnit === 'days' || Boolean(p.durationDays && !p.durationMonths)
+    ).length;
+    const monthPlans = plans.filter(
+      (p) => p.durationUnit !== 'days' && (!p.durationDays || p.durationMonths > 0)
+    ).length;
+    const offers = plans.filter((p) => p.isOffer).length;
+    const totalEnrolled = Object.values(studentCounts).reduce((a, b) => a + b, 0);
+
+    return { total, dayPlans, monthPlans, offers, totalEnrolled };
+  }, [plans, studentCounts]);
+
+  // Filtered plans
+  const filteredPlans = useMemo(() => {
+    return plans.filter((p) => {
+      const isDay = p.durationUnit === 'days' || Boolean(p.durationDays && !p.durationMonths);
+
+      // Search match
+      const nameMatch = p.name?.toLowerCase().includes(searchTerm.toLowerCase());
+      const priceMatch = String(p.price).includes(searchTerm);
+      if (searchTerm && !nameMatch && !priceMatch) return false;
+
+      // Tab match
+      if (selectedTab === 'days') return isDay;
+      if (selectedTab === 'months') return !isDay;
+      if (selectedTab === 'offers') return !!p.isOffer;
+      if (selectedTab === 'shifts') return p.shiftType && p.shiftType !== 'all';
+
+      return true;
+    });
+  }, [plans, searchTerm, selectedTab]);
+
   if (loading) {
     return (
       <Layout title="Membership Plans">
@@ -119,26 +168,174 @@ export default function Memberships() {
 
   return (
     <Layout title="Membership Plans">
-      <div className="space-y-6">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+      <div className="space-y-6 max-w-7xl mx-auto pb-10">
+        {/* Header Bar */}
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">Membership Plans & Offers</h1>
-            <p className="text-gray-500 text-sm mt-0.5">Manage pricing tiers, multi-month offers, and shift plans</p>
+            <div className="flex items-center gap-2">
+              <span className="p-2 rounded-2xl bg-indigo-50 text-indigo-600 border border-indigo-100">
+                <Sparkles className="w-5 h-5" />
+              </span>
+              <h1 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">
+                Membership Plans & Offers
+              </h1>
+            </div>
+            <p className="text-slate-500 text-xs sm:text-sm mt-1">
+              Configure daily crash plans, monthly tiers, shift-specific passes, and special discount offers
+            </p>
           </div>
-          <Button icon={<Plus className="w-4 h-4" />} onClick={handleAdd}>
-            Add Membership Plan
-          </Button>
+
+          <button
+            onClick={handleAdd}
+            className="px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-2xl font-extrabold text-sm shadow-sm hover:shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer shrink-0"
+          >
+            <Plus className="w-4 h-4" />
+            <span>Add Membership Plan</span>
+          </button>
         </div>
 
+        {/* Top Metric Cards */}
+        <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 sm:gap-4">
+          <div className="p-4 rounded-3xl bg-white border border-slate-200/80 shadow-xs">
+            <div className="flex items-center justify-between">
+              <span className="text-slate-400 text-xs font-bold uppercase tracking-wider">Total Plans</span>
+              <div className="w-8 h-8 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center">
+                <Layers className="w-4 h-4" />
+              </div>
+            </div>
+            <p className="text-2xl font-black text-slate-900 mt-2">{stats.total}</p>
+            <p className="text-[11px] text-slate-500 mt-0.5">Active catalog</p>
+          </div>
+
+          <div className="p-4 rounded-3xl bg-white border border-slate-200/80 shadow-xs">
+            <div className="flex items-center justify-between">
+              <span className="text-slate-400 text-xs font-bold uppercase tracking-wider">Day Plans</span>
+              <div className="w-8 h-8 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center">
+                <CalendarDays className="w-4 h-4" />
+              </div>
+            </div>
+            <p className="text-2xl font-black text-slate-900 mt-2">{stats.dayPlans}</p>
+            <p className="text-[11px] text-amber-700 font-bold mt-0.5">Exam / Crash plans</p>
+          </div>
+
+          <div className="p-4 rounded-3xl bg-white border border-slate-200/80 shadow-xs">
+            <div className="flex items-center justify-between">
+              <span className="text-slate-400 text-xs font-bold uppercase tracking-wider">Monthly</span>
+              <div className="w-8 h-8 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center">
+                <Calendar className="w-4 h-4" />
+              </div>
+            </div>
+            <p className="text-2xl font-black text-slate-900 mt-2">{stats.monthPlans}</p>
+            <p className="text-[11px] text-slate-500 mt-0.5">Regular subscriptions</p>
+          </div>
+
+          <div className="p-4 rounded-3xl bg-white border border-slate-200/80 shadow-xs">
+            <div className="flex items-center justify-between">
+              <span className="text-slate-400 text-xs font-bold uppercase tracking-wider">Special Offers</span>
+              <div className="w-8 h-8 rounded-xl bg-rose-50 text-rose-600 flex items-center justify-center">
+                <Flame className="w-4 h-4" />
+              </div>
+            </div>
+            <p className="text-2xl font-black text-rose-600 mt-2">{stats.offers}</p>
+            <p className="text-[11px] text-rose-600 font-bold mt-0.5">Discounts active</p>
+          </div>
+
+          <div className="col-span-2 sm:col-span-1 p-4 rounded-3xl bg-white border border-slate-200/80 shadow-xs">
+            <div className="flex items-center justify-between">
+              <span className="text-slate-400 text-xs font-bold uppercase tracking-wider">Enrolled</span>
+              <div className="w-8 h-8 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center">
+                <Users className="w-4 h-4" />
+              </div>
+            </div>
+            <p className="text-2xl font-black text-emerald-600 mt-2">{stats.totalEnrolled}</p>
+            <p className="text-[11px] text-slate-500 mt-0.5">Students on plans</p>
+          </div>
+        </div>
+
+        {/* Toast Notification */}
         {toastMessage && (
-          <div className="p-3.5 bg-green-50 text-green-800 border border-green-200 rounded-xl text-xs font-semibold flex items-center gap-2 transition-all">
-            <CheckCircle2 className="w-4 h-4 text-green-600" />
+          <div className="p-3.5 bg-emerald-50 text-emerald-900 border border-emerald-200 rounded-2xl text-xs font-bold flex items-center gap-2 transition-all shadow-xs animate-in fade-in">
+            <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
             <span>{toastMessage}</span>
           </div>
         )}
 
+        {/* Filter Tabs & Search Bar */}
+        <div className="bg-white p-3 sm:p-4 rounded-3xl border border-slate-200/80 shadow-xs flex flex-col md:flex-row items-center justify-between gap-3">
+          {/* Tab Pills */}
+          <div className="flex items-center gap-1.5 overflow-x-auto w-full md:w-auto pb-1 md:pb-0 scrollbar-none">
+            <button
+              onClick={() => setSelectedTab('all')}
+              className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer shrink-0 ${
+                selectedTab === 'all'
+                  ? 'bg-indigo-600 text-white shadow-2xs'
+                  : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+              }`}
+            >
+              All Plans ({stats.total})
+            </button>
+            <button
+              onClick={() => setSelectedTab('days')}
+              className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer shrink-0 flex items-center gap-1 ${
+                selectedTab === 'days'
+                  ? 'bg-amber-600 text-white shadow-2xs'
+                  : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+              }`}
+            >
+              <CalendarDays className="w-3 h-3" />
+              <span>Day Plans ({stats.dayPlans})</span>
+            </button>
+            <button
+              onClick={() => setSelectedTab('months')}
+              className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer shrink-0 flex items-center gap-1 ${
+                selectedTab === 'months'
+                  ? 'bg-indigo-600 text-white shadow-2xs'
+                  : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+              }`}
+            >
+              <Calendar className="w-3 h-3" />
+              <span>Monthly ({stats.monthPlans})</span>
+            </button>
+            <button
+              onClick={() => setSelectedTab('offers')}
+              className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer shrink-0 flex items-center gap-1 ${
+                selectedTab === 'offers'
+                  ? 'bg-rose-600 text-white shadow-2xs'
+                  : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+              }`}
+            >
+              <Flame className="w-3 h-3" />
+              <span>Offers ({stats.offers})</span>
+            </button>
+            <button
+              onClick={() => setSelectedTab('shifts')}
+              className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer shrink-0 flex items-center gap-1 ${
+                selectedTab === 'shifts'
+                  ? 'bg-purple-600 text-white shadow-2xs'
+                  : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+              }`}
+            >
+              <Zap className="w-3 h-3" />
+              <span>Shift Specific</span>
+            </button>
+          </div>
+
+          {/* Search Input */}
+          <div className="relative w-full md:w-64">
+            <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+            <input
+              type="text"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              placeholder="Search plan or price..."
+              className="w-full pl-9 pr-4 py-2 border border-slate-200 rounded-xl text-xs font-semibold focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 shadow-2xs"
+            />
+          </div>
+        </div>
+
+        {/* Plans Grid */}
         <PlanList
-          plans={plans}
+          plans={filteredPlans}
           studentCounts={studentCounts}
           onEdit={handleEdit}
           onDelete={handleDeleteClick}
@@ -155,8 +352,9 @@ export default function Memberships() {
 
       <ConfirmDialog
         isOpen={!!deleteData}
-        title="Delete Plan"
-        message={`Are you sure you want to delete the plan "${deleteData?.name}"?`}
+        title="Delete Plan Permanently?"
+        message={`Are you sure you want to delete the plan "${deleteData?.name}"? Students currently enrolled under this plan will preserve their fee records.`}
+        confirmText="Delete Plan"
         onConfirm={confirmDelete}
         onClose={() => setDeleteData(null)}
         variant="danger"
@@ -164,3 +362,4 @@ export default function Memberships() {
     </Layout>
   );
 }
+
