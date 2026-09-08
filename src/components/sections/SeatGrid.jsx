@@ -2,8 +2,15 @@ import { useState } from 'react';
 import { Armchair, Lock, Wifi, Lamp, Sun, Sunrise, Sunset, Clock, Moon, User, CheckCircle2, Search, Filter } from 'lucide-react';
 import { getStoredShifts, getShiftInfo, getShiftBadgeStyle } from '../../utils/helpers';
 
-export default function SeatGrid({ seats = [], onSeatClick }) {
-  const [filterStatus, setFilterStatus] = useState('all'); // 'all' | 'available' | 'partial' | 'occupied'
+export default function SeatGrid({
+  seats = [],
+  onSeatClick,
+  filterStatus: controlledFilter = 'all',
+  onFilterChange,
+}) {
+  const [localFilterStatus, setLocalFilterStatus] = useState('all');
+  const activeFilter = onFilterChange ? controlledFilter : localFilterStatus;
+  const setFilter = onFilterChange || setLocalFilterStatus;
   const [searchQuery, setSearchQuery] = useState('');
 
   if (seats.length === 0) {
@@ -57,11 +64,11 @@ export default function SeatGrid({ seats = [], onSeatClick }) {
     const hasFullDay = assigned.some((s) => !s.shift || s.shift === 'full_day');
 
     let matchesFilter = true;
-    if (filterStatus === 'available') {
+    if (activeFilter === 'available') {
       matchesFilter = assigned.length === 0;
-    } else if (filterStatus === 'partial') {
+    } else if (activeFilter === 'partial') {
       matchesFilter = assigned.length === 1 && !hasFullDay;
-    } else if (filterStatus === 'occupied') {
+    } else if (activeFilter === 'occupied') {
       matchesFilter = hasFullDay || assigned.length >= 2;
     }
 
@@ -90,87 +97,25 @@ export default function SeatGrid({ seats = [], onSeatClick }) {
 
   return (
     <div className="space-y-4">
-      {/* Interactive Filter Pills & Search Bar */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 pb-3 border-b border-slate-200">
-        <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar pb-1 w-full sm:w-auto">
-          <button
-            onClick={() => setFilterStatus('all')}
-            className={`px-2.5 sm:px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 shrink-0 whitespace-nowrap ${
-              filterStatus === 'all'
-                ? 'bg-slate-900 text-white shadow-xs'
-                : 'bg-white text-slate-700 hover:bg-slate-100 border border-slate-200'
-            }`}
-          >
-            <span>All Seats</span>
-            <span
-              className={`px-1.5 py-0.2 rounded-md text-[10px] font-black ${
-                filterStatus === 'all' ? 'bg-slate-700 text-white' : 'bg-slate-100 text-slate-600'
-              }`}
+      {/* Search Bar & Active Filter Info Bar */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 pb-2.5 border-b border-slate-200">
+        <div className="flex items-center gap-2 text-xs font-semibold text-slate-500">
+          <span>Showing:</span>
+          <span className="font-extrabold text-slate-800 bg-white px-2 py-0.5 rounded-lg border border-slate-200 shadow-2xs">
+            {filteredSeats.length} of {sortedSeats.length} Seats
+          </span>
+          {activeFilter !== 'all' && (
+            <button
+              onClick={() => setFilter('all')}
+              className="text-indigo-600 hover:text-indigo-800 font-bold text-[11px] underline cursor-pointer ml-1"
             >
-              {sortedSeats.length}
-            </span>
-          </button>
-
-          <button
-            onClick={() => setFilterStatus('available')}
-            className={`px-2.5 sm:px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 shrink-0 whitespace-nowrap ${
-              filterStatus === 'available'
-                ? 'bg-emerald-600 text-white shadow-xs'
-                : 'bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200'
-            }`}
-          >
-            <span className="w-2 h-2 rounded-full bg-emerald-400 shrink-0"></span>
-            <span>Available (खाली)</span>
-            <span
-              className={`px-1.5 py-0.2 rounded-md text-[10px] font-black ${
-                filterStatus === 'available' ? 'bg-emerald-700 text-white' : 'bg-emerald-200/80 text-emerald-900'
-              }`}
-            >
-              {countAvailable}
-            </span>
-          </button>
-
-          <button
-            onClick={() => setFilterStatus('partial')}
-            className={`px-2.5 sm:px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 shrink-0 whitespace-nowrap ${
-              filterStatus === 'partial'
-                ? 'bg-amber-500 text-white shadow-xs'
-                : 'bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200'
-            }`}
-          >
-            <span className="w-2 h-2 rounded-full bg-amber-400 shrink-0"></span>
-            <span>Shift Free (शिफ्ट)</span>
-            <span
-              className={`px-1.5 py-0.2 rounded-md text-[10px] font-black ${
-                filterStatus === 'partial' ? 'bg-amber-600 text-white' : 'bg-amber-200/80 text-amber-900'
-              }`}
-            >
-              {countPartial}
-            </span>
-          </button>
-
-          <button
-            onClick={() => setFilterStatus('occupied')}
-            className={`px-2.5 sm:px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 shrink-0 whitespace-nowrap ${
-              filterStatus === 'occupied'
-                ? 'bg-indigo-600 text-white shadow-xs'
-                : 'bg-indigo-50 hover:bg-indigo-100 text-indigo-800 border border-indigo-200'
-            }`}
-          >
-            <span className="w-2 h-2 rounded-full bg-indigo-400 shrink-0"></span>
-            <span>Full (भरी)</span>
-            <span
-              className={`px-1.5 py-0.2 rounded-md text-[10px] font-black ${
-                filterStatus === 'occupied' ? 'bg-indigo-700 text-white' : 'bg-indigo-200/80 text-indigo-900'
-              }`}
-            >
-              {countOccupied}
-            </span>
-          </button>
+              (Show All)
+            </button>
+          )}
         </div>
 
         {/* Quick Seat / Student Search */}
-        <div className="relative w-full sm:w-56 shrink-0">
+        <div className="relative w-full sm:w-60 shrink-0">
           <Search className="w-3.5 h-3.5 absolute left-3 top-2.5 text-slate-400" />
           <input
             type="text"

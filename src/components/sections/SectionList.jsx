@@ -13,6 +13,15 @@ export default function SectionList({
 }) {
   // Expand first section by default
   const [expandedId, setExpandedId] = useState(sections[0]?.id || null);
+  const [sectionFilters, setSectionFilters] = useState({});
+
+  const handleFilterClick = (sectionId, filterStatus) => {
+    setExpandedId(sectionId);
+    setSectionFilters((prev) => ({
+      ...prev,
+      [sectionId]: filterStatus,
+    }));
+  };
 
   if (sections.length === 0) {
     return (
@@ -55,6 +64,7 @@ export default function SectionList({
             ? Math.round(((fullyOccupiedSeats + partiallyOccupiedSeats * 0.5) / sectionSeats.length) * 100)
             : 0;
         const isExpanded = expandedId === section.id;
+        const currentFilter = sectionFilters[section.id] || 'all';
 
         return (
           <div key={section.id} className="bg-white rounded-2xl shadow-xs overflow-hidden border border-gray-200 transition-shadow hover:shadow-sm">
@@ -68,26 +78,14 @@ export default function SectionList({
                     <h3 className="font-extrabold text-gray-900 text-base sm:text-lg leading-tight truncate">
                       {section.name}
                     </h3>
-                    <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 text-[11px] sm:text-xs text-gray-500 mt-1">
-                      <span className="font-bold text-gray-800 bg-slate-100 px-2 py-0.5 rounded-md">
-                        {sectionSeats.length} Seats
+                    <div className="flex items-center gap-2 text-xs text-gray-500 mt-1">
+                      <span className="font-semibold text-gray-700">
+                        {sectionSeats.length} Physical Seats
                       </span>
-                      <span className="text-emerald-700 font-bold bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200/60">
-                        {availableSeats} Available
-                      </span>
-                      {fullyOccupiedSeats > 0 && (
-                        <span className="text-indigo-700 font-bold bg-indigo-50 px-2 py-0.5 rounded-md border border-indigo-200/60">
-                          {fullyOccupiedSeats} Full
-                        </span>
-                      )}
-                      {partiallyOccupiedSeats > 0 && (
-                        <span className="text-amber-700 font-bold bg-amber-50 px-2 py-0.5 rounded-md border border-amber-200/60">
-                          {partiallyOccupiedSeats} Partial
-                        </span>
-                      )}
-                      <span className="text-slate-600 font-semibold flex items-center gap-1">
+                      <span>•</span>
+                      <span className="text-slate-600 font-medium flex items-center gap-1">
                         <Users className="w-3.5 h-3.5 text-slate-400" />
-                        {totalStudentsInSection} Students
+                        {totalStudentsInSection} Active Students
                       </span>
                     </div>
                   </div>
@@ -134,6 +132,94 @@ export default function SectionList({
                     {isExpanded ? <ChevronUp className="w-3.5 h-3.5 shrink-0" /> : <ChevronDown className="w-3.5 h-3.5 shrink-0" />}
                   </button>
                 </div>
+              </div>
+
+              {/* The 4 Interactive Filter Pills - Placed UPPAR (Top) */}
+              <div className="flex items-center gap-1.5 sm:gap-2 overflow-x-auto no-scrollbar pt-3 mt-3 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => handleFilterClick(section.id, 'all')}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 shrink-0 whitespace-nowrap ${
+                    currentFilter === 'all' && isExpanded
+                      ? 'bg-slate-900 text-white shadow-xs ring-2 ring-slate-900/20'
+                      : 'bg-slate-100 text-slate-700 hover:bg-slate-200 border border-slate-200'
+                  }`}
+                  title="Show all seats"
+                >
+                  <span>All Seats</span>
+                  <span
+                    className={`px-1.5 py-0.2 rounded-md text-[10px] font-black ${
+                      currentFilter === 'all' && isExpanded ? 'bg-slate-700 text-white' : 'bg-slate-200 text-slate-700'
+                    }`}
+                  >
+                    {sectionSeats.length}
+                  </span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => handleFilterClick(section.id, 'available')}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 shrink-0 whitespace-nowrap ${
+                    currentFilter === 'available' && isExpanded
+                      ? 'bg-emerald-600 text-white shadow-xs ring-2 ring-emerald-600/20'
+                      : 'bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200'
+                  }`}
+                  title="Filter and view vacant available seats"
+                >
+                  <span className="w-2 h-2 rounded-full bg-emerald-400 shrink-0"></span>
+                  <span>Available (खाली)</span>
+                  <span
+                    className={`px-1.5 py-0.2 rounded-md text-[10px] font-black ${
+                      currentFilter === 'available' && isExpanded
+                        ? 'bg-emerald-700 text-white'
+                        : 'bg-emerald-200/80 text-emerald-900'
+                    }`}
+                  >
+                    {availableSeats}
+                  </span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => handleFilterClick(section.id, 'partial')}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 shrink-0 whitespace-nowrap ${
+                    currentFilter === 'partial' && isExpanded
+                      ? 'bg-amber-500 text-white shadow-xs ring-2 ring-amber-500/20'
+                      : 'bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200'
+                  }`}
+                  title="Filter and view seats with open shifts"
+                >
+                  <span className="w-2 h-2 rounded-full bg-amber-400 shrink-0"></span>
+                  <span>Shift Free (शिफ्ट)</span>
+                  <span
+                    className={`px-1.5 py-0.2 rounded-md text-[10px] font-black ${
+                      currentFilter === 'partial' && isExpanded ? 'bg-amber-600 text-white' : 'bg-amber-200/80 text-amber-900'
+                    }`}
+                  >
+                    {partiallyOccupiedSeats}
+                  </span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => handleFilterClick(section.id, 'occupied')}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 shrink-0 whitespace-nowrap ${
+                    currentFilter === 'occupied' && isExpanded
+                      ? 'bg-indigo-600 text-white shadow-xs ring-2 ring-indigo-600/20'
+                      : 'bg-indigo-50 hover:bg-indigo-100 text-indigo-800 border border-indigo-200'
+                  }`}
+                  title="Filter and view fully occupied seats"
+                >
+                  <span className="w-2 h-2 rounded-full bg-indigo-400 shrink-0"></span>
+                  <span>Full (भरी)</span>
+                  <span
+                    className={`px-1.5 py-0.2 rounded-md text-[10px] font-black ${
+                      currentFilter === 'occupied' && isExpanded ? 'bg-indigo-700 text-white' : 'bg-indigo-200/80 text-indigo-900'
+                    }`}
+                  >
+                    {fullyOccupiedSeats}
+                  </span>
+                </button>
               </div>
 
               {/* Progress Bar with Live Badges */}
@@ -187,7 +273,14 @@ export default function SectionList({
                     <span>Add Seat #{sectionSeats.length + 1}</span>
                   </button>
                 </div>
-                <SeatGrid seats={sectionSeats} onSeatClick={onSeatClick} />
+                <SeatGrid
+                  seats={sectionSeats}
+                  onSeatClick={onSeatClick}
+                  filterStatus={currentFilter}
+                  onFilterChange={(status) =>
+                    setSectionFilters((prev) => ({ ...prev, [section.id]: status }))
+                  }
+                />
               </div>
             )}
           </div>
