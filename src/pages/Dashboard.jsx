@@ -900,9 +900,7 @@ export default function Dashboard() {
               <h1 className="text-2xl sm:text-3xl lg:text-4xl font-black tracking-tight text-white leading-tight">
                 Welcome back, {getUserDisplayName(user)} 👋
               </h1>
-              <p className="text-indigo-200/90 text-xs sm:text-sm mt-1.5 max-w-xl font-medium leading-relaxed">
-                Study Point Smart Hub • <span className="text-white font-bold">{stats.totalStudents} Active Students</span> enrolled across <span className="text-white font-bold">{stats.totalSeats} seats</span> ({occupancyRate}% occupancy).
-              </p>
+
             </div>
 
             {/* Quick Action Shortcuts inside Banner */}
