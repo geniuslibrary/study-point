@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ChevronDown, ChevronUp, Edit, Trash2, Building2, Users, PlusCircle } from 'lucide-react';
+import { ChevronDown, ChevronUp, Edit, Trash2, Building2, Users, PlusCircle, CheckCircle2, Clock, Armchair } from 'lucide-react';
 import SeatGrid from './SeatGrid';
 import Button from '../common/Button';
 
@@ -32,21 +32,32 @@ export default function SectionList({
     <div className="space-y-4">
       {sections.map((section) => {
         const sectionSeats = seats.filter((s) => s.sectionId === section.id);
-        const fullyOccupied = sectionSeats.filter((s) => s.status === 'occupied').length;
-        const partiallyOccupied = sectionSeats.filter((s) => s.status === 'partially_occupied').length;
-        const totalStudentsInSection = sectionSeats.reduce(
-          (sum, s) => sum + (s.assignedStudents?.length || 0),
-          0
-        );
+
+        let availableSeats = 0;
+        let fullyOccupiedSeats = 0;
+        let partiallyOccupiedSeats = 0;
+        let totalStudentsInSection = 0;
+
+        sectionSeats.forEach((seat) => {
+          const assigned = seat.assignedStudents || [];
+          totalStudentsInSection += assigned.length;
+          if (assigned.length === 0) {
+            availableSeats++;
+          } else if (assigned.some((st) => !st.shift || st.shift === 'full_day') || assigned.length >= 2) {
+            fullyOccupiedSeats++;
+          } else {
+            partiallyOccupiedSeats++;
+          }
+        });
 
         const percentage =
           sectionSeats.length > 0
-            ? Math.round(((fullyOccupied + partiallyOccupied * 0.5) / sectionSeats.length) * 100)
+            ? Math.round(((fullyOccupiedSeats + partiallyOccupiedSeats * 0.5) / sectionSeats.length) * 100)
             : 0;
         const isExpanded = expandedId === section.id;
 
         return (
-          <div key={section.id} className="bg-white rounded-2xl shadow-xs overflow-hidden border border-gray-200">
+          <div key={section.id} className="bg-white rounded-2xl shadow-xs overflow-hidden border border-gray-200 transition-shadow hover:shadow-sm">
             <div className="p-4 sm:p-6">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                 <div className="flex items-center gap-3.5">
@@ -55,14 +66,18 @@ export default function SectionList({
                   </div>
                   <div>
                     <h3 className="font-bold text-gray-900 text-lg leading-tight">{section.name}</h3>
-                    <div className="flex flex-wrap items-center gap-2.5 text-xs text-gray-500 mt-1">
+                    <div className="flex flex-wrap items-center gap-2 text-xs text-gray-500 mt-1">
                       <span className="font-bold text-gray-800 bg-gray-100 px-2 py-0.5 rounded">
                         {sectionSeats.length} Physical Seats
                       </span>
                       <span>•</span>
-                      <span className="text-indigo-600 font-semibold flex items-center gap-1">
+                      <span className="text-emerald-700 font-bold bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200/60">
+                        {availableSeats} Available (खाली)
+                      </span>
+                      <span>•</span>
+                      <span className="text-indigo-700 font-semibold flex items-center gap-1">
                         <Users className="w-3.5 h-3.5" />
-                        {totalStudentsInSection} Students (Full & Half Day)
+                        {totalStudentsInSection} Active Students
                       </span>
                     </div>
                   </div>
@@ -97,28 +112,110 @@ export default function SectionList({
                   />
                   <button
                     onClick={() => setExpandedId(isExpanded ? null : section.id)}
-                    className="px-3 py-1.5 hover:bg-gray-100 rounded-xl text-gray-700 transition-colors flex items-center gap-1 text-xs font-semibold border border-gray-200 cursor-pointer"
+                    className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-colors flex items-center gap-1.5 border cursor-pointer ${
+                      isExpanded
+                        ? 'bg-indigo-600 text-white border-indigo-600 shadow-2xs'
+                        : 'bg-slate-50 hover:bg-slate-100 text-slate-700 border-slate-200'
+                    }`}
                   >
-                    <span>{isExpanded ? 'Hide Grid' : 'View Seats'}</span>
+                    <span>{isExpanded ? 'Hide Seats Matrix' : 'View Seats Matrix'}</span>
                     {isExpanded ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
                   </button>
                 </div>
               </div>
 
-              {/* Progress Bar */}
-              <div className="mt-4">
-                <div className="flex justify-between text-xs text-gray-500 mb-1">
-                  <span>Occupancy rate</span>
-                  <span className="font-semibold text-gray-700">{percentage}%</span>
+              {/* Occupancy Stat Badges Grid */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 mt-4 pt-3.5 border-t border-slate-100">
+                {/* 1. Available */}
+                <div className="bg-gradient-to-br from-emerald-50/90 to-white border border-emerald-200/80 rounded-xl p-2.5 flex items-center gap-2.5 shadow-2xs">
+                  <div className="w-8 h-8 rounded-lg bg-emerald-500 text-white flex items-center justify-center font-black text-sm shrink-0 shadow-2xs">
+                    {availableSeats}
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-[10px] uppercase font-extrabold tracking-wider text-emerald-800 leading-none">
+                      Available (खाली)
+                    </p>
+                    <p className="text-xs font-bold text-emerald-950 mt-0.5 truncate">
+                      {availableSeats} Seats Free
+                    </p>
+                  </div>
                 </div>
-                <div className="w-full bg-gray-100 rounded-full h-2 overflow-hidden">
+
+                {/* 2. Fully Occupied */}
+                <div className="bg-gradient-to-br from-indigo-50/90 to-white border border-indigo-200/80 rounded-xl p-2.5 flex items-center gap-2.5 shadow-2xs">
+                  <div className="w-8 h-8 rounded-lg bg-indigo-600 text-white flex items-center justify-center font-black text-sm shrink-0 shadow-2xs">
+                    {fullyOccupiedSeats}
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-[10px] uppercase font-extrabold tracking-wider text-indigo-800 leading-none">
+                      Occupied (पूरी भरी)
+                    </p>
+                    <p className="text-xs font-bold text-indigo-950 mt-0.5 truncate">
+                      {fullyOccupiedSeats} Full Booked
+                    </p>
+                  </div>
+                </div>
+
+                {/* 3. Partial Shift Free */}
+                <div className="bg-gradient-to-br from-amber-50/90 to-white border border-amber-200/80 rounded-xl p-2.5 flex items-center gap-2.5 shadow-2xs">
+                  <div className="w-8 h-8 rounded-lg bg-amber-500 text-white flex items-center justify-center font-black text-sm shrink-0 shadow-2xs">
+                    {partiallyOccupiedSeats}
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-[10px] uppercase font-extrabold tracking-wider text-amber-800 leading-none">
+                      Partial (शिफ्ट खाली)
+                    </p>
+                    <p className="text-xs font-bold text-amber-950 mt-0.5 truncate">
+                      {partiallyOccupiedSeats} Shift Open
+                    </p>
+                  </div>
+                </div>
+
+                {/* 4. Total Students */}
+                <div className="bg-gradient-to-br from-slate-50 to-white border border-slate-200/90 rounded-xl p-2.5 flex items-center gap-2.5 shadow-2xs">
+                  <div className="w-8 h-8 rounded-lg bg-slate-700 text-white flex items-center justify-center font-black text-sm shrink-0 shadow-2xs">
+                    {totalStudentsInSection}
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-[10px] uppercase font-extrabold tracking-wider text-slate-600 leading-none">
+                      Active Students
+                    </p>
+                    <p className="text-xs font-bold text-slate-900 mt-0.5 truncate">
+                      {totalStudentsInSection} Seated
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Progress Bar with Live Badges */}
+              <div className="mt-3 bg-slate-50/80 rounded-xl p-3 border border-slate-100">
+                <div className="flex flex-wrap items-center justify-between gap-1 text-xs text-slate-600 mb-1.5 font-semibold">
+                  <div className="flex items-center gap-2">
+                    <span>Occupancy Rate:</span>
+                    <span
+                      className={`px-2 py-0.5 rounded-full text-[11px] font-extrabold border ${
+                        percentage >= 85
+                          ? 'bg-rose-50 text-rose-700 border-rose-200'
+                          : percentage >= 50
+                          ? 'bg-amber-50 text-amber-700 border-amber-200'
+                          : 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                      }`}
+                    >
+                      {percentage}% Booked
+                    </span>
+                  </div>
+                  <span className="text-[11px] text-slate-500 font-medium">
+                    <strong className="text-emerald-700">{availableSeats} vacant</strong> of {sectionSeats.length} seats
+                  </span>
+                </div>
+                <div className="w-full bg-slate-200/70 rounded-full h-2.5 overflow-hidden">
                   <div
-                    className={`h-2 rounded-full transition-all duration-300 ${
-                      percentage > 85
-                        ? 'bg-red-500'
-                        : percentage > 60
-                        ? 'bg-yellow-500'
-                        : 'bg-green-500'
+                    className={`h-2.5 rounded-full transition-all duration-500 ${
+                      percentage >= 85
+                        ? 'bg-rose-500'
+                        : percentage >= 50
+                        ? 'bg-amber-500'
+                        : 'bg-emerald-500'
                     }`}
                     style={{ width: `${Math.min(percentage, 100)}%` }}
                   />

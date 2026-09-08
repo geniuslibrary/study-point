@@ -5,7 +5,7 @@ import Modal from '../components/common/Modal';
 import ConfirmDialog from '../components/common/ConfirmDialog';
 import SectionList from '../components/sections/SectionList';
 import SectionForm from '../components/sections/SectionForm';
-import { Plus, Loader2, UserX, UserPlus, Trash2, PlusCircle, Sparkles } from 'lucide-react';
+import { Plus, Loader2, UserX, UserPlus, Trash2, PlusCircle, Sparkles, Armchair, CheckCircle2, Clock, Users, Building2 } from 'lucide-react';
 import { COLLECTIONS, SEAT_STATUS } from '../utils/constants';
 import { getStoredAddons, calculateSeatAddonCharges } from '../utils/helpers';
 import {
@@ -395,6 +395,30 @@ export default function Sections() {
     ? seats.filter((s) => s.sectionId === editData.id).length
     : 0;
 
+  // Overall occupancy metrics across all sections
+  const totalPhysicalSeats = seats.length;
+  let totalAvailableSeats = 0;
+  let totalFullyOccupiedSeats = 0;
+  let totalPartiallyOccupiedSeats = 0;
+  let totalSeatedStudents = 0;
+
+  seats.forEach((seat) => {
+    const assigned = seat.assignedStudents || [];
+    totalSeatedStudents += assigned.length;
+    if (assigned.length === 0) {
+      totalAvailableSeats++;
+    } else if (assigned.some((st) => !st.shift || st.shift === 'full_day') || assigned.length >= 2) {
+      totalFullyOccupiedSeats++;
+    } else {
+      totalPartiallyOccupiedSeats++;
+    }
+  });
+
+  const overallOccupancyRate =
+    totalPhysicalSeats > 0
+      ? Math.round(((totalFullyOccupiedSeats + totalPartiallyOccupiedSeats * 0.5) / totalPhysicalSeats) * 100)
+      : 0;
+
   if (loading) {
     return (
       <Layout title="Sections">
@@ -412,7 +436,7 @@ export default function Sections() {
           <div>
             <h1 className="text-2xl font-bold text-gray-900">Sections & Seats Layout</h1>
             <p className="text-gray-500 mt-1 text-xs sm:text-sm">
-              {sections.length} Sections • <strong>{seats.length} Total Physical Seats</strong> • Full & Half Day Shift Management
+              {sections.length} Sections • <strong>{totalPhysicalSeats} Total Physical Seats</strong> • Full & Half Day Shift Management
             </p>
           </div>
           <Button
@@ -424,6 +448,79 @@ export default function Sections() {
           >
             Add New Section
           </Button>
+        </div>
+
+        {/* Top Overview Occupancy Stat Cards */}
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+          {/* Card 1: Total Physical Seats */}
+          <div className="bg-white p-3.5 sm:p-4 rounded-2xl border border-slate-200/80 shadow-2xs">
+            <div className="flex items-center justify-between">
+              <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
+                Total Seats
+              </span>
+              <div className="w-8 h-8 rounded-xl bg-slate-100 flex items-center justify-center text-slate-700">
+                <Armchair className="w-4 h-4" />
+              </div>
+            </div>
+            <p className="text-2xl font-black text-slate-900 mt-2">{totalPhysicalSeats}</p>
+            <p className="text-[11px] text-slate-400 mt-0.5 font-medium">{sections.length} Sections</p>
+          </div>
+
+          {/* Card 2: Available Seats */}
+          <div className="bg-gradient-to-br from-emerald-50/80 to-white p-3.5 sm:p-4 rounded-2xl border border-emerald-200/80 shadow-2xs">
+            <div className="flex items-center justify-between">
+              <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-800">
+                Available (खाली)
+              </span>
+              <div className="w-8 h-8 rounded-xl bg-emerald-100 flex items-center justify-center text-emerald-700 font-bold">
+                <CheckCircle2 className="w-4 h-4" />
+              </div>
+            </div>
+            <p className="text-2xl font-black text-emerald-600 mt-2">{totalAvailableSeats}</p>
+            <p className="text-[11px] text-emerald-700 mt-0.5 font-semibold">Vacant & Ready</p>
+          </div>
+
+          {/* Card 3: Fully Occupied Seats */}
+          <div className="bg-gradient-to-br from-indigo-50/80 to-white p-3.5 sm:p-4 rounded-2xl border border-indigo-200/80 shadow-2xs">
+            <div className="flex items-center justify-between">
+              <span className="text-[11px] font-bold uppercase tracking-wider text-indigo-800">
+                Occupied (पूरी भरी)
+              </span>
+              <div className="w-8 h-8 rounded-xl bg-indigo-100 flex items-center justify-center text-indigo-700 font-bold">
+                <Users className="w-4 h-4" />
+              </div>
+            </div>
+            <p className="text-2xl font-black text-indigo-700 mt-2">{totalFullyOccupiedSeats}</p>
+            <p className="text-[11px] text-indigo-600 mt-0.5 font-semibold">Full Day / Both Shifts</p>
+          </div>
+
+          {/* Card 4: Partially Booked (Shift Available) */}
+          <div className="bg-gradient-to-br from-amber-50/80 to-white p-3.5 sm:p-4 rounded-2xl border border-amber-200/80 shadow-2xs">
+            <div className="flex items-center justify-between">
+              <span className="text-[11px] font-bold uppercase tracking-wider text-amber-800">
+                Partial (शिफ्ट खाली)
+              </span>
+              <div className="w-8 h-8 rounded-xl bg-amber-100 flex items-center justify-center text-amber-700 font-bold">
+                <Clock className="w-4 h-4" />
+              </div>
+            </div>
+            <p className="text-2xl font-black text-amber-600 mt-2">{totalPartiallyOccupiedSeats}</p>
+            <p className="text-[11px] text-amber-700 mt-0.5 font-semibold">1 Shift Available</p>
+          </div>
+
+          {/* Card 5: Seated Students */}
+          <div className="bg-gradient-to-br from-purple-50/80 to-white p-3.5 sm:p-4 rounded-2xl border border-purple-200/80 shadow-2xs col-span-2 sm:col-span-1">
+            <div className="flex items-center justify-between">
+              <span className="text-[11px] font-bold uppercase tracking-wider text-purple-800">
+                Seated Students
+              </span>
+              <div className="w-8 h-8 rounded-xl bg-purple-100 flex items-center justify-center text-purple-700 font-bold">
+                <Building2 className="w-4 h-4" />
+              </div>
+            </div>
+            <p className="text-2xl font-black text-purple-700 mt-2">{totalSeatedStudents}</p>
+            <p className="text-[11px] text-purple-700 mt-0.5 font-semibold">{overallOccupancyRate}% Occupancy Rate</p>
+          </div>
         </div>
 
         <SectionList
