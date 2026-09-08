@@ -27,13 +27,14 @@ import {
   getActiveTenantId,
   getFirestoreDocRef,
 } from '../firebase/storageService';
-import { getStoredShifts } from '../utils/helpers';
+import { getStoredShifts, getStoredAddons } from '../utils/helpers';
 
 export default function Memberships() {
   const [plans, setPlans] = useState([]);
   const [students, setStudents] = useState([]);
   const [studentCounts, setStudentCounts] = useState({});
   const [shifts, setShifts] = useState(getStoredShifts());
+  const [addons, setAddons] = useState(getStoredAddons());
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editData, setEditData] = useState(null);
   const [deleteData, setDeleteData] = useState(null);
@@ -74,6 +75,18 @@ export default function Memberships() {
         }
       } catch (_) {
         setShifts(getStoredShifts());
+      }
+
+      // Load tenant-configured addons/facilities from Firestore or localStorage
+      try {
+        const addonsData = await fetchCollectionData(COLLECTIONS.ADDON_PRICING);
+        if (Array.isArray(addonsData) && addonsData.length > 0) {
+          setAddons(addonsData);
+        } else {
+          setAddons(getStoredAddons());
+        }
+      } catch (_) {
+        setAddons(getStoredAddons());
       }
     } catch (error) {
       console.error('Error fetching plans data:', error);
@@ -370,6 +383,7 @@ export default function Memberships() {
         onSubmit={handleFormSubmit}
         editData={editData}
         shifts={shifts}
+        addons={addons}
       />
 
       <ConfirmDialog

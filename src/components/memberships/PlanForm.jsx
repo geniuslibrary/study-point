@@ -18,9 +18,9 @@ import {
   Check,
   Plus,
 } from 'lucide-react';
-import { getStoredShifts } from '../../utils/helpers';
+import { getStoredShifts, getStoredAddons } from '../../utils/helpers';
 
-export default function PlanForm({ isOpen, onClose, onSubmit, editData, shifts = [] }) {
+export default function PlanForm({ isOpen, onClose, onSubmit, editData, shifts = [], addons = [] }) {
   const [formData, setFormData] = useState({
     name: '',
     durationUnit: 'months', // 'months' | 'days'
@@ -36,13 +36,18 @@ export default function PlanForm({ isOpen, onClose, onSubmit, editData, shifts =
   });
 
   const [shiftsList, setShiftsList] = useState([]);
+  const [addonsList, setAddonsList] = useState([]);
+  const [customPerkInput, setCustomPerkInput] = useState('');
 
   useEffect(() => {
     if (isOpen) {
       const activeShifts = shifts && shifts.length > 0 ? shifts : getStoredShifts();
       setShiftsList(activeShifts);
+
+      const activeAddons = addons && addons.length > 0 ? addons : getStoredAddons();
+      setAddonsList(activeAddons);
     }
-  }, [isOpen, shifts]);
+  }, [isOpen, shifts, addons]);
 
   // Only display 'All Shifts' + the EXACT shifts configured in Settings
   const shiftOptions = React.useMemo(() => {
@@ -112,14 +117,39 @@ export default function PlanForm({ isOpen, onClose, onSubmit, editData, shifts =
     return list;
   }, [shiftsList]);
 
-  const commonPerks = [
-    'Reserved Seat Access',
-    'High-Speed 5G WiFi',
-    'Fully Air Conditioned',
-    'Power Backup & RO Water',
-    'Locker Facility Support',
-    'Pin-Drop Silence Zone',
-  ];
+  // Only display the features/facilities configured in Settings (+ any previously saved perks on the plan)
+  const availableFeatures = React.useMemo(() => {
+    const names = [];
+    (addonsList || []).forEach((addon) => {
+      const n = typeof addon === 'string' ? addon.trim() : addon?.name?.trim();
+      if (n && !names.includes(n)) {
+        names.push(n);
+      }
+    });
+
+    // Also include any features saved earlier in editData
+    (formData.features || []).forEach((f) => {
+      const trimmed = f?.trim();
+      if (trimmed && !names.includes(trimmed)) {
+        names.push(trimmed);
+      }
+    });
+
+    return names;
+  }, [addonsList, formData.features]);
+
+  const handleAddCustomPerk = (e) => {
+    if (e) e.preventDefault();
+    const val = customPerkInput.trim();
+    if (!val) return;
+    if (!formData.features.includes(val)) {
+      setFormData((prev) => ({
+        ...prev,
+        features: [...prev.features, val],
+      }));
+    }
+    setCustomPerkInput('');
+  };
 
   useEffect(() => {
     if (editData) {
@@ -160,7 +190,7 @@ export default function PlanForm({ isOpen, onClose, onSubmit, editData, shifts =
         shiftType: 'all',
         isOffer: false,
         isActive: true,
-        features: ['Reserved Seat Access', 'High-Speed 5G WiFi', 'Fully Air Conditioned'],
+        features: [],
         description: '',
       });
     }
@@ -553,28 +583,64 @@ export default function PlanForm({ isOpen, onClose, onSubmit, editData, shifts =
         {/* Features & Perks Included */}
         <div>
           <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2 flex items-center justify-between">
-            <span>Features & Perks Included (सुविधाएं)</span>
-            <span className="text-[10px] text-slate-400">Click to toggle</span>
+            <span className="flex items-center gap-1.5">
+              <Sparkles className="w-3.5 h-3.5 text-indigo-600" />
+              <span>Features & Perks Included (सुविधाएं)</span>
+            </span>
+            <span className="text-[10px] text-slate-400">Click to toggle included facility</span>
           </label>
-          <div className="flex flex-wrap gap-2">
-            {commonPerks.map((perk) => {
-              const active = formData.features.includes(perk);
-              return (
-                <button
-                  key={perk}
-                  type="button"
-                  onClick={() => toggleFeature(perk)}
-                  className={`text-xs font-bold px-3 py-1.5 rounded-xl border transition-all flex items-center gap-1.5 cursor-pointer ${
-                    active
-                      ? 'bg-emerald-50 text-emerald-800 border-emerald-300 shadow-2xs'
-                      : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
-                  }`}
-                >
-                  {active ? <Check className="w-3 h-3 text-emerald-600" /> : <Plus className="w-3 h-3 text-slate-400" />}
-                  <span>{perk}</span>
-                </button>
-              );
-            })}
+
+          {availableFeatures.length === 0 ? (
+            <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-500">
+              No facilities configured in Settings yet. You can configure facilities in Settings or type below.
+            </div>
+          ) : (
+            <div className="flex flex-wrap gap-2">
+              {availableFeatures.map((perk) => {
+                const active = formData.features.includes(perk);
+                return (
+                  <button
+                    key={perk}
+                    type="button"
+                    onClick={() => toggleFeature(perk)}
+                    className={`text-xs font-bold px-3 py-1.5 rounded-xl border transition-all flex items-center gap-1.5 cursor-pointer ${
+                      active
+                        ? 'bg-emerald-50 text-emerald-800 border-emerald-300 shadow-2xs ring-1 ring-emerald-500/20'
+                        : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50 hover:border-slate-300'
+                    }`}
+                  >
+                    {active ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Plus className="w-3.5 h-3.5 text-slate-400" />}
+                    <span>{perk}</span>
+                  </button>
+                );
+              })}
+            </div>
+          )}
+
+          {/* Quick Add Custom Perk */}
+          <div className="mt-2.5 flex items-center gap-2">
+            <input
+              type="text"
+              value={customPerkInput}
+              onChange={(e) => setCustomPerkInput(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault();
+                  handleAddCustomPerk(e);
+                }
+              }}
+              placeholder="+ Type extra perk (e.g. RO Water, AC)"
+              className="text-xs px-3 py-1.5 border border-slate-200 rounded-xl bg-white focus:ring-2 focus:ring-indigo-500 text-slate-800 placeholder-slate-400 max-w-xs shadow-2xs"
+            />
+            {customPerkInput.trim() && (
+              <button
+                type="button"
+                onClick={handleAddCustomPerk}
+                className="text-xs font-bold px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl cursor-pointer shadow-2xs"
+              >
+                Add Perk
+              </button>
+            )}
           </div>
         </div>
 
