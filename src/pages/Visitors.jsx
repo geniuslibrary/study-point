@@ -34,7 +34,7 @@ import {
   UserX,
   RotateCcw,
 } from 'lucide-react';
-import { formatDate } from '../utils/helpers';
+import { formatDate, getStoredShifts, getShiftInfo } from '../utils/helpers';
 
 export default function Visitors() {
   const { hasPermission } = useAuth();
@@ -56,19 +56,25 @@ export default function Visitors() {
   const [editingVisitor, setEditingVisitor] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  // Dynamic Shifts from Settings
+  const libraryShifts = useMemo(() => {
+    return getStoredShifts();
+  }, [isModalOpen]);
+
   // Form State
   const getInitialFormData = () => {
     const todayStr = new Date().toISOString().split('T')[0];
     const tomorrow = new Date();
     tomorrow.setDate(tomorrow.getDate() + 1);
     const tomorrowStr = tomorrow.toISOString().split('T')[0];
+    const shiftsList = getStoredShifts();
 
     return {
       name: '',
       phone: '',
       purpose: 'demo', // 'demo' | 'inquiry'
       examTarget: '',
-      shift: 'full_day',
+      shift: shiftsList[0]?.id || 'full_day',
       sectionId: '',
       seatId: '',
       startDate: todayStr,
@@ -133,7 +139,7 @@ export default function Visitors() {
       phone: visitor.phone || '',
       purpose: visitor.purpose || 'demo',
       examTarget: visitor.examTarget || '',
-      shift: visitor.shift || 'full_day',
+      shift: visitor.shift || libraryShifts[0]?.id || 'full_day',
       sectionId: visitor.sectionId || '',
       seatId: visitor.seatId || '',
       startDate: visitor.startDate || new Date().toISOString().split('T')[0],
@@ -426,8 +432,7 @@ export default function Visitors() {
       const demoOccupant = activeDemos.find((v) => v.seatId === seat.id);
 
       const hasFullDay = seatStudents.some((s) => !s.shift || s.shift === 'full_day');
-      const hasFirstHalf = seatStudents.some((s) => s.shift === 'first_half');
-      const hasSecondHalf = seatStudents.some((s) => s.shift === 'second_half');
+      const hasSelectedShift = seatStudents.some((s) => s.shift === formData.shift);
 
       let isAvailable = true;
       let reason = 'Available';
@@ -442,12 +447,10 @@ export default function Visitors() {
       } else if (formData.shift === 'full_day' && seatStudents.length > 0) {
         isAvailable = false;
         reason = 'Occupied in Shift';
-      } else if (formData.shift === 'first_half' && hasFirstHalf) {
+      } else if (hasSelectedShift) {
         isAvailable = false;
-        reason = '1st Half Booked';
-      } else if (formData.shift === 'second_half' && hasSecondHalf) {
-        isAvailable = false;
-        reason = '2nd Half Booked';
+        const sInfo = getShiftInfo(formData.shift);
+        reason = `${sInfo?.short || sInfo?.label || 'Shift'} Booked`;
       } else if (seat.status === 'reserved') {
         isAvailable = false;
         reason = 'Reserved';
@@ -722,8 +725,8 @@ export default function Visitors() {
                                 <span>{getSeatNumber(item.seatId)}</span>
                                 <span className="text-slate-400 font-normal">({getSectionName(item.sectionId)})</span>
                               </p>
-                              <p className="text-[11px] text-slate-500 capitalize mt-0.5">
-                                Shift: {item.shift?.replace('_', ' ') || 'Full Day'}
+                              <p className="text-[11px] text-slate-500 font-semibold mt-0.5">
+                                Shift: {getShiftInfo(item.shift)?.label || item.shift?.replace('_', ' ') || 'Full Day'}
                               </p>
                               {expiry.type === 'expired' && item.status !== 'converted' && item.status !== 'not_interested' && (
                                 <span className="inline-flex items-center gap-0.5 text-[10px] font-extrabold text-emerald-700 bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 rounded mt-0.5">
@@ -932,10 +935,11 @@ export default function Visitors() {
                 onChange={(e) => setFormData({ ...formData, shift: e.target.value })}
                 className="w-full px-3.5 py-2 border border-slate-300 rounded-xl text-xs font-semibold focus:ring-2 focus:ring-indigo-500 bg-white"
               >
-                <option value="full_day">Full Day (6 AM - 11 PM)</option>
-                <option value="first_half">1st Half / Morning (6 AM - 2 PM)</option>
-                <option value="second_half">2nd Half / Evening (2 PM - 11 PM)</option>
-                <option value="custom">Custom Timing</option>
+                {libraryShifts.map((s) => (
+                  <option key={s.id} value={s.id}>
+                    {s.label} ({s.timing || (s.start && s.end ? `${s.start} - ${s.end}` : s.short || s.id)})
+                  </option>
+                ))}
               </select>
             </div>
 

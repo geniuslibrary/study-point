@@ -35,13 +35,6 @@ export const SHIFTS = [
     short: '2 PM - 11 PM',
     color: 'purple',
   },
-  {
-    id: 'custom',
-    label: 'Custom Timing (कस्टम टाइम)',
-    timing: 'Custom Timing',
-    short: 'Custom',
-    color: 'teal',
-  },
 ];
 
 export const SEAT_STATUS = {

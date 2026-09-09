@@ -180,6 +180,9 @@ export const generateId = () => {
 
 // Dynamic Shifts Loader from LocalStorage / Settings
 export const getStoredShifts = () => {
+  const filterNonCustom = (list) =>
+    list.filter((s) => s.id !== 'custom' && s.id !== 'Custom Timing' && !s.label?.toLowerCase().startsWith('custom'));
+
   try {
     let tenantId = 'genius_root';
     try {
@@ -189,15 +192,15 @@ export const getStoredShifts = () => {
     const localTenant = localStorage.getItem(tenantKey);
     if (localTenant) {
       const parsed = JSON.parse(localTenant);
-      if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      if (Array.isArray(parsed) && parsed.length > 0) return filterNonCustom(parsed);
     }
     const data = localStorage.getItem('studypoint_shifts');
     if (data) {
       const parsed = JSON.parse(data);
-      if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      if (Array.isArray(parsed) && parsed.length > 0) return filterNonCustom(parsed);
     }
   } catch (e) {}
-  return SHIFTS;
+  return filterNonCustom(SHIFTS);
 };
 
 export const getShiftInfo = (shiftId) => {
