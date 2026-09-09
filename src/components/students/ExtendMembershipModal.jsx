@@ -25,7 +25,8 @@ export default function ExtendMembershipModal({
 }) {
   const [extraDays, setExtraDays] = useState(10);
   const [feeAmount, setFeeAmount] = useState('');
-  const [paymentType, setPaymentType] = useState('full'); // 'full' | 'partial'
+  const [isFreeExtension, setIsFreeExtension] = useState(false);
+  const [paymentType, setPaymentType] = useState('full'); // 'full' | 'partial' | 'pay_later'
   const [customPayingAmount, setCustomPayingAmount] = useState('');
   const [paymentMode, setPaymentMode] = useState('cash'); // 'cash' | 'upi' | 'bank' | 'split'
   const [splitCash, setSplitCash] = useState('');
@@ -34,24 +35,32 @@ export default function ExtendMembershipModal({
   const [notes, setNotes] = useState('');
   const [sendWhatsApp, setSendWhatsApp] = useState(true);
 
+  // Compute daily rate and suggested fee based on plan
+  const planPrice = Number(student?.planPrice || plan?.price) || 0;
+  const durationDays = student?.durationDays || (plan?.durationUnit === 'days' ? plan?.durationDays : 30);
+  const dailyRate = durationDays > 0 ? planPrice / durationDays : 25;
+  const suggestedFee = Math.round(dailyRate * (extraDays || 0));
+
   // Calculate base daily rate to suggest a reasonable default fee
   useEffect(() => {
     if (!student) return;
-    const planPrice = Number(student.planPrice || plan?.price) || 0;
-    const durationDays = student.durationDays || (plan?.durationUnit === 'days' ? plan?.durationDays : 30);
-    const dailyRate = durationDays > 0 ? planPrice / durationDays : 25;
-    const suggestedFee = Math.round(dailyRate * (extraDays || 0));
+    if (isFreeExtension) {
+      setFeeAmount('0');
+      return;
+    }
     setFeeAmount(suggestedFee > 0 ? suggestedFee.toString() : '0');
-  }, [student, plan, extraDays]);
+  }, [student, plan, extraDays, isFreeExtension]);
 
   if (!student) return null;
 
   const totalFee = Number(feeAmount) || 0;
   const actualPaidNow = totalFee <= 0
     ? 0
-    : paymentType === 'full'
-      ? totalFee
-      : Math.min(totalFee, Math.max(0, Number(customPayingAmount) || 0));
+    : paymentType === 'pay_later'
+      ? 0
+      : paymentType === 'full'
+        ? totalFee
+        : Math.min(totalFee, Math.max(0, Number(customPayingAmount) || 0));
   const remainingAfterPayment = Math.max(0, totalFee - actualPaidNow);
 
   // Compute current expiry date & remaining info
@@ -104,14 +113,17 @@ export default function ExtendMembershipModal({
   const handleTogglePaymentType = (type) => {
     setPaymentType(type);
     let targetPaid = totalFee;
-    if (type === 'partial') {
-      const suggested = customPayingAmount && Number(customPayingAmount) > 0
+    if (type === 'pay_later') {
+      targetPaid = 0;
+      setCustomPayingAmount('0');
+    } else if (type === 'partial') {
+      const suggested = customPayingAmount && Number(customPayingAmount) > 0 && Number(customPayingAmount) < totalFee
         ? Number(customPayingAmount)
         : Math.round(totalFee / 2) || totalFee;
       targetPaid = suggested;
       setCustomPayingAmount(String(suggested));
     }
-    if (paymentMode === 'split') {
+    if (paymentMode === 'split' && targetPaid > 0) {
       const half = Math.round(targetPaid / 2);
       setSplitCash(String(half));
       setSplitUpi(String(targetPaid - half));
@@ -121,13 +133,19 @@ export default function ExtendMembershipModal({
   const handleFeeAmountChange = (val) => {
     setFeeAmount(val);
     const num = Number(val) || 0;
+    if (num <= 0) {
+      setIsFreeExtension(true);
+      setPaymentType('full');
+      return;
+    }
+    setIsFreeExtension(false);
     if (paymentType === 'full') {
       if (paymentMode === 'split') {
         const half = Math.round(num / 2);
         setSplitCash(String(half));
         setSplitUpi(String(num - half));
       }
-    } else {
+    } else if (paymentType === 'partial') {
       if (Number(customPayingAmount) > num) {
         setCustomPayingAmount(String(num));
       }
@@ -158,7 +176,7 @@ export default function ExtendMembershipModal({
     }
 
     if (totalFee > 0 && paymentType === 'partial' && actualPaidNow <= 0) {
-      alert('कृपया आज जमा की जाने वाली राशि (Paying Now) दर्ज करें।');
+      alert('कृपया आज जमा की जाने वाली राशि (Paying Now) दर्ज करें। अगर आज कोई भुगतान नहीं हो रहा है तो "Pay Later / Due" चुनें।');
       return;
     }
 
@@ -182,12 +200,13 @@ export default function ExtendMembershipModal({
       paidNow: actualPaidNow,
       dueAmount: remainingAfterPayment,
       paymentType,
-      paymentMode,
-      splitDetails: finalSplitDetails,
+      paymentMode: actualPaidNow > 0 ? paymentMode : 'due',
+      splitDetails: actualPaidNow > 0 ? finalSplitDetails : null,
       newExpiryDate: newEndDate.toISOString(),
       notes: notes.trim(),
       paymentRemarks: paymentRemarks.trim(),
       sendWhatsApp,
+      isFree: totalFee === 0,
     };
 
     if (onExtend) {
@@ -310,9 +329,36 @@ export default function ExtendMembershipModal({
 
         {/* Extension Fee Amount */}
         <div>
-          <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">
-            Extension Fee Amount (अतिरिक्त शुल्क - ₹) *
-          </label>
+          <div className="flex items-center justify-between mb-1.5 flex-wrap gap-1">
+            <label className="block text-xs font-bold uppercase tracking-wider text-slate-700">
+              Extension Fee Amount (अतिरिक्त शुल्क - ₹) *
+            </label>
+            <div className="flex items-center gap-1.5">
+              {!isFreeExtension && totalFee > 0 ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsFreeExtension(true);
+                    setFeeAmount('0');
+                  }}
+                  className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-700 hover:text-emerald-800 bg-emerald-50 hover:bg-emerald-100 px-2 py-0.5 rounded-lg border border-emerald-200 transition-all cursor-pointer"
+                >
+                  ⚡ Free Extension (₹0)
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsFreeExtension(false);
+                    setFeeAmount(suggestedFee.toString());
+                  }}
+                  className="inline-flex items-center gap-1 text-[11px] font-bold text-indigo-700 hover:text-indigo-800 bg-indigo-50 hover:bg-indigo-100 px-2 py-0.5 rounded-lg border border-indigo-200 transition-all cursor-pointer"
+                >
+                  ↺ Auto Calculate (₹{suggestedFee})
+                </button>
+              )}
+            </div>
+          </div>
           <div className="relative">
             <span className="absolute left-3.5 top-2.5 text-slate-400 font-bold pointer-events-none">₹</span>
             <input
@@ -328,7 +374,7 @@ export default function ExtendMembershipModal({
             />
           </div>
           <p className="text-[11px] text-slate-400 mt-1">
-            Free extension ke liye ₹0 daal sakte hain
+            {totalFee === 0 ? '✨ निःशुल्क एक्सटेंशन (Free Extension) - कोई शुल्क नहीं कटेगा।' : 'Free extension ke liye ₹0 daal sakte hain ya upar ⚡ Free button dabayein'}
           </p>
         </div>
 
@@ -339,7 +385,7 @@ export default function ExtendMembershipModal({
               <span className="text-xs font-black text-slate-700 uppercase tracking-wider">
                 Payment Type (भुगतान प्रकार)
               </span>
-              <div className="flex items-center gap-1.5 bg-white p-1 rounded-xl border border-slate-200 shadow-2xs">
+              <div className="flex items-center gap-1.5 bg-white p-1 rounded-xl border border-slate-200 shadow-2xs flex-wrap">
                 <button
                   type="button"
                   onClick={() => handleTogglePaymentType('full')}
@@ -360,7 +406,18 @@ export default function ExtendMembershipModal({
                       : 'text-slate-600 hover:text-slate-900'
                   }`}
                 >
-                  ● Partial / Installment (किस्त)
+                  ● Partial (किस्त)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleTogglePaymentType('pay_later')}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                    paymentType === 'pay_later'
+                      ? 'bg-rose-600 text-white shadow-2xs'
+                      : 'text-slate-600 hover:text-rose-700'
+                  }`}
+                >
+                  ● Pay Later / Due (बाद में देंगे)
                 </button>
               </div>
             </div>
@@ -385,20 +442,34 @@ export default function ExtendMembershipModal({
               </div>
             )}
 
+            {paymentType === 'pay_later' && (
+              <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl text-xs space-y-1 animate-fadeIn">
+                <p className="font-extrabold text-rose-900 flex items-center gap-1.5">
+                  <span>⏳ Pay Later / Udhaar Selected:</span>
+                  <span className="bg-rose-100 text-rose-800 px-2 py-0.5 rounded-md text-[11px] font-black border border-rose-200">
+                    आज कोई भुगतान नहीं (₹0 Now)
+                  </span>
+                </p>
+                <p className="text-rose-700 text-[11px] leading-relaxed">
+                  Student ki validity turant extend ho jayegi aur pura shulk <strong>₹{totalFee} Pending Due</strong> me save ho jayega. Ise aap baad me "Collect Fee" se jama kar sakte hain.
+                </p>
+              </div>
+            )}
+
             {/* Live 3-Column Summary Bar */}
             <div className="grid grid-cols-3 gap-2 pt-1.5 border-t border-slate-200 text-center text-xs">
               <div className="bg-white p-2 rounded-xl border border-slate-200">
                 <span className="text-[10px] text-slate-400 font-bold uppercase block">Total Plan Fee</span>
                 <span className="font-black text-slate-800 text-sm">{formatCurrency(totalFee)}</span>
               </div>
-              <div className="bg-emerald-50 p-2 rounded-xl border border-emerald-200">
-                <span className="text-[10px] text-emerald-600 font-bold uppercase block">Paying Now</span>
-                <span className="font-black text-emerald-800 text-sm">{formatCurrency(actualPaidNow)}</span>
+              <div className={`p-2 rounded-xl border ${actualPaidNow > 0 ? 'bg-emerald-50 border-emerald-200' : 'bg-slate-50 border-slate-200'}`}>
+                <span className={`text-[10px] font-bold uppercase block ${actualPaidNow > 0 ? 'text-emerald-600' : 'text-slate-400'}`}>Paying Now</span>
+                <span className={`font-black text-sm ${actualPaidNow > 0 ? 'text-emerald-800' : 'text-slate-600'}`}>{formatCurrency(actualPaidNow)}</span>
               </div>
               <div
                 className={`p-2 rounded-xl border ${
                   remainingAfterPayment > 0
-                    ? 'bg-amber-50 border-amber-300 text-amber-900'
+                    ? 'bg-rose-50 border-rose-300 text-rose-900 ring-1 ring-rose-200'
                     : 'bg-slate-100 border-slate-200 text-slate-600'
                 }`}
               >
@@ -409,8 +480,8 @@ export default function ExtendMembershipModal({
           </div>
         )}
 
-        {/* Payment Mode Selector (if Fee > 0) */}
-        {totalFee > 0 && (
+        {/* Payment Mode Selector (Only if Fee > 0 and Paid Now > 0) */}
+        {totalFee > 0 && actualPaidNow > 0 ? (
           <div className="space-y-2.5">
             <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider">
               Payment Mode (भुगतान माध्यम) *
@@ -479,10 +550,17 @@ export default function ExtendMembershipModal({
               </div>
             )}
           </div>
-        )}
+        ) : totalFee > 0 && actualPaidNow === 0 ? (
+          <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-600 flex items-center justify-between">
+            <span className="font-bold text-slate-700">Payment Status (भुगतान स्थिति):</span>
+            <span className="font-extrabold text-rose-700 bg-rose-50 px-2.5 py-1 rounded-lg border border-rose-200">
+              🔴 Pay Later / Due (₹{remainingAfterPayment} बाकी)
+            </span>
+          </div>
+        ) : null}
 
         {/* Optional Payment Remarks / Transaction ID */}
-        {totalFee > 0 && (
+        {totalFee > 0 && actualPaidNow > 0 && (
           <div>
             <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">
               Payment Remarks / Transaction ID (Optional)
@@ -540,13 +618,23 @@ export default function ExtendMembershipModal({
           <Button
             type="submit"
             disabled={loading}
-            className="w-full sm:w-auto bg-indigo-600 hover:bg-indigo-700 text-white font-bold"
+            className={`w-full sm:w-auto font-bold text-white ${
+              totalFee <= 0
+                ? 'bg-emerald-600 hover:bg-emerald-700'
+                : paymentType === 'pay_later' || actualPaidNow <= 0
+                  ? 'bg-rose-600 hover:bg-rose-700'
+                  : 'bg-indigo-600 hover:bg-indigo-700'
+            }`}
           >
             {loading
               ? 'Extending...'
-              : actualPaidNow > 0
-                ? `Confirm & Pay ${formatCurrency(actualPaidNow)} (+${extraDays} Days)`
-                : `Confirm & Extend (+${extraDays} Days)`}
+              : totalFee <= 0
+                ? `Confirm & Extend (+${extraDays} Days - Free)`
+                : paymentType === 'pay_later' || actualPaidNow <= 0
+                  ? `Confirm & Save as Due (₹${remainingAfterPayment} बाकी) (+${extraDays} Days)`
+                  : remainingAfterPayment > 0
+                    ? `Confirm & Pay ₹${actualPaidNow} (Due: ₹${remainingAfterPayment}) (+${extraDays} Days)`
+                    : `Confirm & Pay ₹${actualPaidNow} (+${extraDays} Days)`}
           </Button>
         </div>
       </form>

@@ -189,20 +189,31 @@ export default function FeeReceipt({ isOpen, onClose, fee, student, section, sea
     }
 
     const paymentModeLabel = getPaymentModeDisplay(fee.paymentMode, fee.splitDetails);
-    const feeStatusLine = isPartial
-      ? `🟡 *Status:* PARTIALLY PAID (Remaining Due: ₹${dueAmount})\n`
-      : `✅ *Status:* PAID & VERIFIED\n`;
+    const isZeroPaid = Number(paidAmount) <= 0;
+    const feeStatusLine = isZeroPaid
+      ? `🔴 *Status:* PAYMENT DUE / UNPAID (Due Amount: ₹${dueAmount})\n`
+      : isPartial
+        ? `🟡 *Status:* PARTIALLY PAID (Remaining Due: ₹${dueAmount})\n`
+        : `✅ *Status:* PAID & VERIFIED\n`;
 
-    const financialSummary = isPartial
+    const financialSummary = isZeroPaid
       ? `💰 *Total Plan Fee:* ₹${totalPayable}\n` +
-        `💵 *Paid Amount:* ₹${paidAmount}\n` +
+        `💵 *Paid Amount:* ₹0\n` +
         `⏳ *Remaining Balance Due:* ₹${dueAmount}\n`
-      : `💰 *Amount Paid:* ₹${paidAmount}\n` +
-        `⚖️ *Balance Due:* ₹0 (Nil)\n`;
+      : isPartial
+        ? `💰 *Total Plan Fee:* ₹${totalPayable}\n` +
+          `💵 *Paid Amount:* ₹${paidAmount}\n` +
+          `⏳ *Remaining Balance Due:* ₹${dueAmount}\n`
+        : `💰 *Amount Paid:* ₹${paidAmount}\n` +
+          `⚖️ *Balance Due:* ₹0 (Nil)\n`;
+
+    const greetingLine = isZeroPaid
+      ? `Your membership validity has been extended. The fee of *₹${dueAmount}* is currently pending/due.\n\n`
+      : `Your fee payment of *₹${paidAmount}* has been confirmed!\n\n`;
 
     const message = `🎉 *FEE PAYMENT RECEIPT - ${libraryTitle.toUpperCase()}*\n\n` +
       `Hello *${student?.name || 'Student'}*,\n` +
-      `Your fee payment of *₹${paidAmount}* has been confirmed!\n\n` +
+      greetingLine +
       `🧾 *Receipt No:* ${receiptNo}\n` +
       `📦 *Plan:* ${planTitle}\n` +
       (perksSummary ? perksSummary : '') +
@@ -428,7 +439,11 @@ export default function FeeReceipt({ isOpen, onClose, fee, student, section, sea
                 </strong>
               </p>
               {fee.notes && <p className="text-slate-400 text-[11px] mt-0.5">Remarks: {fee.notes}</p>}
-              {isPartial ? (
+              {Number(paidAmount) <= 0 ? (
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-rose-100 text-rose-900 border border-rose-300 rounded-full font-black text-xs uppercase mt-2">
+                  <span>🔴 PAYMENT DUE / UNPAID (₹{dueAmount} DUE)</span>
+                </span>
+              ) : isPartial ? (
                 <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-amber-100 text-amber-900 border border-amber-300 rounded-full font-black text-xs uppercase mt-2">
                   <span>🟡 PARTIALLY PAID (₹{dueAmount} DUE)</span>
                 </span>

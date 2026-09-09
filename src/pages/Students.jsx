@@ -439,6 +439,12 @@ export default function Students() {
 
       const updatedDurationDays = (Number(st.durationDays) || 0) + extraDays;
 
+      const finalTotalFee = Number(totalFee !== undefined ? totalFee : feeAmount) || 0;
+      const finalPaidNow = Number(paidNow !== undefined ? paidNow : finalTotalFee) || 0;
+      const finalDueAmount = Number(dueAmount !== undefined ? dueAmount : Math.max(0, finalTotalFee - finalPaidNow)) || 0;
+      const existingDue = Number(st.dueFeeAmount) || 0;
+      const updatedDueFeeAmount = existingDue + finalDueAmount;
+
       // 1. Update student
       await updateDocument(COLLECTIONS.STUDENTS, studentId, {
         membershipEnd: newExpiryDate,
@@ -448,6 +454,7 @@ export default function Students() {
         isDayBased: true,
         lastExtendedAt: new Date().toISOString(),
         lastExtendedDays: extraDays,
+        dueFeeAmount: updatedDueFeeAmount,
       });
 
       // 2. If student has an assigned seat and was marked expired, reactivate seat occupancy
@@ -462,9 +469,6 @@ export default function Students() {
 
       // 3. Create fee record if total fee > 0
       let createdFeeDoc = null;
-      const finalTotalFee = Number(totalFee !== undefined ? totalFee : feeAmount) || 0;
-      const finalPaidNow = Number(paidNow !== undefined ? paidNow : finalTotalFee) || 0;
-      const finalDueAmount = Number(dueAmount !== undefined ? dueAmount : Math.max(0, finalTotalFee - finalPaidNow)) || 0;
 
       if (finalTotalFee > 0) {
         const isFullyPaid = finalDueAmount <= 0;
@@ -504,8 +508,8 @@ export default function Students() {
           discountAmount: 0,
           addonCharges: {},
           status: feeStatus,
-          paymentMode: paymentMode || 'cash',
-          splitDetails: splitDetails || null,
+          paymentMode: finalPaidNow > 0 ? (paymentMode || 'cash') : 'due',
+          splitDetails: finalPaidNow > 0 ? (splitDetails || null) : null,
           payments,
           paidDate: finalPaidNow > 0 ? todayStr : null,
           date: todayDateOnly,
@@ -536,11 +540,13 @@ export default function Students() {
           DEFAULT_WHATSAPP_TEMPLATES.membershipExtended?.template;
         const assignedSeat = seats.find((s) => s.id === st.seatId);
         const feeDisplayStr = finalDueAmount > 0
-          ? `${finalPaidNow} (Paid) / Due: ₹${finalDueAmount}`
+          ? (finalPaidNow > 0 ? `₹${finalPaidNow} (Paid) • Due: ₹${finalDueAmount}` : `₹0 (Paid) • Due: ₹${finalDueAmount} (Unpaid)`)
           : String(finalPaidNow || finalTotalFee);
-        const modeDisplayStr = paymentMode === 'split' && splitDetails
-          ? `SPLIT (Cash: ₹${splitDetails.cash || 0} + UPI: ₹${splitDetails.upi || 0})`
-          : (paymentMode || 'cash').toUpperCase();
+        const modeDisplayStr = finalPaidNow <= 0
+          ? 'PAY LATER / DUE'
+          : paymentMode === 'split' && splitDetails
+            ? `SPLIT (Cash: ₹${splitDetails.cash || 0} + UPI: ₹${splitDetails.upi || 0})`
+            : (paymentMode || 'cash').toUpperCase();
 
         const msg = renderTemplate(tpl, {
           student_name: st.name,
