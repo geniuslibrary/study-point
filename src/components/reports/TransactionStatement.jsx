@@ -10,14 +10,33 @@ export default function TransactionStatement({
     expenses, 
     totalRevenue, 
     totalExpense, 
-    netProfit 
+    netProfit,
+    libraryInfo: propLibraryInfo
 }) {
-    const libraryTitle = (getTenantItem('library_name', 'Study Point Library') || 'Study Point Library').toUpperCase();
+    const getStoredSettings = () => {
+        try {
+            const raw = getTenantItem('settings');
+            if (raw) return typeof raw === 'string' ? JSON.parse(raw) : raw;
+        } catch (e) {}
+        return {};
+    };
+
+    const stored = getStoredSettings();
+    const libInfo = propLibraryInfo || stored || {};
+
+    const libraryTitle = (libInfo.studyPointName || getTenantItem('library_name', 'Study Point Library') || 'Study Point Library').toUpperCase();
+    const ownerName = libInfo.ownerName || 'Study Point Owner';
+    const address = libInfo.address || '';
+    const phone = libInfo.phone || '';
+    const email = libInfo.email || '';
+    const logoUrl = libInfo.logoUrl || '';
+    const signatureUrl = libInfo.signatureUrl || '';
+
     // Combine fees and expenses into a single ledger timeline
     const transactions = [];
     
     fees.forEach(f => {
-        if(f.status === "paid") {
+        if(f.status === "paid" || f.status === "partial") {
             let dStr = "";
             try {
                 if (f.paidDate) {
@@ -31,14 +50,19 @@ export default function TransactionStatement({
                 dStr = f.month ? f.month + "-01" : "2026-01-01";
             }
             
+            const collectedAmt = Number(f.paidAmount !== undefined && f.paidAmount !== null ? f.paidAmount : f.amount) || 0;
+            const modeText = f.paymentMode === 'split'
+                ? `Split (Cash: ₹${f.splitDetails?.cash || 0} + UPI: ₹${f.splitDetails?.upi || 0})`
+                : (f.paymentMode || "CASH").toUpperCase();
+
             transactions.push({
                 id: "f_" + f.id,
                 date: dStr,
                 type: "IN",
                 category: "Fee Collection",
-                description: f.studentName ? `Fee from ${f.studentName}` : "Student Fee Payment",
-                amount: Number(f.amount) || 0,
-                mode: f.paymentMode || "CASH",
+                description: f.studentName ? `Fee from ${f.studentName} (${modeText})` : `Student Fee (${modeText})`,
+                amount: collectedAmt,
+                mode: modeText,
                 rawDate: new Date(dStr || 0)
             });
         }
@@ -72,19 +96,46 @@ export default function TransactionStatement({
     
     return (
         <div className="bg-white p-8 rounded-2xl border border-gray-200 print:border-none print:shadow-none print:m-0 print:p-0">
-            <div className="flex justify-between items-start border-b border-gray-200 pb-6 mb-6">
-                <div>
-                    <h1 className="text-2xl font-black text-gray-900 flex items-center gap-2">
-                        <Building2 className="text-indigo-600" /> {libraryTitle}
-                    </h1>
-                    <p className="text-sm text-gray-500 font-bold mt-1">Official Financial Statement</p>
+            {/* Header with Library Details and Logo */}
+            <div className="flex justify-between items-start border-b-2 border-gray-200 pb-6 mb-6">
+                <div className="flex items-center gap-4">
+                    {logoUrl ? (
+                        <img 
+                            src={logoUrl} 
+                            alt="Library Logo" 
+                            crossOrigin="anonymous"
+                            className="max-h-16 max-w-32 object-contain rounded-xl border border-gray-200 p-1 bg-white shrink-0"
+                        />
+                    ) : (
+                        <div className="w-14 h-14 rounded-2xl bg-indigo-600 text-white flex items-center justify-center font-black shadow-sm shrink-0">
+                            <Building2 className="w-7 h-7" />
+                        </div>
+                    )}
+                    <div>
+                        <h1 className="text-2xl font-black text-gray-900 tracking-tight uppercase">
+                            {libraryTitle}
+                        </h1>
+                        <p className="text-xs font-bold text-indigo-600 uppercase tracking-widest mt-0.5">
+                            Official Financial Statement & Ledger
+                        </p>
+                        {address && <p className="text-xs text-gray-600 font-medium mt-0.5">{address}</p>}
+                        {(phone || email) && (
+                            <p className="text-[11px] text-gray-500 mt-0.5">
+                                {phone ? `Phone: ${phone}` : ''} {phone && email ? '• ' : ''}{email ? `Email: ${email}` : ''}
+                            </p>
+                        )}
+                    </div>
                 </div>
                 <div className="text-right">
-                    <h2 className="text-lg font-bold text-gray-800">{title}</h2>
-                    <p className="text-xs text-gray-500 font-semibold">{dateRangeStr}</p>
+                    <span className="inline-block px-3 py-1 bg-indigo-50 text-indigo-700 border border-indigo-200 rounded-lg text-xs font-black uppercase">
+                        {title}
+                    </span>
+                    <p className="text-xs text-gray-800 font-bold mt-1.5">{dateRangeStr}</p>
+                    <p className="text-[10px] text-gray-400 mt-0.5">Date: {formatDate(new Date().toISOString().split("T")[0])}</p>
                 </div>
             </div>
             
+            {/* Revenue, Expenses, Net Summary Cards */}
             <div className="grid grid-cols-3 gap-4 mb-8">
                 <div className="bg-emerald-50 p-4 rounded-xl border border-emerald-100">
                     <p className="text-xs font-bold text-emerald-800 uppercase">Total Revenue (IN)</p>
@@ -102,6 +153,7 @@ export default function TransactionStatement({
                 </div>
             </div>
             
+            {/* Transaction Details Table */}
             <table className="w-full text-left text-sm">
                 <thead>
                     <tr className="bg-gray-50 text-gray-600 border-b border-gray-200">
@@ -109,7 +161,7 @@ export default function TransactionStatement({
                         <th className="p-3 font-bold">Type</th>
                         <th className="p-3 font-bold">Category</th>
                         <th className="p-3 font-bold">Details</th>
-                        <th className="p-3 font-bold text-right">Amount (?)</th>
+                        <th className="p-3 font-bold text-right">Amount (₹)</th>
                     </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
@@ -135,9 +187,58 @@ export default function TransactionStatement({
                 </tbody>
             </table>
             
-            <div className="mt-12 pt-4 border-t border-gray-200 flex justify-between text-xs text-gray-400 font-medium">
-                <p>Generated by Study Point System on {formatDate(new Date().toISOString().split("T")[0])}</p>
-                <p>Authorized Signature: ____________________</p>
+            {/* Footer with Library Info, System Timestamp & Authorized Signature */}
+            <div className="mt-12 pt-6 border-t-2 border-gray-200 flex items-end justify-between text-xs">
+                <div className="space-y-1 text-gray-500">
+                    <p className="font-bold text-gray-800 uppercase tracking-wide">
+                        {libraryTitle}
+                    </p>
+                    <p className="text-[11px] text-gray-500">
+                        Generated by Study Point System on {formatDate(new Date().toISOString().split("T")[0])}
+                    </p>
+                    <p className="text-[10px] text-gray-400">Official computer-generated financial statement & ledger.</p>
+                </div>
+
+                <div className="text-center min-w-44">
+                    {signatureUrl ? (
+                        <div className="flex flex-col items-center">
+                            <img 
+                                src={signatureUrl} 
+                                alt="Authorized Signature" 
+                                crossOrigin="anonymous"
+                                className="max-h-14 max-w-36 object-contain mb-1"
+                            />
+                            <div className="border-t border-gray-400 w-full pt-1">
+                                <p className="text-[11px] font-black uppercase tracking-wider text-gray-800">
+                                    Authorized Signatory
+                                </p>
+                                <p className="text-xs font-extrabold text-indigo-700">
+                                    {ownerName}
+                                </p>
+                                <p className="text-[10px] font-bold text-gray-500 uppercase">
+                                    {libraryTitle}
+                                </p>
+                            </div>
+                        </div>
+                    ) : (
+                        <div className="flex flex-col items-center">
+                            <div className="h-12 flex items-end justify-center pb-1">
+                                <span className="text-[11px] italic text-gray-400">Sign / Stamp</span>
+                            </div>
+                            <div className="border-t border-gray-400 w-full pt-1">
+                                <p className="text-[11px] font-black uppercase tracking-wider text-gray-800">
+                                    Authorized Signatory
+                                </p>
+                                <p className="text-xs font-extrabold text-indigo-700">
+                                    {ownerName}
+                                </p>
+                                <p className="text-[10px] font-bold text-gray-500 uppercase">
+                                    {libraryTitle}
+                                </p>
+                            </div>
+                        </div>
+                    )}
+                </div>
             </div>
         </div>
     );

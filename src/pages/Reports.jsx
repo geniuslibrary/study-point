@@ -25,7 +25,8 @@ import {
 } from 'lucide-react';
 import { COLLECTIONS } from '../utils/constants';
 import { formatCurrency, formatDate, getMonthName } from '../utils/helpers';
-import { fetchCollectionData } from '../firebase/storageService';
+import { fetchCollectionData, getFirestoreDocRef, getTenantItem } from '../firebase/storageService';
+import { getDoc } from 'firebase/firestore';
 import { createPortal } from 'react-dom';
 import TransactionStatement from '../components/reports/TransactionStatement';
 
@@ -39,6 +40,23 @@ export default function Reports() {
   const [students, setStudents] = useState([]);
   const [sections, setSections] = useState([]);
   const [seats, setSeats] = useState([]);
+
+  // Library branding & signature from settings
+  const [libraryInfo, setLibraryInfo] = useState(() => {
+    try {
+      const raw = getTenantItem('settings');
+      if (raw) return typeof raw === 'string' ? JSON.parse(raw) : raw;
+    } catch (e) {}
+    return {
+      studyPointName: 'Royal Study Point & Library',
+      ownerName: 'Manish',
+      phone: '',
+      email: '',
+      address: '',
+      logoUrl: '',
+      signatureUrl: '',
+    };
+  });
 
   // Date selection states
   const todayStr = new Date().toISOString().split('T')[0];
@@ -83,6 +101,17 @@ export default function Reports() {
       setStudents(stuDocs);
       setSections(secDocs);
       setSeats(seatDocs);
+
+      // Fetch cloud settings for owner name, library name, logo, signature
+      try {
+        const sDoc = await getDoc(getFirestoreDocRef(COLLECTIONS.SETTINGS, 'ownerProfile'));
+        if (sDoc.exists()) {
+          const sData = sDoc.data();
+          setLibraryInfo((prev) => ({ ...prev, ...sData }));
+        }
+      } catch (sErr) {
+        console.warn('Settings fetch error in reports:', sErr.message);
+      }
     } catch (err) {
       console.error('Error fetching report data:', err);
     } finally {
@@ -102,7 +131,7 @@ export default function Reports() {
       window.print();
       document.body.classList.remove('is-printing-receipt');
       setShowStatementMode(null);
-    }, 100);
+    }, 250);
   };
 
   const handlePrint = () => {
@@ -1123,6 +1152,7 @@ export default function Reports() {
                 totalRevenue={showStatementMode === "daily" ? dailyTotalCollection : showStatementMode === "monthly" ? monthlyTotalRevenue : customTotalRevenue}
                 totalExpense={showStatementMode === "daily" ? dailyTotalExpense : showStatementMode === "monthly" ? monthlyTotalExpense : customTotalExpense}
                 netProfit={showStatementMode === "daily" ? dailyNetCashFlow : showStatementMode === "monthly" ? monthlyNetProfit : customNetProfit}
+                libraryInfo={libraryInfo}
             />,
             portalTarget
         )}
