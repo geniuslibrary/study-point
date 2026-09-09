@@ -128,11 +128,12 @@ export default function Dashboard() {
         fetchCollectionData(COLLECTIONS.STAFF_USERS),
       ]);
 
-      setAllStudentsList(students);
+      const validStudents = (students || []).filter((s) => !s.isDeleted);
+      setAllStudentsList(validStudents);
       setAllPlansList(allPlans || []);
       setAllStaffList(allStaff || []);
 
-      const activeStudents = (students || []).filter((s) => s.status === 'active');
+      const activeStudents = validStudents.filter((s) => s.status === 'active');
       const occupiedSeatIds = new Set(activeStudents.map((s) => s.seatId).filter(Boolean));
 
       // Deduplicate seats to get exact physical seat count

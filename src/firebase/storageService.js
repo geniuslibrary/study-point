@@ -163,8 +163,10 @@ const fetchWithTimeout = (promise, ms = 4000) => {
   ]);
 };
 
-export const fetchCollectionData = async (collectionName) => {
+export const fetchCollectionData = async (collectionName, options = {}) => {
   const tenantId = getActiveTenantId();
+  let result = null;
+
   // 1. Try to read from Firestore
   try {
     const collRef = getFirestoreCollectionRef(collectionName, tenantId);
@@ -174,25 +176,35 @@ export const fetchCollectionData = async (collectionName) => {
 
       if (cloudItems.length > 0) {
         setLocalCollection(collectionName, cloudItems);
-        return cloudItems;
+        result = cloudItems;
       } else {
         // If cloud is empty but local cache already has items (e.g. freshly seeded), preserve local data
         const localData = getLocalCollection(collectionName);
         if (localData && localData.length > 0) {
-          return localData;
+          result = localData;
+        } else {
+          setLocalCollection(collectionName, []);
+          result = [];
         }
-        setLocalCollection(collectionName, []);
-        return [];
       }
     }
   } catch (err) {
     // Graceful fallback to local cache on timeout/offline
     console.warn(`Firestore read failed for ${collectionName} (tenant: ${tenantId}), using cache.`, err);
+    result = getLocalCollection(collectionName) || [];
   }
 
-  // 2. Return local collection data
-  const localData = getLocalCollection(collectionName);
-  return localData || [];
+  // 2. Return local collection data if result not obtained
+  if (!result || result.length === 0) {
+    result = getLocalCollection(collectionName) || [];
+  }
+
+  // Filter out soft-deleted students across the entire system unless specifically requested
+  // if (collectionName === COLLECTIONS.STUDENTS && !options?.includeDeleted && Array.isArray(result)) {
+  //   return result.filter((item) => !item.isDeleted);
+  // }
+
+  return result || [];
 };
 
 export const createDocument = async (collectionName, data, customId = null) => {

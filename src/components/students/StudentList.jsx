@@ -30,6 +30,7 @@ export default function StudentList({
   sections = [],
   seats = [],
   plans = [],
+  fees = [],
   onEdit,
   onDelete,
   onCollectFee,
@@ -40,11 +41,13 @@ export default function StudentList({
   canDelete = true,
   canCollectFee = true,
   initialFilterShift = '',
+  initialFilterExpiry = '',
 }) {
   const [activeTab, setActiveTab] = useState('active'); // 'active' | 'left' | 'all'
   const [search, setSearch] = useState('');
   const [filterSection, setFilterSection] = useState('');
   const [filterShift, setFilterShift] = useState(initialFilterShift);
+  const [filterExpiry, setFilterExpiry] = useState(initialFilterExpiry);
   const [viewMode, setViewMode] = useState(() => {
     try {
       return localStorage.getItem('studypoint_student_view_mode') || 'table';
@@ -59,10 +62,17 @@ export default function StudentList({
     }
   }, [initialFilterShift]);
 
-  const activeCount = students.filter((s) => s.status === 'active').length;
-  const leftCount = students.filter((s) => s.status === 'left' || s.status === 'inactive').length;
+  useEffect(() => {
+    if (initialFilterExpiry) {
+      setFilterExpiry(initialFilterExpiry);
+    }
+  }, [initialFilterExpiry]);
 
-  const filtered = students.filter((s) => {
+  const nonDeletedStudents = students.filter((s) => !s.isDeleted);
+  const activeCount = nonDeletedStudents.filter((s) => s.status === 'active').length;
+  const leftCount = nonDeletedStudents.filter((s) => s.status === 'left' || s.status === 'inactive').length;
+
+  const filtered = nonDeletedStudents.filter((s) => {
     const isLeft = s.status === 'left' || s.status === 'inactive';
     const matchTab =
       activeTab === 'all' ||
@@ -78,7 +88,27 @@ export default function StudentList({
     const studentShift = s.shift || 'full_day';
     const matchShift = !filterShift || studentShift === filterShift;
 
-    return matchTab && matchSearch && matchSection && matchShift;
+    let matchExpiry = true;
+    if (filterExpiry) {
+      if (!s.membershipEnd) {
+        matchExpiry = false;
+      } else {
+        const remaining = getMembershipRemainingDays(s.membershipEnd);
+        const diffDays = remaining?.diffDays;
+        if (filterExpiry === 'today') {
+          matchExpiry = diffDays === 0 || remaining?.isEndingToday;
+        } else if (filterExpiry === 'expired') {
+          matchExpiry = diffDays < 0 || remaining?.isExpired;
+        } else {
+          const maxDays = Number(filterExpiry);
+          if (!isNaN(maxDays)) {
+            matchExpiry = diffDays >= 0 && diffDays <= maxDays;
+          }
+        }
+      }
+    }
+
+    return matchTab && matchSearch && matchSection && matchShift && matchExpiry;
   });
 
   const getSectionName = (sectionId) => sections.find((s) => s.id === sectionId)?.name || '—';
@@ -87,6 +117,37 @@ export default function StudentList({
     return seat ? `#${seat.seatNumber}` : '—';
   };
   const getPlan = (planId) => plans.find((p) => p.id === planId);
+
+  const isStudentFeePaid = (student) => {
+    if (!student) return false;
+    if (student.status === 'left' || student.status === 'inactive') return false;
+
+    // 1. Check if membership has expired or is overdue
+    const remaining = getMembershipRemainingDays(student.membershipEnd);
+    const isExpired = remaining?.isExpired || (remaining?.diffDays !== null && remaining?.diffDays < 0);
+    if (isExpired) return false;
+
+    const studentFees = (fees || []).filter((f) => f.studentId === student.id);
+
+    // 2. If there is ANY pending fee record for this student, fee is not yet collected/paid
+    const hasPending = studentFees.some((f) => f.status === 'pending');
+    if (hasPending) return false;
+
+    // 3. If there is an explicitly paid fee record for this student
+    const hasPaid = studentFees.some((f) => f.status === 'paid');
+    if (hasPaid) return true;
+
+    // 4. If marked as hasPaidBefore and still within active non-expired period
+    if (student.hasPaidBefore && remaining?.diffDays >= 0) return true;
+
+    // 5. If net fee is 0 (100% discount or 0 price plan) and no pending fee
+    const plan = getPlan(student.membershipPlanId);
+    const planPrice = Number(student.planPrice || plan?.price) || 0;
+    const discount = Number(student.discountAmount) || 0;
+    if (planPrice - discount <= 0 && !hasPending && studentFees.length > 0) return true;
+
+    return false;
+  };
 
   const getShiftBadge = (shiftId, shiftTiming) => {
     switch (shiftId) {
@@ -204,12 +265,33 @@ export default function StudentList({
             ))}
           </select>
 
-          {(search || filterSection || filterShift) && (
+          {/* Expire In Filter */}
+          <select
+            value={filterExpiry}
+            onChange={(e) => setFilterExpiry(e.target.value)}
+            className={`px-3 py-1.5 bg-white border rounded-xl text-xs font-bold outline-none cursor-pointer shadow-2xs transition-colors ${
+              filterExpiry ? 'border-amber-400 text-amber-900 bg-amber-50/70' : 'border-slate-200 text-slate-700'
+            }`}
+          >
+            <option value="">Expire In: All</option>
+            <option value="today">⚠️ Expiring Today (0 Days)</option>
+            <option value="2">⏳ In 2 Days (≤ 2 दिन)</option>
+            <option value="3">⏳ In 3 Days (≤ 3 दिन)</option>
+            <option value="5">⏳ In 5 Days (≤ 5 दिन)</option>
+            <option value="7">⏳ In 7 Days (≤ 1 हफ्ता)</option>
+            <option value="10">⏳ In 10 Days (≤ 10 दिन)</option>
+            <option value="15">⏳ In 15 Days (≤ 15 दिन)</option>
+            <option value="30">⏳ In 30 Days (≤ 1 महीना)</option>
+            <option value="expired">🔴 Already Expired / Overdue</option>
+          </select>
+
+          {(search || filterSection || filterShift || filterExpiry) && (
             <button
               onClick={() => {
                 setSearch('');
                 setFilterSection('');
                 setFilterShift('');
+                setFilterExpiry('');
               }}
               className="px-2.5 py-1 text-xs text-slate-400 hover:text-rose-600 font-bold transition-colors cursor-pointer"
             >
@@ -283,6 +365,7 @@ export default function StudentList({
                 const netFee = Math.max(0, planPrice - discount);
                 const planLabel = student.durationLabel || (student.isDayBased ? `${student.durationDays} Days Plan` : plan?.name) || 'Standard Monthly';
                 const remainingInfo = getMembershipRemainingDays(student.membershipEnd);
+                const isPaid = isStudentFeePaid(student);
 
                 return (
                   <tr key={student.id} className="hover:bg-slate-50/80 transition-colors">
@@ -423,15 +506,29 @@ export default function StudentList({
                         )}
 
                         {!isLeft && canCollectFee && (
-                          <button
-                            onClick={() => onCollectFee(student)}
-                            className="px-2 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-[11px] font-bold inline-flex items-center gap-1 cursor-pointer transition-colors shadow-2xs shrink-0 whitespace-nowrap"
-                            title="Collect Fee / Record Payment"
-                            style={{ flexShrink: 0 }}
-                          >
-                            <IndianRupee size={11} />
-                            <span>Fee</span>
-                          </button>
+                          isPaid ? (
+                            <button
+                              type="button"
+                              disabled
+                              className="px-2 py-1 bg-slate-100 text-slate-400 border border-slate-200 rounded-lg text-[11px] font-bold inline-flex items-center gap-1 cursor-not-allowed opacity-80 shrink-0 whitespace-nowrap"
+                              title="Fee already paid / deposited (फीस जमा है)"
+                              style={{ flexShrink: 0 }}
+                            >
+                              <CheckCircle size={11} className="text-emerald-600" />
+                              <span>Paid</span>
+                            </button>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={() => onCollectFee(student)}
+                              className="px-2 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-[11px] font-bold inline-flex items-center gap-1 cursor-pointer transition-colors shadow-2xs shrink-0 whitespace-nowrap"
+                              title="Collect Fee / Record Payment (फीस जमा करें)"
+                              style={{ flexShrink: 0 }}
+                            >
+                              <IndianRupee size={11} />
+                              <span>Fee</span>
+                            </button>
+                          )
                         )}
 
                         <div className="h-3.5 w-px bg-slate-200 mx-0.5 shrink-0" style={{ flexShrink: 0 }} />
@@ -491,6 +588,7 @@ export default function StudentList({
             const netFee = Math.max(0, planPrice - discount);
             const planLabel = student.durationLabel || (student.isDayBased ? `${student.durationDays} Days Plan` : plan?.name) || 'Standard Monthly';
             const remainingInfo = getMembershipRemainingDays(student.membershipEnd);
+            const isPaid = isStudentFeePaid(student);
 
             return (
               <div
@@ -600,14 +698,27 @@ export default function StudentList({
                     </button>
                   )}
                   {!isLeft && canCollectFee && (
-                    <button
-                      onClick={() => onCollectFee(student)}
-                      className="px-2 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-1 cursor-pointer transition-colors shadow-2xs"
-                      title="Collect Fee"
-                    >
-                      <IndianRupee size={13} className="shrink-0" />
-                      <span>Fee</span>
-                    </button>
+                    isPaid ? (
+                      <button
+                        type="button"
+                        disabled
+                        className="px-2 py-1.5 bg-slate-100 text-slate-400 border border-slate-200 rounded-xl text-xs font-bold flex items-center justify-center gap-1 cursor-not-allowed opacity-80"
+                        title="Fee already paid / deposited (फीस जमा है)"
+                      >
+                        <CheckCircle size={13} className="shrink-0 text-emerald-600" />
+                        <span>Paid</span>
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => onCollectFee(student)}
+                        className="px-2 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-1 cursor-pointer transition-colors shadow-2xs"
+                        title="Collect Fee (फीस जमा करें)"
+                      >
+                        <IndianRupee size={13} className="shrink-0" />
+                        <span>Fee</span>
+                      </button>
+                    )
                   )}
                   {canEdit && (
                     <button
@@ -656,6 +767,7 @@ export default function StudentList({
           const netFee = Math.max(0, planPrice - discount);
           const planLabel = student.durationLabel || (student.isDayBased ? `${student.durationDays} Days Plan` : plan?.name) || 'Monthly';
           const remainingInfo = getMembershipRemainingDays(student.membershipEnd);
+          const isPaid = isStudentFeePaid(student);
 
           return (
             <div key={student.id} className="p-4 space-y-2.5">
@@ -745,14 +857,27 @@ export default function StudentList({
                   </button>
                 )}
                 {!isLeft && canCollectFee && (
-                  <button
-                    onClick={() => onCollectFee(student)}
-                    className="px-2 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-1 cursor-pointer transition-colors shadow-2xs"
-                    title="Collect Fee"
-                  >
-                    <IndianRupee size={13} className="shrink-0" />
-                    <span>Fee</span>
-                  </button>
+                  isPaid ? (
+                    <button
+                      type="button"
+                      disabled
+                      className="px-2 py-1.5 bg-slate-100 text-slate-400 border border-slate-200 rounded-xl text-xs font-bold flex items-center justify-center gap-1 cursor-not-allowed opacity-80"
+                      title="Fee already paid / deposited (फीस जमा है)"
+                    >
+                      <CheckCircle size={13} className="shrink-0 text-emerald-600" />
+                      <span>Paid</span>
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => onCollectFee(student)}
+                      className="px-2 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-1 cursor-pointer transition-colors shadow-2xs"
+                      title="Collect Fee (फीस जमा करें)"
+                    >
+                      <IndianRupee size={13} className="shrink-0" />
+                      <span>Fee</span>
+                    </button>
+                  )
                 )}
                 {!isLeft && onToggleStatus && (
                   <button

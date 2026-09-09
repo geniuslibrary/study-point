@@ -7,6 +7,7 @@ import StudentList from '../components/students/StudentList';
 import StudentForm from '../components/students/StudentForm';
 import StudentProfile from '../components/students/StudentProfile';
 import ExtendMembershipModal from '../components/students/ExtendMembershipModal';
+import CollectFeeModal from '../components/fees/CollectFeeModal';
 import FeeReceipt from '../components/fees/FeeReceipt';
 import { Plus, Loader2 } from 'lucide-react';
 import { COLLECTIONS, SEAT_STATUS, STUDENT_STATUS } from '../utils/constants';
@@ -14,6 +15,7 @@ import {
   calculateSeatAddonCharges,
   getStoredAddons,
   formatDate,
+  getMonthYear,
 } from '../utils/helpers';
 import {
   getActiveTemplates,
@@ -32,7 +34,9 @@ import {
 export default function Students() {
   const navigate = useNavigate();
   const location = useLocation();
-  const targetShift = location.state?.filterShift || '';
+  const queryParams = new URLSearchParams(location.search);
+  const targetShift = location.state?.filterShift || queryParams.get('shift') || '';
+  const targetExpiry = location.state?.filterExpiry || queryParams.get('expiry') || '';
   const { hasPermission } = useAuth();
   const [students, setStudents] = useState([]);
   const [sections, setSections] = useState([]);
@@ -49,6 +53,8 @@ export default function Students() {
   const [extendStudent, setExtendStudent] = useState(null);
   const [extendingLoading, setExtendingLoading] = useState(false);
   const [extensionReceiptFee, setExtensionReceiptFee] = useState(null);
+  const [collectFeeRecord, setCollectFeeRecord] = useState(null);
+  const [collectFeeStudent, setCollectFeeStudent] = useState(null);
 
   const canCreate = hasPermission('students', 'create');
   const canEdit = hasPermission('students', 'edit');
@@ -67,7 +73,7 @@ export default function Students() {
         fetchCollectionData(COLLECTIONS.ADDON_PRICING),
       ]);
 
-      setStudents(stuDocs);
+      setStudents((stuDocs || []).filter((s) => !s.isDeleted));
       setSections(secDocs);
       setSeats(seatDocs);
       setPlans(planDocs);
@@ -373,13 +379,27 @@ export default function Students() {
   const handleDeleteStudent = async () => {
     if (!deleteTarget) return;
 
-    if (deleteTarget.seatId) {
-      await updateSeatStatusAfterChange(deleteTarget.seatId, null, deleteTarget.id);
-    }
+    try {
+      // 1. Free allocated seat if any
+      if (deleteTarget.seatId) {
+        await updateSeatStatusAfterChange(deleteTarget.seatId, null, deleteTarget.id);
+      }
 
-    await removeDocument(COLLECTIONS.STUDENTS, deleteTarget.id);
-    setDeleteTarget(null);
-    await fetchData();
+      // 2. Soft-delete: Mark isDeleted: true instead of removing document
+      await updateDocument(COLLECTIONS.STUDENTS, deleteTarget.id, {
+        isDeleted: true,
+        status: 'inactive',
+        seatId: '',
+        deletedAt: new Date().toISOString(),
+      });
+
+      // 3. Optimistic local update
+      setStudents((prev) => prev.filter((s) => s.id !== deleteTarget.id));
+      setDeleteTarget(null);
+      await fetchData();
+    } catch (err) {
+      console.error('Error soft-deleting student:', err);
+    }
   };
 
   const handleExtendMembership = async ({
@@ -500,6 +520,134 @@ export default function Students() {
     }
   };
 
+  const handleOpenCollectFee = (student) => {
+    if (!student) return;
+    const studentPendingFee = fees.find((f) => f.studentId === student.id && f.status === 'pending');
+    if (studentPendingFee) {
+      setCollectFeeRecord(studentPendingFee);
+      setCollectFeeStudent(student);
+    } else {
+      const isDay = Boolean(
+        student.isDayBased ||
+        student.membershipPlanId === 'custom_days' ||
+        student.durationUnit === 'days'
+      );
+      const targetPlan = plans.find((p) => p.id === student.membershipPlanId);
+      const durDays = isDay
+        ? (Number(student.customDays) || Number(student.durationDays) || Number(targetPlan?.durationDays) || 10)
+        : null;
+      const dur = isDay ? durDays : (Number(targetPlan?.durationMonths) || 1);
+      const base = isDay
+        ? (Number(student.customFeeAmount) || Number(student.planPrice) || Number(targetPlan?.price) || 400)
+        : (Number(targetPlan?.price) || 800);
+      const disc = Number(student.discountAmount) || 0;
+      const targetSeat = seats.find((s) => s.id === student.seatId);
+      const durFactor = isDay ? Math.max(1, Math.round(durDays / 30)) : dur;
+      const { charges, total } = calculateSeatAddonCharges(targetSeat?.addons, addonPricing, durFactor);
+
+      const periodStart = student.membershipStart || student.joinDate || new Date().toISOString();
+      let periodEnd = student.membershipEnd;
+      if (!periodEnd) {
+        const d = new Date(periodStart);
+        if (isDay) d.setDate(d.getDate() + durDays);
+        else d.setMonth(d.getMonth() + dur);
+        periodEnd = d.toISOString();
+      }
+
+      const currentMonth = getMonthYear();
+      const tempFee = {
+        id: `fee_${student.id}_${currentMonth.replace('-', '_')}`,
+        studentId: student.id,
+        amount: Math.max(0, base + total - disc),
+        baseFee: base,
+        discountAmount: disc,
+        addonCharges: charges,
+        month: currentMonth,
+        planId: targetPlan?.id || (isDay ? 'custom_days' : ''),
+        planName: student.planName || targetPlan?.name || (isDay ? `${durDays} Days Plan` : 'Standard Monthly Plan'),
+        planDuration: dur,
+        isDayBased: isDay,
+        durationDays: durDays,
+        durationMonths: isDay ? null : dur,
+        durationUnit: isDay ? 'days' : 'months',
+        isCustomDays: student.membershipPlanId === 'custom_days' || student.isCustomDays,
+        customDays: durDays,
+        customFeeAmount: base,
+        periodStart: periodStart,
+        periodEnd: periodEnd,
+        status: 'pending',
+      };
+      setCollectFeeRecord(tempFee);
+      setCollectFeeStudent(student);
+    }
+  };
+
+  const handleCollectFee = async (paymentData) => {
+    if (!collectFeeRecord || !collectFeeStudent) return;
+
+    try {
+      const feeId = collectFeeRecord.id;
+      const updatedFeePayload = {
+        studentId: collectFeeStudent.id,
+        status: 'paid',
+        paidDate: new Date().toISOString(),
+        paymentMode: paymentData.paymentMode || 'cash',
+        notes: paymentData.notes || '',
+        amount: paymentData.amount,
+        baseFee: paymentData.baseFee,
+        discountAmount: paymentData.discountAmount || 0,
+        addonCharges: paymentData.addonCharges || {},
+        includedCharges: paymentData.includedCharges || {},
+        planFeatures: paymentData.planFeatures || [],
+        planName: paymentData.planName,
+        planDuration: paymentData.planDuration,
+        durationUnit: paymentData.durationUnit || (paymentData.isDayBased ? 'days' : 'months'),
+        durationDays: paymentData.durationDays || null,
+        durationMonths: paymentData.durationMonths || null,
+        isDayBased: !!paymentData.isDayBased,
+        periodStart: paymentData.periodStart,
+        periodEnd: paymentData.periodEnd,
+        receiptNumber: `REC-${Date.now().toString().slice(-6)}`,
+        collectedBy: 'Admin',
+      };
+
+      const existingFee = fees.find((f) => f.id === feeId);
+      if (existingFee) {
+        await updateDocument(COLLECTIONS.FEES, feeId, updatedFeePayload);
+      } else {
+        await createDocument(COLLECTIONS.FEES, updatedFeePayload, feeId);
+      }
+
+      if (paymentData.periodEnd) {
+        await updateDocument(COLLECTIONS.STUDENTS, collectFeeStudent.id, {
+          membershipPlanId: paymentData.planId,
+          membershipStart: paymentData.periodStart,
+          membershipEnd: paymentData.periodEnd,
+          hasPaidBefore: true,
+          status: 'active',
+          planPrice: paymentData.baseFee,
+          discountAmount: paymentData.discountAmount || 0,
+          planName: paymentData.planName,
+          isDayBased: !!paymentData.isDayBased,
+          durationDays: paymentData.durationDays || null,
+          durationMonths: paymentData.durationMonths || null,
+        });
+      }
+
+      const recordedFee = { id: feeId, ...updatedFeePayload };
+      setCollectFeeStudent(null);
+      setCollectFeeRecord(null);
+
+      await fetchData();
+
+      // Show receipt modal so admin can view/print/WhatsApp bill
+      setExtensionReceiptFee(recordedFee);
+    } catch (err) {
+      console.error('Error collecting fee in Students:', err);
+      alert('Fee collect karne mein dikkat aayi: ' + (err?.message || err));
+    }
+  };
+
   const getStudentProfileDetails = (student) => {
     if (!student) return {};
     const section = sections.find((s) => s.id === student.sectionId);
@@ -551,14 +699,13 @@ export default function Students() {
           sections={sections}
           seats={seats}
           plans={plans}
+          fees={fees}
           onEdit={(s) => {
             setEditData(s);
             setShowForm(true);
           }}
           onDelete={setDeleteTarget}
-          onCollectFee={(student) => {
-            navigate(`/fees?studentId=${student.id}`, { state: { collectStudentId: student.id } });
-          }}
+          onCollectFee={handleOpenCollectFee}
           onExtend={(student) => setExtendStudent(student)}
           onViewProfile={setProfileStudent}
           onToggleStatus={(student) => setStatusTarget(student)}
@@ -566,6 +713,7 @@ export default function Students() {
           canDelete={canDelete}
           canCollectFee={canCollectFee}
           initialFilterShift={targetShift}
+          initialFilterExpiry={targetExpiry}
         />
       </div>
 
@@ -608,8 +756,8 @@ export default function Students() {
         isOpen={!!deleteTarget}
         onClose={() => setDeleteTarget(null)}
         onConfirm={handleDeleteStudent}
-        title="Delete Student Permanently?"
-        message={`Are you sure you want to delete "${deleteTarget?.name}"? All records will be removed and their seat slot will be freed up.`}
+        title="Delete Student?"
+        message={`Are you sure you want to remove "${deleteTarget?.name}"? Their seat will be freed up and they will be marked inactive.`}
         confirmText="Delete Student"
         variant="danger"
       />
@@ -640,6 +788,21 @@ export default function Students() {
         plan={extendStudentDetails.plan}
         onExtend={handleExtendMembership}
         loading={extendingLoading}
+      />
+
+      <CollectFeeModal
+        isOpen={!!collectFeeRecord}
+        onClose={() => {
+          setCollectFeeRecord(null);
+          setCollectFeeStudent(null);
+        }}
+        onSubmit={handleCollectFee}
+        student={collectFeeStudent}
+        fee={collectFeeRecord}
+        plan={collectFeeStudent ? plans.find((p) => p.id === (collectFeeRecord?.planId || collectFeeStudent.membershipPlanId)) : null}
+        plans={plans}
+        seat={collectFeeStudent ? seats.find((s) => s.id === collectFeeStudent.seatId) : null}
+        addonPricing={addonPricing}
       />
 
       {extensionReceiptFee && (
