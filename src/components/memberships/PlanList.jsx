@@ -20,7 +20,16 @@ import {
 } from 'lucide-react';
 import { formatCurrency } from '../../utils/helpers';
 
-export default function PlanList({ plans, studentCounts, onEdit, onDelete, onToggle, shifts = [] }) {
+export default function PlanList({
+  plans,
+  studentCounts,
+  onEdit,
+  onDelete,
+  onToggle,
+  shifts = [],
+  canEdit = true,
+  canDelete = true,
+}) {
   if (!plans || plans.length === 0) {
     return (
       <div className="text-center py-16 bg-white rounded-3xl border border-slate-200/80 shadow-xs p-8 max-w-lg mx-auto">
@@ -302,35 +311,41 @@ export default function PlanList({ plans, studentCounts, onEdit, onDelete, onTog
 
                 <div className="flex items-center gap-1">
                   {/* Toggle Active / Pause */}
-                  <button
-                    onClick={() => onToggle(plan)}
-                    className={`p-2 rounded-xl transition-all cursor-pointer ${
-                      plan.isActive
-                        ? 'text-slate-400 hover:text-amber-600 hover:bg-amber-50'
-                        : 'text-emerald-600 hover:bg-emerald-50 bg-emerald-50/50'
-                    }`}
-                    title={plan.isActive ? 'Pause Plan (अस्थायी रोकें)' : 'Activate Plan (सक्रिय करें)'}
-                  >
-                    <Power className="w-4 h-4" />
-                  </button>
+                  {canEdit && (
+                    <button
+                      onClick={() => onToggle(plan)}
+                      className={`p-2 rounded-xl transition-all cursor-pointer ${
+                        plan.isActive
+                          ? 'text-slate-400 hover:text-amber-600 hover:bg-amber-50'
+                          : 'text-emerald-600 hover:bg-emerald-50 bg-emerald-50/50'
+                      }`}
+                      title={plan.isActive ? 'Pause Plan (अस्थायी रोकें)' : 'Activate Plan (सक्रिय करें)'}
+                    >
+                      <Power className="w-4 h-4" />
+                    </button>
+                  )}
 
                   {/* Edit */}
-                  <button
-                    onClick={() => onEdit(plan)}
-                    className="p-2 text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all cursor-pointer"
-                    title="Edit Plan Details"
-                  >
-                    <Pencil className="w-4 h-4" />
-                  </button>
+                  {canEdit && (
+                    <button
+                      onClick={() => onEdit(plan)}
+                      className="p-2 text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all cursor-pointer"
+                      title="Edit Plan Details"
+                    >
+                      <Pencil className="w-4 h-4" />
+                    </button>
+                  )}
 
                   {/* Delete */}
-                  <button
-                    onClick={() => onDelete(plan)}
-                    className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-all cursor-pointer"
-                    title="Delete Plan"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
+                  {canDelete && (
+                    <button
+                      onClick={() => onDelete(plan)}
+                      className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-all cursor-pointer"
+                      title="Delete Plan"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  )}
                 </div>
               </div>
             </div>

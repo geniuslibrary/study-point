@@ -10,6 +10,9 @@ export default function SectionList({
   onDelete,
   onSeatClick,
   onAddSeat,
+  canCreate = true,
+  canEdit = true,
+  canDelete = true,
 }) {
   // Expand first section by default
   const [expandedId, setExpandedId] = useState(sections[0]?.id || null);
@@ -96,25 +99,29 @@ export default function SectionList({
                 {/* Action Buttons Bar */}
                 <div className="flex items-center justify-end gap-2 w-full md:w-auto pt-2 md:pt-0 border-t md:border-t-0 border-slate-100">
                   {/* Edit Button */}
-                  <button
-                    type="button"
-                    onClick={() => onEdit(section)}
-                    title="Edit Section Name & Total Seats"
-                    className="h-8 px-3 rounded-xl text-xs font-semibold bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 shadow-2xs hover:border-slate-300 transition-all flex items-center gap-1.5 cursor-pointer active:scale-95"
-                  >
-                    <Edit className="w-3.5 h-3.5 text-slate-500" />
-                    <span>Edit</span>
-                  </button>
+                  {canEdit && (
+                    <button
+                      type="button"
+                      onClick={() => onEdit(section)}
+                      title="Edit Section Name & Total Seats"
+                      className="h-8 px-3 rounded-xl text-xs font-semibold bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 shadow-2xs hover:border-slate-300 transition-all flex items-center gap-1.5 cursor-pointer active:scale-95"
+                    >
+                      <Edit className="w-3.5 h-3.5 text-slate-500" />
+                      <span>Edit</span>
+                    </button>
+                  )}
 
                   {/* Delete Button */}
-                  <button
-                    type="button"
-                    onClick={() => onDelete(section)}
-                    title="Delete Section"
-                    className="h-8 w-8 rounded-xl text-xs font-semibold bg-white hover:bg-rose-50 text-slate-400 hover:text-rose-600 border border-slate-200 hover:border-rose-200 shadow-2xs transition-all flex items-center justify-center cursor-pointer active:scale-95"
-                  >
-                    <Trash2 className="w-3.5 h-3.5 text-rose-500" />
-                  </button>
+                  {canDelete && (
+                    <button
+                      type="button"
+                      onClick={() => onDelete(section)}
+                      title="Delete Section"
+                      className="h-8 w-8 rounded-xl text-xs font-semibold bg-white hover:bg-rose-50 text-slate-400 hover:text-rose-600 border border-slate-200 hover:border-rose-200 shadow-2xs transition-all flex items-center justify-center cursor-pointer active:scale-95"
+                    >
+                      <Trash2 className="w-3.5 h-3.5 text-rose-500" />
+                    </button>
+                  )}
 
                   {/* Seats View/Hide Button */}
                   <button
@@ -274,13 +281,15 @@ export default function SectionList({
                   <p className="text-xs font-bold text-gray-500 uppercase tracking-wider">
                     Physical Seats Grid ({sectionSeats.length} Seats)
                   </p>
-                  <button
-                    onClick={() => onAddSeat && onAddSeat(section.id)}
-                    className="text-xs text-indigo-600 font-bold hover:underline flex items-center gap-1 cursor-pointer"
-                  >
-                    <PlusCircle className="w-3 h-3" />
-                    <span>Add Seat #{sectionSeats.length + 1}</span>
-                  </button>
+                  {canCreate && (
+                    <button
+                      onClick={() => onAddSeat && onAddSeat(section.id)}
+                      className="text-xs text-indigo-600 font-bold hover:underline flex items-center gap-1 cursor-pointer"
+                    >
+                      <PlusCircle className="w-3 h-3" />
+                      <span>Add Seat #{sectionSeats.length + 1}</span>
+                    </button>
+                  )}
                 </div>
                 <SeatGrid
                   seats={sectionSeats}

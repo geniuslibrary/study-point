@@ -28,8 +28,14 @@ import {
   getFirestoreDocRef,
 } from '../firebase/storageService';
 import { getStoredShifts, getStoredAddons } from '../utils/helpers';
+import { useAuth } from '../context/AuthContext';
 
 export default function Memberships() {
+  const { hasPermission } = useAuth();
+  const canCreate = hasPermission('memberships', 'create');
+  const canEdit = hasPermission('memberships', 'edit');
+  const canDelete = hasPermission('memberships', 'delete');
+
   const [plans, setPlans] = useState([]);
   const [students, setStudents] = useState([]);
   const [studentCounts, setStudentCounts] = useState({});
@@ -218,13 +224,15 @@ export default function Memberships() {
             </p>
           </div>
 
-          <button
-            onClick={handleAdd}
-            className="px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-2xl font-extrabold text-sm shadow-sm hover:shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer shrink-0"
-          >
-            <Plus className="w-4 h-4" />
-            <span>Add Membership Plan</span>
-          </button>
+          {canCreate && (
+            <button
+              onClick={handleAdd}
+              className="px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-2xl font-extrabold text-sm shadow-sm hover:shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer shrink-0"
+            >
+              <Plus className="w-4 h-4" />
+              <span>Add Membership Plan</span>
+            </button>
+          )}
         </div>
 
         {/* Top Metric Cards */}
@@ -374,6 +382,8 @@ export default function Memberships() {
           onDelete={handleDeleteClick}
           onToggle={handleToggle}
           shifts={shifts}
+          canEdit={canEdit}
+          canDelete={canDelete}
         />
       </div>
 

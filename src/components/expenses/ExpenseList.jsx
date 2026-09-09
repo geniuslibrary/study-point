@@ -3,7 +3,13 @@ import { Pencil, Trash2, Zap, Users, Receipt, Wrench, Calendar } from 'lucide-re
 import { formatCurrency, formatDate } from '../../utils/helpers';
 import { EXPENSE_CATEGORIES } from '../../utils/constants';
 
-export default function ExpenseList({ expenses, onEdit, onDelete }) {
+export default function ExpenseList({
+  expenses,
+  onEdit,
+  onDelete,
+  canEdit = true,
+  canDelete = true,
+}) {
   const [filterCategory, setFilterCategory] = useState('All');
 
   const filteredExpenses = expenses
@@ -105,20 +111,24 @@ export default function ExpenseList({ expenses, onEdit, onDelete }) {
                     {formatCurrency(expense.amount)}
                   </td>
                   <td className="px-5 py-3.5 whitespace-nowrap text-right text-xs font-medium">
-                    <button
-                      onClick={() => onEdit(expense)}
-                      className="text-indigo-600 hover:text-indigo-900 p-1.5 hover:bg-indigo-50 rounded-lg mr-1 cursor-pointer transition-colors"
-                      title="Edit expense"
-                    >
-                      <Pencil size={15} />
-                    </button>
-                    <button
-                      onClick={() => onDelete(expense)}
-                      className="text-red-600 hover:text-red-900 p-1.5 hover:bg-red-50 rounded-lg cursor-pointer transition-colors"
-                      title="Delete expense"
-                    >
-                      <Trash2 size={15} />
-                    </button>
+                    {canEdit && (
+                      <button
+                        onClick={() => onEdit(expense)}
+                        className="text-indigo-600 hover:text-indigo-900 p-1.5 hover:bg-indigo-50 rounded-lg mr-1 cursor-pointer transition-colors"
+                        title="Edit expense"
+                      >
+                        <Pencil size={15} />
+                      </button>
+                    )}
+                    {canDelete && (
+                      <button
+                        onClick={() => onDelete(expense)}
+                        className="text-red-600 hover:text-red-900 p-1.5 hover:bg-red-50 rounded-lg cursor-pointer transition-colors"
+                        title="Delete expense"
+                      >
+                        <Trash2 size={15} />
+                      </button>
+                    )}
                   </td>
                 </tr>
               ))

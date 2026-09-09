@@ -22,6 +22,7 @@ import {
   fetchCollectionData,
   createDocument,
   updateDocument,
+  removeDocument,
 } from '../firebase/storageService';
 import { seedOneYearDummyData } from '../utils/seedData';
 

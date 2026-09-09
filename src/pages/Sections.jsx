@@ -15,7 +15,14 @@ import {
   removeDocument,
 } from '../firebase/storageService';
 
+import { useAuth } from '../context/AuthContext';
+
 export default function Sections() {
+  const { hasPermission } = useAuth();
+  const canCreate = hasPermission('sections', 'create');
+  const canEdit = hasPermission('sections', 'edit');
+  const canDelete = hasPermission('sections', 'delete');
+
   const [sections, setSections] = useState([]);
   const [seats, setSeats] = useState([]);
   const [students, setStudents] = useState([]);
@@ -441,15 +448,17 @@ export default function Sections() {
               {sections.length} Sections • <strong>{totalPhysicalSeats} Total Physical Seats</strong> • Full & Half Day Shift Management
             </p>
           </div>
-          <Button
-            icon={<Plus className="w-4 h-4" />}
-            onClick={() => {
-              setEditData(null);
-              setShowForm(true);
-            }}
-          >
-            Add New Section
-          </Button>
+          {canCreate && (
+            <Button
+              icon={<Plus className="w-4 h-4" />}
+              onClick={() => {
+                setEditData(null);
+                setShowForm(true);
+              }}
+            >
+              Add New Section
+            </Button>
+          )}
         </div>
 
         <SectionList
@@ -462,6 +471,9 @@ export default function Sections() {
           onDelete={setDeleteTarget}
           onSeatClick={handleSeatClick}
           onAddSeat={handleAddSingleSeat}
+          canCreate={canCreate}
+          canEdit={canEdit}
+          canDelete={canDelete}
         />
       </div>
 

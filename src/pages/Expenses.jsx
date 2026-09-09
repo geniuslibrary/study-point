@@ -15,7 +15,14 @@ import {
   removeDocument,
 } from '../firebase/storageService';
 
+import { useAuth } from '../context/AuthContext';
+
 export default function Expenses() {
+  const { hasPermission } = useAuth();
+  const canCreate = hasPermission('expenses', 'create');
+  const canEdit = hasPermission('expenses', 'edit');
+  const canDelete = hasPermission('expenses', 'delete');
+
   const [expenses, setExpenses] = useState([]);
   const [staffList, setStaffList] = useState([]);
   const [revenue, setRevenue] = useState(0);
@@ -329,9 +336,11 @@ export default function Expenses() {
             </button>
 
             {/* Add General Expense Button */}
-            <Button icon={<Plus className="w-4 h-4" />} onClick={() => handleAdd()}>
-              Add Expense
-            </Button>
+            {canCreate && (
+              <Button icon={<Plus className="w-4 h-4" />} onClick={() => handleAdd()}>
+                Add Expense
+              </Button>
+            )}
           </div>
         </div>
 
@@ -343,6 +352,8 @@ export default function Expenses() {
           expenses={expenses}
           onEdit={handleEdit}
           onDelete={handleDeleteClick}
+          canEdit={canEdit}
+          canDelete={canDelete}
         />
       </div>
 

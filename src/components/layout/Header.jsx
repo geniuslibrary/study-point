@@ -8,10 +8,10 @@ import { getUserDisplayName } from '../../utils/helpers';
 
 const getHeaderRoleBadge = (user) => {
   if (!user) return 'Staff';
-  if (user.role === 'owner') return '👑 Owner';
+  if (user.role === 'owner' || user.role === 'role_owner') return '👑 Owner';
   if (user.roleLabel && user.roleLabel.toLowerCase() !== 'custom') return user.roleLabel;
-  if (user.role === 'receptionist') return '🛎️ Receptionist';
-  if (user.role === 'manager') return '👔 Branch Manager';
+  if (user.role === 'receptionist' || user.role === 'role_receptionist') return '🛎️ Receptionist';
+  if (user.role === 'manager' || user.role === 'role_manager') return '👔 Branch Manager';
   if (user.role === 'custom') return '⚙️ Custom Role';
   return user.role;
 };
