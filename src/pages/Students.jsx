@@ -676,13 +676,44 @@ export default function Students() {
         receiptNumber: receiptNum,
       };
 
-      const previousPayments = Array.isArray(existingFee?.payments) ? existingFee.payments : [];
+      // Synthesize previous payment if payments array was missing but money was previously paid
+      let previousPayments = [];
+      if (Array.isArray(existingFee?.payments) && existingFee.payments.length > 0) {
+        previousPayments = [...existingFee.payments];
+      } else if (Number(existingFee?.paidAmount) > 0 || Number(existingFee?.paidNow) > 0) {
+        const prevAmt = Number(existingFee.paidAmount) || Number(existingFee.paidNow);
+        previousPayments = [{
+          id: `pay_prev_${existingFee.id}`,
+          amount: prevAmt,
+          paidDate: existingFee.paidDate || existingFee.date || existingFee.createdAt || new Date().toISOString(),
+          paymentMode: existingFee.paymentMode || 'cash',
+          splitDetails: existingFee.splitDetails || null,
+          notes: existingFee.notes || 'Initial Payment',
+          receiptNumber: existingFee.receiptNumber || 'REC-INIT',
+          collectedBy: 'Admin',
+        }];
+      }
+
       const updatedPayments = [...previousPayments, paymentEntry];
+
+      const feeMonth =
+        collectFeeRecord.month ||
+        (paymentData.periodStart ? String(paymentData.periodStart).slice(0, 7) : '') ||
+        (existingFee?.month || getMonthYear());
+
+      const todayIso = new Date().toISOString();
+      const todayDate = todayIso.split('T')[0];
 
       const updatedFeePayload = {
         studentId: collectFeeStudent.id,
-        status: paymentData.status || 'paid',
-        paidDate: new Date().toISOString(),
+        studentName: collectFeeStudent.name || '',
+        studentPhone: collectFeeStudent.phone || '',
+        seatId: collectFeeStudent.seatId || '',
+        sectionId: collectFeeStudent.sectionId || '',
+        status: paymentData.status || (paymentData.dueAmount > 0 ? 'partial' : 'paid'),
+        date: existingFee?.date || todayDate,
+        paidDate: todayIso,
+        month: feeMonth,
         paymentMode: paymentData.paymentMode || 'cash',
         splitDetails: paymentData.splitDetails || null,
         notes: paymentData.notes || '',

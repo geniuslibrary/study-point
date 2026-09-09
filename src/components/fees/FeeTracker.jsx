@@ -95,7 +95,7 @@ export default function FeeTracker({
       if (sectionFilter !== 'all' && st?.sectionId !== sectionFilter) return;
 
       const diff = getFeeDiffDays(f);
-      const isPartial = f.status === 'partial' || (Number(f.dueAmount) > 0 && Number(f.paidAmount) > 0);
+      const isPartial = f.status === 'partial' || Number(f.dueAmount) > 0 || f.status === 'pending';
       const isP = f.status === 'paid' && !isPartial;
       const isO = !isP && !isPartial && diff !== null && diff < -2 && st?.status !== 'left';
       const isExp = !isP && !isPartial && diff !== null && diff < 0 && diff >= -2 && st?.status !== 'left';
@@ -126,7 +126,7 @@ export default function FeeTracker({
 
       // 2. Status Filter
       const diffDays = getFeeDiffDays(fee);
-      const isPartial = fee.status === 'partial' || (Number(fee.dueAmount) > 0 && Number(fee.paidAmount) > 0);
+      const isPartial = fee.status === 'partial' || Number(fee.dueAmount) > 0 || fee.status === 'pending';
       const isPaid = fee.status === 'paid' && !isPartial;
       const isOverdue = !isPaid && !isPartial && diffDays !== null && diffDays < -2 && student?.status !== 'left';
       const isExpired = !isPaid && !isPartial && diffDays !== null && diffDays < 0 && diffDays >= -2 && student?.status !== 'left';
@@ -419,10 +419,17 @@ export default function FeeTracker({
                   <td className="px-5 py-3.5">
                     {isPartial ? (
                       <div>
-                        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-black bg-amber-50 text-amber-900 border border-amber-300">
-                          <AlertCircle className="w-3.5 h-3.5 text-amber-600" />
-                          <span>Partial (Due: ₹{fee.dueAmount})</span>
-                        </span>
+                        {Number(fee.paidAmount) > 0 ? (
+                          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-black bg-amber-50 text-amber-900 border border-amber-300">
+                            <AlertCircle className="w-3.5 h-3.5 text-amber-600" />
+                            <span>Partial (Due: ₹{fee.dueAmount})</span>
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-black bg-rose-50 text-rose-800 border border-rose-300">
+                            <AlertCircle className="w-3.5 h-3.5 text-rose-600" />
+                            <span>Due (₹{fee.dueAmount || fee.amount})</span>
+                          </span>
+                        )}
                       </div>
                     ) : isPaid ? (
                       <div>

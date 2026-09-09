@@ -657,28 +657,44 @@ export const checkDuplicatePhoneNumber = async ({ phone, excludeId = null, scope
  * Extract all individual payment transactions from fee records
  * Handles full payments, partial payments, installment arrays, and split modes.
  */
-export const extractAllFeePayments = (fees) => {
+export const extractAllFeePayments = (fees, students = []) => {
   const result = [];
   if (!Array.isArray(fees)) return result;
 
+  const studentMap = {};
+  if (Array.isArray(students)) {
+    students.forEach((s) => {
+      if (s && s.id) studentMap[s.id] = s;
+    });
+  }
+
   fees.forEach((fee) => {
+    const st = studentMap[fee.studentId];
+    const sName = fee.studentName || st?.name || 'Student';
+    const sPhone = fee.studentPhone || st?.phone || '';
+    const feeMonth =
+      fee.month ||
+      (fee.periodStart ? String(fee.periodStart).slice(0, 7) : '') ||
+      (fee.paidDate ? String(fee.paidDate).slice(0, 7) : '') ||
+      (fee.date ? String(fee.date).slice(0, 7) : '');
+
     // 1. If fee has an explicit payments array (installments / multiple dues / extension payments)
     if (Array.isArray(fee.payments) && fee.payments.length > 0) {
       fee.payments.forEach((p, idx) => {
         const amt = Number(p.amount) || 0;
         if (amt <= 0) return;
-        const pDate = p.paidDate || fee.paidDate || (fee.month ? `${fee.month}-01` : null);
+        const pDate = p.paidDate || fee.paidDate || fee.date || (feeMonth ? `${feeMonth}-01` : null);
         result.push({
           id: p.id || `${fee.id}_pay_${idx}`,
           feeId: fee.id,
           studentId: fee.studentId,
-          studentName: fee.studentName || '',
-          studentPhone: fee.studentPhone || '',
+          studentName: sName,
+          studentPhone: sPhone,
           amount: amt,
           totalFeeAmount: Number(fee.amount) || amt,
           dueAmount: Number(fee.dueAmount) || 0,
           paidDate: pDate,
-          month: fee.month || '',
+          month: feeMonth,
           paymentMode: p.paymentMode || fee.paymentMode || 'cash',
           splitDetails: p.splitDetails || fee.splitDetails || null,
           notes: p.notes || fee.notes || '',
@@ -709,19 +725,19 @@ export const extractAllFeePayments = (fees) => {
       }
 
       if (amt <= 0) return;
-      const pDate = fee.paidDate || (fee.month ? `${fee.month}-01` : null);
+      const pDate = fee.paidDate || fee.date || (feeMonth ? `${feeMonth}-01` : null);
 
       result.push({
         id: fee.id,
         feeId: fee.id,
         studentId: fee.studentId,
-        studentName: fee.studentName || '',
-        studentPhone: fee.studentPhone || '',
+        studentName: sName,
+        studentPhone: sPhone,
         amount: amt,
         totalFeeAmount: Number(fee.amount) || amt,
         dueAmount: Number(fee.dueAmount) || 0,
         paidDate: pDate,
-        month: fee.month || '',
+        month: feeMonth,
         paymentMode: fee.paymentMode || 'cash',
         splitDetails: fee.splitDetails || null,
         notes: fee.notes || '',

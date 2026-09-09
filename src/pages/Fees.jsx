@@ -409,56 +409,118 @@ export default function Fees() {
   const handleCollectFee = async (paymentData) => {
     if (!collectFee) return;
 
-    const receiptNum = `REC-${Date.now().toString().slice(-6)}`;
-    const paymentEntry = {
-      id: `pay_${Date.now()}`,
-      amount: paymentData.paidNow,
-      paidDate: new Date().toISOString(),
-      paymentMode: paymentData.paymentMode || 'cash',
-      splitDetails: paymentData.splitDetails || null,
-      notes: paymentData.notes || '',
-      receiptNumber: receiptNum,
-    };
+    try {
+      const receiptNum = `REC-${Date.now().toString().slice(-6)}`;
+      const paymentEntry = {
+        id: `pay_${Date.now()}`,
+        amount: paymentData.paidNow,
+        paidDate: new Date().toISOString(),
+        paymentMode: paymentData.paymentMode || 'cash',
+        splitDetails: paymentData.splitDetails || null,
+        notes: paymentData.notes || '',
+        receiptNumber: receiptNum,
+      };
 
-    const previousPayments = Array.isArray(collectFee?.payments) ? collectFee.payments : [];
-    const updatedPayments = [...previousPayments, paymentEntry];
+      const existingFee = fees.find((f) => f.id === collectFee.id);
+      const studentObj = students.find((s) => s.id === collectFee.studentId);
 
-    // 1. Update Fee Record
-    await updateDocument(COLLECTIONS.FEES, collectFee.id, {
-      status: paymentData.status || 'paid',
-      paidDate: new Date().toISOString(),
-      paymentMode: paymentData.paymentMode,
-      splitDetails: paymentData.splitDetails || null,
-      notes: paymentData.notes,
-      amount: paymentData.amount,
-      paidAmount: paymentData.paidAmount,
-      paidNow: paymentData.paidNow,
-      dueAmount: paymentData.dueAmount || 0,
-      payments: updatedPayments,
-      baseFee: paymentData.baseFee,
-      discountAmount: paymentData.discountAmount || 0,
-      addonCharges: paymentData.addonCharges,
-      planName: paymentData.planName,
-      planDuration: paymentData.planDuration,
-      periodStart: paymentData.periodStart,
-      periodEnd: paymentData.periodEnd,
-      receiptNumber: receiptNum,
-    });
+      // Synthesize previous payment if payments array was missing but money was previously paid
+      let previousPayments = [];
+      if (Array.isArray(collectFee?.payments) && collectFee.payments.length > 0) {
+        previousPayments = [...collectFee.payments];
+      } else if (Number(collectFee?.paidAmount) > 0 || Number(collectFee?.paidNow) > 0) {
+        const prevAmt = Number(collectFee.paidAmount) || Number(collectFee.paidNow);
+        previousPayments = [{
+          id: `pay_prev_${collectFee.id}`,
+          amount: prevAmt,
+          paidDate: collectFee.paidDate || collectFee.date || collectFee.createdAt || new Date().toISOString(),
+          paymentMode: collectFee.paymentMode || 'cash',
+          splitDetails: collectFee.splitDetails || null,
+          notes: collectFee.notes || 'Initial Payment',
+          receiptNumber: collectFee.receiptNumber || 'REC-INIT',
+          collectedBy: 'Admin',
+        }];
+      }
 
-    // 2. Automatically Renew Student's Membership Validity Cycle
-    if (collectFee.studentId && paymentData.periodEnd) {
-      await updateDocument(COLLECTIONS.STUDENTS, collectFee.studentId, {
-        membershipPlanId: paymentData.planId,
-        membershipStart: paymentData.periodStart,
-        membershipEnd: paymentData.periodEnd,
-        hasPaidBefore: true,
-        status: 'active',
-        dueFeeAmount: paymentData.dueAmount || 0,
-      });
+      const updatedPayments = [...previousPayments, paymentEntry];
+
+      const feeMonth =
+        collectFee.month ||
+        (paymentData.periodStart ? String(paymentData.periodStart).slice(0, 7) : '') ||
+        (existingFee?.month || getMonthYear());
+
+      const todayIso = new Date().toISOString();
+      const todayDate = todayIso.split('T')[0];
+
+      const feePayload = {
+        studentId: collectFee.studentId,
+        studentName: studentObj?.name || collectFee.studentName || '',
+        studentPhone: studentObj?.phone || collectFee.studentPhone || '',
+        seatId: studentObj?.seatId || collectFee.seatId || '',
+        sectionId: studentObj?.sectionId || collectFee.sectionId || '',
+        status: paymentData.status || (paymentData.dueAmount > 0 ? 'partial' : 'paid'),
+        date: existingFee?.date || collectFee.date || todayDate,
+        paidDate: todayIso,
+        month: feeMonth,
+        paymentMode: paymentData.paymentMode || 'cash',
+        splitDetails: paymentData.splitDetails || null,
+        notes: paymentData.notes || '',
+        amount: paymentData.amount,
+        paidAmount: paymentData.paidAmount,
+        paidNow: paymentData.paidNow,
+        dueAmount: paymentData.dueAmount || 0,
+        payments: updatedPayments,
+        baseFee: paymentData.baseFee,
+        discountAmount: paymentData.discountAmount || 0,
+        addonCharges: paymentData.addonCharges || {},
+        includedCharges: paymentData.includedCharges || {},
+        planFeatures: paymentData.planFeatures || [],
+        planName: paymentData.planName,
+        planDuration: paymentData.planDuration,
+        durationUnit: paymentData.durationUnit || (paymentData.isDayBased ? 'days' : 'months'),
+        durationDays: paymentData.durationDays || null,
+        durationMonths: paymentData.durationMonths || null,
+        isDayBased: !!paymentData.isDayBased,
+        periodStart: paymentData.periodStart,
+        periodEnd: paymentData.periodEnd,
+        receiptNumber: receiptNum,
+        collectedBy: 'Admin',
+      };
+
+      if (existingFee) {
+        await updateDocument(COLLECTIONS.FEES, collectFee.id, feePayload);
+      } else {
+        await createDocument(COLLECTIONS.FEES, feePayload, collectFee.id);
+      }
+
+      // 2. Automatically Renew Student's Membership Validity Cycle
+      if (collectFee.studentId && paymentData.periodEnd) {
+        await updateDocument(COLLECTIONS.STUDENTS, collectFee.studentId, {
+          membershipPlanId: paymentData.planId,
+          membershipStart: paymentData.periodStart,
+          membershipEnd: paymentData.periodEnd,
+          hasPaidBefore: true,
+          status: 'active',
+          planPrice: paymentData.baseFee,
+          discountAmount: paymentData.discountAmount || 0,
+          planName: paymentData.planName,
+          isDayBased: !!paymentData.isDayBased,
+          durationDays: paymentData.durationDays || null,
+          durationMonths: paymentData.durationMonths || null,
+          dueFeeAmount: paymentData.dueAmount || 0,
+        });
+      }
+
+      const recordedFee = { id: collectFee.id, ...feePayload };
+      setCollectFee(null);
+      await fetchData();
+
+      // Show receipt modal so admin can view/print/WhatsApp bill
+      setReceiptFee(recordedFee);
+    } catch (err) {
+      console.error('Error collecting fee in Fees page:', err);
+      alert('Fee collect karne mein dikkat aayi: ' + (err?.message || err));
     }
-
-    setCollectFee(null);
-    await fetchData();
   };
 
   const handleConfirmMarkLeft = async () => {
@@ -519,7 +581,7 @@ export default function Fees() {
   const todayStr = new Date().toISOString().split('T')[0];
 
   // Daily & Monthly Operational Calculations
-  const allFeePayments = extractAllFeePayments(fees);
+  const allFeePayments = extractAllFeePayments(fees, students);
 
   const todayPayments = allFeePayments.filter(
     (p) => p.paidDate && p.paidDate.startsWith(todayStr)

@@ -38,7 +38,11 @@ export default function CollectFeeModal({
   const computeEndDate = (startDateStr, planObj) => {
     if (!startDateStr) return '';
     try {
-      const [y, m, d] = startDateStr.split('-').map(Number);
+      const cleanStr = String(startDateStr).split('T')[0];
+      const [y, m, d] = cleanStr.split('-').map(Number);
+      if (isNaN(y) || isNaN(m) || isNaN(d)) {
+        throw new Error('Invalid date components');
+      }
       const start = new Date(y, m - 1, d);
       
       const isDay = Boolean(
@@ -333,22 +337,37 @@ export default function CollectFeeModal({
   );
 
   const discount = discountAmount === '' ? 0 : Number(discountAmount) || 0;
-  const totalPayable = Math.max(0, planPrice + addonTotal - discount);
 
-  // Partial / Installment & Balance Due calculations
-  const previouslyPaid =
-    Number(fee?.paidAmount) ||
-    (Number(fee?.amount) > 0 && fee?.dueAmount !== undefined ? Math.max(0, Number(fee.amount) - Number(fee.dueAmount)) : 0) ||
-    (Number(student?.dueFeeAmount) > 0 && Number(student?.planPrice) > Number(student?.dueFeeAmount) ? Number(student.planPrice) - Number(student.dueFeeAmount) : 0) ||
-    0;
-  const totalBalanceDue = Math.max(0, totalPayable - previouslyPaid);
+  // Determine if we are collecting dues for an existing partial/unpaid fee record
+  const isCollectingExistingDue = Boolean(
+    fee && (
+      fee.status === 'partial' ||
+      (fee.dueAmount !== undefined && Number(fee.dueAmount) > 0)
+    )
+  );
+
+  let previouslyPaid = 0;
+  let totalBalanceDue = 0;
+  let totalPayable = 0;
+
+  if (isCollectingExistingDue) {
+    previouslyPaid =
+      Number(fee.paidAmount) ||
+      (Number(fee.amount) > 0 && fee.dueAmount !== undefined ? Math.max(0, Number(fee.amount) - Number(fee.dueAmount)) : 0);
+    totalBalanceDue = Number(fee.dueAmount) > 0 ? Number(fee.dueAmount) : Math.max(0, (Number(fee.amount) || 0) - previouslyPaid);
+    totalPayable = previouslyPaid + totalBalanceDue;
+  } else {
+    previouslyPaid = 0;
+    totalPayable = Math.max(0, planPrice + addonTotal - discount);
+    totalBalanceDue = totalPayable;
+  }
 
   const actualPaidNow = paymentType === 'full'
     ? totalBalanceDue
     : Math.min(totalBalanceDue, Math.max(0, Number(customPayingAmount) || 0));
 
   const newCumulativePaid = previouslyPaid + actualPaidNow;
-  const remainingAfterPayment = Math.max(0, totalPayable - newCumulativePaid);
+  const remainingAfterPayment = Math.max(0, totalBalanceDue - actualPaidNow);
 
   const handleSplitCashChange = (val) => {
     setSplitCash(val);

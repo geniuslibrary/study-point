@@ -337,7 +337,7 @@ export default function StudentProfile({
                   </thead>
                   <tbody className="divide-y divide-slate-100 text-xs">
                     {fees.map((fee) => {
-                      const hasMultipleInstallments = Array.isArray(fee.payments) && fee.payments.length > 1;
+                      const hasInstallments = Array.isArray(fee.payments) && fee.payments.length > 0;
                       const paidAmt = Number(
                         fee.paidAmount !== undefined && fee.paidAmount !== null
                           ? fee.paidAmount
@@ -372,9 +372,9 @@ export default function StudentProfile({
                             </td>
                             <td className="px-4 py-2.5">
                               <span className="font-black text-slate-900 block">
-                                {formatCurrency(paidAmt || fee.amount)}
+                                {formatCurrency(paidAmt)}
                               </span>
-                              {hasMultipleInstallments ? (
+                              {hasInstallments && fee.payments.length > 1 ? (
                                 <span className="inline-block mt-0.5 text-[10px] font-extrabold text-indigo-700 bg-indigo-50 border border-indigo-200 px-1.5 py-0.5 rounded">
                                   ⚡ {fee.payments.length} Installments ({fee.payments.map((p) => `₹${p.amount}`).join(' + ')})
                                 </span>
@@ -393,15 +393,22 @@ export default function StudentProfile({
                           </tr>
 
                           {/* Detailed Installment History Cards */}
-                          {hasMultipleInstallments && (
+                          {hasInstallments && (
                             <tr className="bg-indigo-50/30">
                               <td colSpan={6} className="px-4 py-2.5 border-b border-slate-100">
                                 <div className="bg-white p-3 rounded-xl border border-indigo-100/90 shadow-2xs space-y-2">
-                                  <div className="flex items-center justify-between text-[11px] font-extrabold text-indigo-950 uppercase tracking-wider">
-                                    <span>📋 Installment Payment History ({fee.payments.length} Payments / किस्तें)</span>
-                                    <span className="text-emerald-700 font-black">
-                                      Total Paid: {formatCurrency(paidAmt || fee.amount)}
-                                    </span>
+                                  <div className="flex items-center justify-between text-[11px] font-extrabold text-indigo-950 uppercase tracking-wider flex-wrap gap-2">
+                                    <span>📋 Payment History ({fee.payments.length} {fee.payments.length === 1 ? 'Payment' : 'Installments'})</span>
+                                    <div className="flex items-center gap-3">
+                                      <span className="text-emerald-700 font-black">
+                                        Total Paid: {formatCurrency(paidAmt)}
+                                      </span>
+                                      {isPartial && Number(fee.dueAmount) > 0 && (
+                                        <span className="text-amber-700 font-black">
+                                          Due: {formatCurrency(fee.dueAmount)}
+                                        </span>
+                                      )}
+                                    </div>
                                   </div>
                                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                                     {fee.payments.map((p, idx) => {
@@ -419,7 +426,7 @@ export default function StudentProfile({
                                               <span className="w-4 h-4 rounded-full bg-indigo-600 text-white text-[10px] flex items-center justify-center font-extrabold">
                                                 {idx + 1}
                                               </span>
-                                              <span>Installment #{idx + 1}:</span>
+                                              <span>Payment #{idx + 1}:</span>
                                               <span className="font-extrabold text-emerald-700 text-sm">
                                                 {formatCurrency(p.amount)}
                                               </span>

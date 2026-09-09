@@ -191,7 +191,7 @@ export default function Reports() {
   // ----------------------------------------------------
   // EXTRACT ALL DISCRETE FEE PAYMENTS (FULL, PARTIAL, DUES, SPLIT)
   // ----------------------------------------------------
-  const allFeePayments = extractAllFeePayments(fees);
+  const allFeePayments = extractAllFeePayments(fees, students);
 
   const computeModeCollections = (paymentItems) => {
     let cash = 0;
