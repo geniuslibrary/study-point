@@ -140,7 +140,7 @@ export default function Expenses() {
 
         // Check if salary expense already exists for this staff in selectedMonth
         const alreadyHasSalary = expensesData.some((exp) => {
-          const isSalary = exp.category === 'Staff Salary' || exp.expenseType === 'salary';
+          const isSalary = exp.category === 'Staff Salary' || exp.expenseType === 'salary' || exp.type === 'salary';
           if (!isSalary) return false;
 
           let expMonth = exp.month;

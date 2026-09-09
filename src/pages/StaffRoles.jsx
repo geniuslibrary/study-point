@@ -477,7 +477,9 @@ export default function StaffRoles() {
           const activeTenantId = getActiveTenantId();
           const joinDay = payload.joinDate ? parseInt(payload.joinDate.split('-')[2], 10) : 1;
           const [curY, curM] = currentMonth.split('-');
-          const scheduledDateStr = `${curY}-${curM}-${String(joinDay).padStart(2, '0')}`;
+          const maxDays = new Date(parseInt(curY, 10), parseInt(curM, 10), 0).getDate();
+          const validDay = Math.min(joinDay, maxDays);
+          const scheduledDateStr = `${curY}-${curM}-${String(validDay).padStart(2, '0')}`;
 
           const initialSalaryExpense = {
             title: `Salary - ${payload.name}`,
@@ -507,7 +509,7 @@ export default function StaffRoles() {
               paymentMode: 'cash',
             },
           };
-          createDocument(COLLECTIONS.EXPENSES, initialSalaryExpense).catch(console.error);
+          await createDocument(COLLECTIONS.EXPENSES, initialSalaryExpense);
         }
       }
       setShowStaffModal(false);
@@ -2454,13 +2456,18 @@ export default function StaffRoles() {
                 onChange={(e) => setStaffMemberFormData({ ...staffMemberFormData, role: e.target.value })}
                 className="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl text-sm bg-white font-bold text-slate-800 focus:ring-2 focus:ring-indigo-500"
               >
-                <option value="Receptionist">🛎️ Receptionist</option>
-                <option value="Worker / Cleaner">🧹 Worker / Cleaner</option>
-                <option value="Branch Manager">👔 Branch Manager</option>
-                <option value="Security Guard">🛡️ Security Guard</option>
-                <option value="Helper / Peon">🤝 Helper / Peon</option>
-                <option value="Night Incharge">🌙 Night Incharge</option>
-                <option value="Other">💼 Other</option>
+                {rolesList.map((r) => (
+                  <option key={r.id} value={r.name}>
+                    {r.emoji || '💼'} {r.name}
+                  </option>
+                ))}
+                {['Worker / Cleaner', 'Security Guard', 'Helper / Peon', 'Night Incharge', 'Other']
+                  .filter((standard) => !rolesList.some((r) => r.name?.toLowerCase() === standard.toLowerCase()))
+                  .map((roleName) => (
+                    <option key={roleName} value={roleName}>
+                      {roleName === 'Worker / Cleaner' ? '🧹' : roleName === 'Security Guard' ? '🛡️' : roleName === 'Helper / Peon' ? '🤝' : roleName === 'Night Incharge' ? '🌙' : '💼'} {roleName}
+                    </option>
+                  ))}
               </select>
             </div>
 
