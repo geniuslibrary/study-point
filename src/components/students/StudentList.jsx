@@ -264,14 +264,14 @@ export default function StudentList({
       {/* Desktop View: Table Mode */}
       {viewMode === 'table' && (
         <div className="hidden md:block overflow-x-auto">
-          <table className="w-full text-left">
+          <table className="w-full min-w-[1050px] text-left border-collapse" style={{ minWidth: '1050px' }}>
             <thead className="bg-slate-50/90 text-xs font-bold text-slate-500 uppercase tracking-wider border-b border-slate-200">
               <tr>
-                <th className="px-5 py-3.5">Student</th>
-                <th className="px-5 py-3.5">Seat & Shift</th>
-                <th className="px-5 py-3.5">Plan & Fee</th>
-                <th className="px-5 py-3.5 text-center">Status</th>
-                <th className="px-5 py-3.5 text-right whitespace-nowrap min-w-[390px]">Actions</th>
+                <th className="px-4 py-3.5">Student</th>
+                <th className="px-4 py-3.5">Seat & Shift</th>
+                <th className="px-4 py-3.5">Plan & Fee</th>
+                <th className="px-4 py-3.5 text-center">Status</th>
+                <th className="px-4 py-3.5 text-right whitespace-nowrap" style={{ width: '350px', minWidth: '350px', whiteSpace: 'nowrap' }}>Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 text-sm font-medium">
@@ -395,24 +395,29 @@ export default function StudentList({
                     </td>
 
                     {/* Actions: Clean, Colorful, Clearly Labeled Button Pills in a Single Line */}
-                    <td className="px-5 py-3.5 text-right whitespace-nowrap">
-                      <div className="flex items-center justify-end flex-nowrap gap-1.5 whitespace-nowrap">
+                    <td className="px-4 py-3 text-right whitespace-nowrap" style={{ width: '350px', minWidth: '350px', whiteSpace: 'nowrap' }}>
+                      <div
+                        className="inline-flex items-center justify-end gap-1 whitespace-nowrap"
+                        style={{ display: 'inline-flex', flexWrap: 'nowrap', whiteSpace: 'nowrap' }}
+                      >
                         <button
                           onClick={() => onViewProfile(student)}
-                          className="px-2 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-[11px] font-bold inline-flex items-center gap-1 cursor-pointer transition-colors shadow-2xs shrink-0"
+                          className="px-2 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-[11px] font-bold inline-flex items-center gap-1 cursor-pointer transition-colors shadow-2xs shrink-0 whitespace-nowrap"
                           title="View Student Profile & Fee History"
+                          style={{ flexShrink: 0 }}
                         >
-                          <Eye size={12} className="text-slate-600" />
+                          <Eye size={11} className="text-slate-600" />
                           <span>Profile</span>
                         </button>
 
                         {onExtend && (
                           <button
                             onClick={() => onExtend(student)}
-                            className="px-2 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 rounded-lg text-[11px] font-bold inline-flex items-center gap-1 cursor-pointer transition-colors shadow-2xs shrink-0"
+                            className="px-2 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 rounded-lg text-[11px] font-bold inline-flex items-center gap-1 cursor-pointer transition-colors shadow-2xs shrink-0 whitespace-nowrap"
                             title="Extend Membership Validity (दिन आगे बढ़ाएं)"
+                            style={{ flexShrink: 0 }}
                           >
-                            <CalendarPlus size={12} className="text-emerald-600" />
+                            <CalendarPlus size={11} className="text-emerald-600" />
                             <span>Extend</span>
                           </button>
                         )}
@@ -420,21 +425,25 @@ export default function StudentList({
                         {!isLeft && canCollectFee && (
                           <button
                             onClick={() => onCollectFee(student)}
-                            className="px-2 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-[11px] font-bold inline-flex items-center gap-1 cursor-pointer transition-colors shadow-2xs shrink-0"
+                            className="px-2 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-[11px] font-bold inline-flex items-center gap-1 cursor-pointer transition-colors shadow-2xs shrink-0 whitespace-nowrap"
                             title="Collect Fee / Record Payment"
+                            style={{ flexShrink: 0 }}
                           >
-                            <IndianRupee size={12} />
+                            <IndianRupee size={11} />
                             <span>Fee</span>
                           </button>
                         )}
 
+                        <div className="h-3.5 w-px bg-slate-200 mx-0.5 shrink-0" style={{ flexShrink: 0 }} />
+
                         {canEdit && (
                           <button
                             onClick={() => onEdit(student)}
-                            className="px-2 py-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 rounded-lg text-[11px] font-bold inline-flex items-center gap-1 cursor-pointer transition-colors shadow-2xs shrink-0"
+                            className="px-2 py-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 rounded-lg text-[11px] font-bold inline-flex items-center gap-1 cursor-pointer transition-colors shadow-2xs shrink-0 whitespace-nowrap"
                             title="Edit Student Admission / Shift"
+                            style={{ flexShrink: 0 }}
                           >
-                            <Edit size={12} className="text-indigo-600" />
+                            <Edit size={11} className="text-indigo-600" />
                             <span>Edit</span>
                           </button>
                         )}
@@ -442,10 +451,11 @@ export default function StudentList({
                         {!isLeft && onToggleStatus && (
                           <button
                             onClick={() => onToggleStatus(student)}
-                            className="px-2 py-1 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 rounded-lg text-[11px] font-bold inline-flex items-center gap-1 cursor-pointer transition-colors shadow-2xs shrink-0"
+                            className="px-2 py-1 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 rounded-lg text-[11px] font-bold inline-flex items-center gap-1 cursor-pointer transition-colors shadow-2xs shrink-0 whitespace-nowrap"
                             title="Mark Left & Free Seat (छोड़ दिया)"
+                            style={{ flexShrink: 0 }}
                           >
-                            <UserX size={12} className="text-rose-600" />
+                            <UserX size={11} className="text-rose-600" />
                             <span>Left</span>
                           </button>
                         )}
@@ -453,8 +463,9 @@ export default function StudentList({
                         {canDelete && (
                           <button
                             onClick={() => onDelete(student)}
-                            className="p-1.5 bg-slate-50 hover:bg-rose-50 text-slate-400 hover:text-rose-600 border border-slate-200 hover:border-rose-200 rounded-lg text-xs font-bold inline-flex items-center justify-center cursor-pointer transition-colors shrink-0"
+                            className="p-1 bg-slate-50 hover:bg-rose-50 text-slate-400 hover:text-rose-600 border border-slate-200 hover:border-rose-200 rounded-lg text-xs font-bold inline-flex items-center justify-center cursor-pointer transition-colors shrink-0 whitespace-nowrap"
                             title="Delete Student Record"
+                            style={{ flexShrink: 0 }}
                           >
                             <Trash2 size={13} />
                           </button>
