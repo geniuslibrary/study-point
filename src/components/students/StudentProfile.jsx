@@ -1,3 +1,4 @@
+import React, { Fragment } from 'react';
 import Modal from '../common/Modal';
 import StatusBadge from '../common/StatusBadge';
 import { formatDate, formatCurrency, getMembershipRemainingDays } from '../../utils/helpers';
@@ -322,9 +323,9 @@ export default function StudentProfile({
             </div>
           ) : (
             <div className="border border-slate-200 rounded-2xl overflow-hidden shadow-2xs">
-              <div className="max-h-56 overflow-y-auto">
+              <div className="max-h-80 overflow-y-auto">
                 <table className="w-full text-sm">
-                  <thead className="bg-slate-50 border-b border-slate-200 text-xs font-bold text-slate-500 uppercase tracking-wider">
+                  <thead className="bg-slate-50 border-b border-slate-200 text-xs font-bold text-slate-500 uppercase tracking-wider sticky top-0 z-10">
                     <tr>
                       <th className="px-4 py-2.5 text-left">Validity Period / Month</th>
                       <th className="px-4 py-2.5 text-left">Plan Rate</th>
@@ -335,30 +336,113 @@ export default function StudentProfile({
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100 text-xs">
-                    {fees.map((fee) => (
-                      <tr key={fee.id} className="hover:bg-slate-50">
-                        <td className="px-4 py-2.5 font-bold text-slate-900">
-                          {fee.periodStart && fee.periodEnd
-                            ? `${formatDate(fee.periodStart)} to ${formatDate(fee.periodEnd)}`
-                            : fee.month}
-                        </td>
-                        <td className="px-4 py-2.5 text-slate-600">
-                          {formatCurrency(fee.baseFee || fee.amount)}
-                        </td>
-                        <td className="px-4 py-2.5 font-bold text-emerald-700">
-                          {fee.discountAmount > 0 ? `- ₹${fee.discountAmount}` : '—'}
-                        </td>
-                        <td className="px-4 py-2.5 font-black text-slate-900">
-                          {formatCurrency(fee.amount)}
-                        </td>
-                        <td className="px-4 py-2.5 text-slate-500">
-                          {formatDate(fee.paidDate || fee.dueDate)}
-                        </td>
-                        <td className="px-4 py-2.5">
-                          <StatusBadge status={fee.status} size="sm" />
-                        </td>
-                      </tr>
-                    ))}
+                    {fees.map((fee) => {
+                      const hasMultipleInstallments = Array.isArray(fee.payments) && fee.payments.length > 1;
+                      const paidAmt = Number(
+                        fee.paidAmount !== undefined && fee.paidAmount !== null
+                          ? fee.paidAmount
+                          : fee.status === 'paid'
+                          ? fee.amount
+                          : 0
+                      );
+                      const isPartial = fee.status === 'partial' || Number(fee.dueAmount) > 0;
+
+                      return (
+                        <Fragment key={fee.id}>
+                          <tr className="hover:bg-slate-50">
+                            <td className="px-4 py-2.5 font-bold text-slate-900">
+                              <div>
+                                <span>
+                                  {fee.periodStart && fee.periodEnd
+                                    ? `${formatDate(fee.periodStart)} to ${formatDate(fee.periodEnd)}`
+                                    : fee.month}
+                                </span>
+                                {fee.planName && (
+                                  <span className="block text-[10px] text-slate-400 font-normal mt-0.5">
+                                    {fee.planName}
+                                  </span>
+                                )}
+                              </div>
+                            </td>
+                            <td className="px-4 py-2.5 text-slate-600">
+                              {formatCurrency(fee.baseFee || fee.amount)}
+                            </td>
+                            <td className="px-4 py-2.5 font-bold text-emerald-700">
+                              {fee.discountAmount > 0 ? `- ₹${fee.discountAmount}` : '—'}
+                            </td>
+                            <td className="px-4 py-2.5">
+                              <span className="font-black text-slate-900 block">
+                                {formatCurrency(paidAmt || fee.amount)}
+                              </span>
+                              {hasMultipleInstallments ? (
+                                <span className="inline-block mt-0.5 text-[10px] font-extrabold text-indigo-700 bg-indigo-50 border border-indigo-200 px-1.5 py-0.5 rounded">
+                                  ⚡ {fee.payments.length} Installments ({fee.payments.map((p) => `₹${p.amount}`).join(' + ')})
+                                </span>
+                              ) : isPartial && fee.dueAmount > 0 ? (
+                                <span className="inline-block mt-0.5 text-[10px] font-bold text-amber-700 bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded">
+                                  Due: {formatCurrency(fee.dueAmount)}
+                                </span>
+                              ) : null}
+                            </td>
+                            <td className="px-4 py-2.5 text-slate-500">
+                              {formatDate(fee.paidDate || fee.dueDate)}
+                            </td>
+                            <td className="px-4 py-2.5">
+                              <StatusBadge status={fee.status} size="sm" />
+                            </td>
+                          </tr>
+
+                          {/* Detailed Installment History Cards */}
+                          {hasMultipleInstallments && (
+                            <tr className="bg-indigo-50/30">
+                              <td colSpan={6} className="px-4 py-2.5 border-b border-slate-100">
+                                <div className="bg-white p-3 rounded-xl border border-indigo-100/90 shadow-2xs space-y-2">
+                                  <div className="flex items-center justify-between text-[11px] font-extrabold text-indigo-950 uppercase tracking-wider">
+                                    <span>📋 Installment Payment History ({fee.payments.length} Payments / किस्तें)</span>
+                                    <span className="text-emerald-700 font-black">
+                                      Total Paid: {formatCurrency(paidAmt || fee.amount)}
+                                    </span>
+                                  </div>
+                                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                    {fee.payments.map((p, idx) => {
+                                      const modeText =
+                                        p.paymentMode === 'split'
+                                          ? `Split (Cash: ₹${p.splitDetails?.cash || 0} + UPI: ₹${p.splitDetails?.upi || 0})`
+                                          : (p.paymentMode || 'Cash').toUpperCase();
+                                      return (
+                                        <div
+                                          key={p.id || idx}
+                                          className="flex items-center justify-between p-2 rounded-lg bg-slate-50 border border-slate-200 text-xs"
+                                        >
+                                          <div className="space-y-0.5">
+                                            <div className="flex items-center gap-1.5 font-bold text-slate-800">
+                                              <span className="w-4 h-4 rounded-full bg-indigo-600 text-white text-[10px] flex items-center justify-center font-extrabold">
+                                                {idx + 1}
+                                              </span>
+                                              <span>Installment #{idx + 1}:</span>
+                                              <span className="font-extrabold text-emerald-700 text-sm">
+                                                {formatCurrency(p.amount)}
+                                              </span>
+                                            </div>
+                                            <div className="text-[10px] text-slate-500">
+                                              📅 {formatDate(p.paidDate)} • 💳 {modeText}
+                                              {p.receiptNumber && ` • #${p.receiptNumber}`}
+                                            </div>
+                                          </div>
+                                          <span className="px-1.5 py-0.5 rounded text-[10px] font-extrabold bg-emerald-100 text-emerald-800 shrink-0">
+                                            Paid
+                                          </span>
+                                        </div>
+                                      );
+                                    })}
+                                  </div>
+                                </div>
+                              </td>
+                            </tr>
+                          )}
+                        </Fragment>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>
