@@ -99,6 +99,17 @@ const MODULE_META = {
   },
 };
 
+const DEFAULT_OWNER_ROLE = {
+  id: 'role_owner',
+  name: 'Owner (Super Admin)',
+  emoji: '👑',
+  label: '👑 Owner (Super Admin)',
+  description: 'Full access to all revenue, expenses, audit reports & library settings.',
+  permissions: JSON.parse(JSON.stringify(ROLE_PRESETS.owner.permissions)),
+  dashboardWidgets: { ...DEFAULT_STAFF_DASHBOARD_WIDGETS },
+  isOwner: true,
+};
+
 const DEFAULT_SYSTEM_ROLES = [
   {
     id: 'role_receptionist',
@@ -106,7 +117,8 @@ const DEFAULT_SYSTEM_ROLES = [
     emoji: '🛎️',
     label: '🛎️ Receptionist',
     description: 'Front desk: seat grid, student admission, fee collection & receipts.',
-    permissions: ROLE_PRESETS.receptionist.permissions,
+    permissions: JSON.parse(JSON.stringify(ROLE_PRESETS.receptionist.permissions)),
+    dashboardWidgets: { ...DEFAULT_STAFF_DASHBOARD_WIDGETS },
   },
   {
     id: 'role_manager',
@@ -114,22 +126,15 @@ const DEFAULT_SYSTEM_ROLES = [
     emoji: '👔',
     label: '👔 Branch Manager',
     description: 'Branch management: seats, admissions, fees, operational reports & expenses.',
-    permissions: ROLE_PRESETS.manager.permissions,
+    permissions: JSON.parse(JSON.stringify(ROLE_PRESETS.manager.permissions)),
+    dashboardWidgets: { ...DEFAULT_STAFF_DASHBOARD_WIDGETS },
   },
 ];
 
 export default function StaffRoles() {
   const [staffList, setStaffList] = useState([]);
-  const [rolesList, setRolesList] = useState([]);
-  const [ownerRole, setOwnerRole] = useState({
-    id: 'role_owner',
-    name: 'Owner (Super Admin)',
-    emoji: '👑',
-    label: '👑 Owner (Super Admin)',
-    description: 'Full access to all revenue, expenses, audit reports & library settings.',
-    permissions: JSON.parse(JSON.stringify(ROLE_PRESETS.owner.permissions)),
-    isOwner: true,
-  });
+  const [rolesList, setRolesList] = useState(DEFAULT_SYSTEM_ROLES);
+  const [ownerRole, setOwnerRole] = useState(DEFAULT_OWNER_ROLE);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('roles'); // 'roles' (Tab 1: Role & Permission) | 'staff' (Tab 2: Staff)
 
@@ -186,8 +191,8 @@ export default function StaffRoles() {
     dashboardWidgets: { ...DEFAULT_STAFF_DASHBOARD_WIDGETS },
   });
 
-  const fetchData = async () => {
-    setLoading(true);
+  const fetchData = async (showFullLoader = true) => {
+    if (showFullLoader) setLoading(true);
     try {
       const [staffData, rolesData, staffMembersData] = await Promise.all([
         fetchCollectionData(COLLECTIONS.STAFF_USERS),
@@ -195,21 +200,37 @@ export default function StaffRoles() {
         fetchCollectionData(COLLECTIONS.STAFF_MEMBERS),
       ]);
 
-      const ownerDoc = rolesData.find((r) => r.id === 'role_owner' || r.isOwner);
+      const ownerDoc = (rolesData || []).find((r) => r.id === 'role_owner' || r.isOwner);
       if (ownerDoc) {
-        setOwnerRole(ownerDoc);
+        setOwnerRole({
+          ...DEFAULT_OWNER_ROLE,
+          ...ownerDoc,
+          id: 'role_owner',
+          isOwner: true,
+        });
+      } else {
+        setOwnerRole(DEFAULT_OWNER_ROLE);
       }
 
-      let regularRoles = rolesData.filter((r) => r.id !== 'role_owner' && !r.isOwner);
+      let regularRoles = (rolesData || []).filter((r) => r.id !== 'role_owner' && !r.isOwner);
 
-      // If no roles in DB yet, seed default system roles
-      if (!regularRoles || regularRoles.length === 0) {
-        regularRoles = DEFAULT_SYSTEM_ROLES;
-        // Seed to DB in background
-        Promise.all(
-          DEFAULT_SYSTEM_ROLES.map((r) => createDocument(COLLECTIONS.ROLE_PRESETS, r, r.id))
-        ).catch(console.warn);
-      }
+      // ALWAYS guarantee all default system roles (Receptionist and Branch Manager) are present
+      const roleMap = new Map();
+      DEFAULT_SYSTEM_ROLES.forEach((defRole) => {
+        roleMap.set(defRole.id, { ...defRole });
+      });
+
+      // Overlay with any saved customizations or user-created roles
+      regularRoles.forEach((dbRole) => {
+        if (dbRole && dbRole.id) {
+          roleMap.set(dbRole.id, {
+            ...(roleMap.get(dbRole.id) || {}),
+            ...dbRole,
+          });
+        }
+      });
+
+      const finalRolesList = Array.from(roleMap.values());
 
       const activeTenantId = getActiveTenantId();
       if (staffData && staffData.length > 0 && activeTenantId) {
@@ -220,13 +241,13 @@ export default function StaffRoles() {
         });
       }
 
-      setStaffList(staffData);
-      setRolesList(regularRoles);
+      setStaffList(staffData || []);
+      setRolesList(finalRolesList);
       setStaffMembers(staffMembersData || []);
     } catch (e) {
       console.error('Error fetching staff data:', e);
     } finally {
-      setLoading(false);
+      if (showFullLoader) setLoading(false);
     }
   };
 
@@ -323,14 +344,19 @@ export default function StaffRoles() {
 
     try {
       if (editStaffMember) {
+        const updatedMember = { ...editStaffMember, ...payload };
+        setStaffMembers((prev) =>
+          prev.map((s) => (s.id === editStaffMember.id ? updatedMember : s))
+        );
         await updateDocument(COLLECTIONS.STAFF_MEMBERS, editStaffMember.id, payload);
         showToast(`Staff "${payload.name}" updated successfully!`);
       } else {
-        await createDocument(COLLECTIONS.STAFF_MEMBERS, payload);
+        const newMember = await createDocument(COLLECTIONS.STAFF_MEMBERS, payload);
+        setStaffMembers((prev) => [newMember, ...prev.filter((s) => s.id !== newMember.id)]);
         showToast(`New staff "${payload.name}" added successfully!`);
       }
       setShowStaffModal(false);
-      await fetchStaffMembersData();
+      fetchStaffMembersData();
     } catch (err) {
       console.error(err);
       showToast('Error saving staff member: ' + err.message);
@@ -387,7 +413,7 @@ export default function StaffRoles() {
   // Staff Modal Handlers
   const handleOpenAdd = () => {
     setEditStaff(null);
-    const defaultRole = rolesList[0] || DEFAULT_SYSTEM_ROLES[0];
+    const defaultRole = rolesList.find((r) => r.id === 'role_receptionist') || rolesList[0] || DEFAULT_SYSTEM_ROLES[0];
     setFormData({
       name: '',
       email: '',
@@ -396,7 +422,7 @@ export default function StaffRoles() {
       role: defaultRole.id,
       roleLabel: defaultRole.label || `${defaultRole.emoji || '💼'} ${defaultRole.name}`,
       status: 'active',
-      permissions: JSON.parse(JSON.stringify(defaultRole.permissions)),
+      permissions: JSON.parse(JSON.stringify(defaultRole.permissions || ROLE_PRESETS.receptionist.permissions)),
       dashboardWidgets: defaultRole.dashboardWidgets
         ? { ...DEFAULT_STAFF_DASHBOARD_WIDGETS, ...defaultRole.dashboardWidgets }
         : { ...DEFAULT_STAFF_DASHBOARD_WIDGETS },
@@ -508,19 +534,31 @@ export default function StaffRoles() {
       const activeTenantId = getActiveTenantId();
       const payload = {
         ...formData,
+        name: formData.name.trim(),
+        email: formData.email.trim().toLowerCase(),
+        password: formData.password.trim(),
+        phone: formData.phone ? formData.phone.trim() : '',
+        role: formData.role || 'role_receptionist',
+        roleLabel: formData.roleLabel || getRoleLabel(formData.role || 'role_receptionist'),
+        status: formData.status || 'active',
         tenantId: activeTenantId,
         ownerId: activeTenantId,
       };
 
       if (editStaff) {
+        const updatedStaff = { ...editStaff, ...payload };
+        setStaffList((prev) =>
+          prev.map((s) => (s.id === editStaff.id ? updatedStaff : s))
+        );
         await updateDocument(COLLECTIONS.STAFF_USERS, editStaff.id, payload);
         showToast(`Staff member "${formData.name}" updated successfully!`);
       } else {
-        await createDocument(COLLECTIONS.STAFF_USERS, payload);
+        const newStaff = await createDocument(COLLECTIONS.STAFF_USERS, payload);
+        setStaffList((prev) => [newStaff, ...prev.filter((s) => s.id !== newStaff.id)]);
         showToast(`New staff member "${formData.name}" created successfully!`);
       }
       setShowModal(false);
-      await fetchData();
+      fetchData(false);
     } catch (err) {
       console.error(err);
       showToast('Error saving staff member: ' + err.message);
@@ -625,17 +663,22 @@ export default function StaffRoles() {
     try {
       if (editRole) {
         const docId = isOwnerRole ? 'role_owner' : editRole.id;
-        await updateDocument(COLLECTIONS.ROLE_PRESETS, docId, payload);
         if (isOwnerRole) {
-          setOwnerRole({ ...payload, id: 'role_owner' });
+          setOwnerRole({ ...payload, id: 'role_owner', isOwner: true });
+        } else {
+          setRolesList((prev) =>
+            prev.map((r) => (r.id === editRole.id ? { ...r, ...payload } : r))
+          );
         }
+        await updateDocument(COLLECTIONS.ROLE_PRESETS, docId, payload);
         showToast(`Role "${payload.label}" updated successfully!`);
       } else {
-        await createDocument(COLLECTIONS.ROLE_PRESETS, payload);
+        const newRole = await createDocument(COLLECTIONS.ROLE_PRESETS, payload);
+        setRolesList((prev) => [...prev, newRole]);
         showToast(`New Role "${payload.label}" created!`);
       }
       setShowRoleModal(false);
-      await fetchData();
+      fetchData(false);
     } catch (err) {
       console.error(err);
       showToast('Error saving role: ' + err.message);
@@ -644,13 +687,20 @@ export default function StaffRoles() {
 
   const handleDeleteRoleConfirm = async () => {
     if (!deleteRoleTarget) return;
+    if (['role_owner', 'role_receptionist', 'role_manager'].includes(deleteRoleTarget.id)) {
+      showToast('डिफ़ॉल्ट सिस्टम रोल डिलीट नहीं किया जा सकता (Default system role cannot be deleted)');
+      setDeleteRoleTarget(null);
+      return;
+    }
     try {
       await removeDocument(COLLECTIONS.ROLE_PRESETS, deleteRoleTarget.id);
+      setRolesList((prev) => prev.filter((r) => r.id !== deleteRoleTarget.id));
       setDeleteRoleTarget(null);
-      await fetchData();
+      fetchData(false);
       showToast('Role deleted successfully');
     } catch (e) {
       console.error(e);
+      showToast('Error deleting role');
     }
   };
 
@@ -824,13 +874,19 @@ export default function StaffRoles() {
                       >
                         <Edit size={14} />
                       </button>
-                      <button
-                        onClick={() => setDeleteRoleTarget(r)}
-                        className="p-1.5 text-rose-600 hover:bg-rose-50 rounded-lg cursor-pointer transition-colors"
-                        title="Delete Role"
-                      >
-                        <Trash2 size={14} />
-                      </button>
+                      {!['role_owner', 'role_receptionist', 'role_manager'].includes(r.id) ? (
+                        <button
+                          onClick={() => setDeleteRoleTarget(r)}
+                          className="p-1.5 text-rose-600 hover:bg-rose-50 rounded-lg cursor-pointer transition-colors"
+                          title="Delete Role"
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      ) : (
+                        <span className="text-[10px] bg-slate-100 text-slate-500 font-bold px-1.5 py-0.5 rounded-md">
+                          Standard
+                        </span>
+                      )}
                     </div>
                   </div>
                   <p className="text-xs text-gray-500 leading-relaxed mt-1 line-clamp-2">
