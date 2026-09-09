@@ -108,7 +108,8 @@ export const PERMISSION_MODULES = [
   { id: 'offers', label: 'Offer & Broadcast', actions: ['view', 'create', 'edit', 'delete'] },
   { id: 'expenses', label: 'Expenses & Financials', actions: ['view', 'create', 'edit', 'delete'] },
   { id: 'settings', label: 'Library Settings', actions: ['view', 'edit'] },
-  { id: 'staff', label: 'Staff & Role Management', actions: ['view', 'create', 'edit', 'delete'] },
+  { id: 'staff', label: 'Staff Management', actions: ['view', 'create', 'edit', 'delete'] },
+  { id: 'roles', label: 'Role & Permission', actions: ['view', 'create', 'edit', 'delete'] },
 ];
 
 export const ROLE_PRESETS = {
@@ -126,6 +127,7 @@ export const ROLE_PRESETS = {
       expenses: { view: true, create: true, edit: true, delete: true },
       settings: { view: true, edit: true },
       staff: { view: true, create: true, edit: true, delete: true },
+      roles: { view: true, create: true, edit: true, delete: true },
     },
   },
   receptionist: {
@@ -142,6 +144,7 @@ export const ROLE_PRESETS = {
       expenses: { view: false, create: false, edit: false, delete: false },
       settings: { view: false, edit: false },
       staff: { view: false, create: false, edit: false, delete: false },
+      roles: { view: false, create: false, edit: false, delete: false },
     },
   },
   manager: {
@@ -157,7 +160,8 @@ export const ROLE_PRESETS = {
       memberships: { view: true, create: true, edit: true, delete: false },
       expenses: { view: true, create: true, edit: false, delete: false },
       settings: { view: false, edit: false },
-      staff: { view: false, create: false, edit: false, delete: false },
+      staff: { view: true, create: true, edit: true, delete: false },
+      roles: { view: false, create: false, edit: false, delete: false },
     },
   },
   custom: {
@@ -177,6 +181,6 @@ export const NAV_ITEMS = [
   { path: '/memberships', label: 'Memberships', icon: 'CreditCard', module: 'memberships' },
   { path: '/expenses', label: 'Expenses', icon: 'Receipt', module: 'expenses' },
   { path: '/staff', label: 'Staff', icon: 'UserCog', module: 'staff' },
-  { path: '/roles', label: 'Role & Permission', icon: 'ShieldCheck', module: 'staff' },
+  { path: '/roles', label: 'Role & Permission', icon: 'ShieldCheck', module: 'roles' },
   { path: '/settings', label: 'Settings', icon: 'Settings', module: 'settings' },
 ];

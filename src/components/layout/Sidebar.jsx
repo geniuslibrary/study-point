@@ -35,7 +35,7 @@ const Sidebar = ({ isOpen, setIsOpen, onLogout }) => {
     { name: 'Offer & Broadcast', path: '/offers', icon: Megaphone, module: 'offers' },
     { name: 'Expenses & Utility', path: '/expenses', icon: Receipt, module: 'expenses' },
     { name: 'Staff', path: '/staff', icon: UserCog, module: 'staff' },
-    { name: 'Role & Permission', path: '/roles', icon: ShieldCheck, module: 'staff' },
+    { name: 'Role & Permission', path: '/roles', icon: ShieldCheck, module: 'roles' },
     { name: 'Customization', path: '/customization', icon: Sliders, module: 'settings' },
     { name: 'Settings', path: '/settings', icon: Settings, module: 'settings' },
   ];

@@ -48,6 +48,7 @@ const ProtectedRoute = ({ children, requiredModule = null }) => {
       { module: 'offers', path: '/offers' },
       { module: 'expenses', path: '/expenses' },
       { module: 'staff', path: '/staff' },
+      { module: 'roles', path: '/roles' },
       { module: 'settings', path: '/settings' },
     ];
 
@@ -163,7 +164,7 @@ function AppRoutes() {
       <Route
         path="/roles"
         element={
-          <ProtectedRoute requiredModule="staff">
+          <ProtectedRoute requiredModule="roles">
             <StaffRoles />
           </ProtectedRoute>
         }

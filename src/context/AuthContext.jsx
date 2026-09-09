@@ -256,6 +256,11 @@ export const AuthProvider = ({ children }) => {
       return !!modulePerms[action];
     }
 
+    // Fallback if user had old 'staff' permissions before staff & roles separation
+    if (moduleName === 'roles' && user.permissions?.staff && user.permissions.staff[action] !== undefined) {
+      return !!user.permissions.staff[action];
+    }
+
     // Fallback to role presets if module not explicitly mapped
     const normalizedRole = (user.role || '').replace(/^role_/, '');
     const preset = ROLE_PRESETS[normalizedRole] || ROLE_PRESETS[user.role] || ROLE_PRESETS.receptionist;

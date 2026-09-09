@@ -100,9 +100,14 @@ const MODULE_META = {
     desc: 'Library info, QR codes & seat add-on pricing',
   },
   staff: {
+    icon: Users,
+    color: 'text-indigo-600 bg-indigo-50 border-indigo-200',
+    desc: 'Staff profiles, attendance, salary payments & records',
+  },
+  roles: {
     icon: ShieldCheck,
     color: 'text-purple-600 bg-purple-50 border-purple-200',
-    desc: 'Staff credentials, roles & access permissions',
+    desc: 'Staff login accounts, role presets & permissions matrix',
   },
 };
 
@@ -981,7 +986,7 @@ export default function StaffRoles() {
               + Create New Role
             </Button>
             <Button icon={<UserPlus className="w-4 h-4" />} onClick={handleOpenAdd}>
-              Add New Staff Member
+              + Add Staff Account
             </Button>
           </div>
         </div>
@@ -1752,7 +1757,7 @@ export default function StaffRoles() {
       <Modal
         isOpen={showModal}
         onClose={() => setShowModal(false)}
-        title={editStaff ? `Edit Staff Account: ${editStaff.name}` : 'Add New Staff Member'}
+        title={editStaff ? `Edit Staff Account: ${editStaff.name}` : 'Add New Staff Account'}
         size="lg"
       >
         <form onSubmit={handleSubmit} className="space-y-4">
