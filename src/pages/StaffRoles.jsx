@@ -446,6 +446,45 @@ export default function StaffRoles() {
         const newMember = await createDocument(COLLECTIONS.STAFF_MEMBERS, payload);
         setStaffMembers((prev) => [newMember, ...prev.filter((s) => s.id !== newMember.id)]);
         showToast(`New staff "${payload.name}" added successfully!`);
+
+        // Auto-schedule current month's salary voucher if salary is set
+        if (payload.salary > 0 && payload.status !== 'left') {
+          const currentMonth = new Date().toISOString().slice(0, 7);
+          const activeTenantId = getActiveTenantId();
+          const joinDay = payload.joinDate ? parseInt(payload.joinDate.split('-')[2], 10) : 1;
+          const [curY, curM] = currentMonth.split('-');
+          const scheduledDateStr = `${curY}-${curM}-${String(joinDay).padStart(2, '0')}`;
+
+          const initialSalaryExpense = {
+            title: `Salary - ${payload.name}`,
+            category: 'Staff Salary',
+            type: 'salary',
+            expenseType: 'salary',
+            amount: payload.salary,
+            date: scheduledDateStr,
+            month: currentMonth,
+            paymentMode: 'cash',
+            description: `Staff Salary: ${payload.name} [Monthly Scheduled]`,
+            staffId: newMember.id,
+            isStaffSalaryAuto: true,
+            isRecurring: true,
+            tenantId: activeTenantId,
+            ownerId: activeTenantId,
+            salaryDetails: {
+              staffId: newMember.id,
+              staffName: payload.name,
+              role: payload.role,
+              baseSalary: payload.salary,
+              daysInMonth: 30,
+              daysWorked: 30,
+              bonus: 0,
+              deductions: 0,
+              netSalary: payload.salary,
+              paymentMode: 'cash',
+            },
+          };
+          createDocument(COLLECTIONS.EXPENSES, initialSalaryExpense).catch(console.error);
+        }
       }
       setShowStaffModal(false);
       fetchStaffMembersData();
@@ -585,10 +624,29 @@ export default function StaffRoles() {
     };
 
     try {
-      const savedDoc = await createDocument(COLLECTIONS.EXPENSES, payload);
-      setSalaryExpenses((prev) => [savedDoc, ...prev]);
+      const targetMonth = salaryFormData.date.slice(0, 7);
+      const existingRecord = salaryExpenses.find((exp) => {
+        const isSameMonth = exp.month === targetMonth || (exp.date && exp.date.startsWith(targetMonth));
+        if (!isSameMonth) return false;
+        const matchId = salaryFormData.staffId && (exp.staffId === salaryFormData.staffId || exp.salaryDetails?.staffId === salaryFormData.staffId);
+        const matchName = (exp.salaryDetails?.staffName || exp.staffName || exp.title || '')
+          .toLowerCase()
+          .includes(salaryFormData.staffName.trim().toLowerCase());
+        return matchId || matchName;
+      });
+
+      if (existingRecord) {
+        await updateDocument(COLLECTIONS.EXPENSES, existingRecord.id, payload);
+        setSalaryExpenses((prev) =>
+          prev.map((s) => (s.id === existingRecord.id ? { ...existingRecord, ...payload, id: existingRecord.id } : s))
+        );
+        showToast(`₹${finalAmount.toLocaleString('en-IN')} salary updated in Expenses successfully!`);
+      } else {
+        const savedDoc = await createDocument(COLLECTIONS.EXPENSES, payload);
+        setSalaryExpenses((prev) => [savedDoc, ...prev]);
+        showToast(`₹${finalAmount.toLocaleString('en-IN')} salary recorded in Expenses successfully!`);
+      }
       setShowSalaryModal(false);
-      showToast(`₹${finalAmount.toLocaleString('en-IN')} salary recorded in Expenses successfully!`);
       fetchData(false);
     } catch (err) {
       console.error(err);
