@@ -357,7 +357,7 @@ export default function StaffRoles() {
       setStaffMemberFormData((prev) => ({ ...prev, photo: compressed }));
     } catch (err) {
       console.error('Error compressing staff photo:', err);
-      showToast('फोटो लोड नहीं हो सकी');
+      showToast('Failed to load staff photo');
     } finally {
       setIsCompressingPhoto(false);
       try { e.target.value = ''; } catch (_) {}
@@ -373,7 +373,7 @@ export default function StaffRoles() {
       setStaffMemberFormData((prev) => ({ ...prev, aadharPhoto: compressed }));
     } catch (err) {
       console.error('Error compressing aadhar photo:', err);
-      showToast('आधार कार्ड फोटो लोड नहीं हो सकी');
+      showToast('Failed to load Aadhaar card image');
     } finally {
       setIsCompressingAadhar(false);
       try { e.target.value = ''; } catch (_) {}
@@ -413,7 +413,7 @@ export default function StaffRoles() {
   const handleStaffMemberSubmit = async (e) => {
     e.preventDefault();
     if (!staffMemberFormData.name.trim()) {
-      showToast('कृपया स्टाफ का नाम दर्ज करें');
+      showToast('Please enter staff name');
       return;
     }
 
@@ -458,8 +458,8 @@ export default function StaffRoles() {
       });
       showToast(
         targetStatus === 'left'
-          ? `${staff.name} को 'Left' मार्क किया गया (अब Expense add होना बंद हो गया)`
-          : `${staff.name} को पुनः 'Active' कर दिया गया`
+          ? `${staff.name} marked as Left (Expense auto-add paused)`
+          : `${staff.name} reactivated as Active`
       );
       await fetchStaffMembersData();
     } catch (err) {
@@ -542,12 +542,12 @@ export default function StaffRoles() {
   const handleSaveSalaryExpense = async (e) => {
     e.preventDefault();
     if (!salaryFormData.staffName.trim()) {
-      showToast('कृपया स्टाफ का नाम चुनें या दर्ज करें');
+      showToast('Please enter or select staff name');
       return;
     }
     const finalAmount = Number(salaryFormData.amount) || salaryFormData.netSalary || 0;
     if (finalAmount <= 0) {
-      showToast('सैलरी राशि शून्य से अधिक होनी चाहिए');
+      showToast('Salary amount must be greater than 0');
       return;
     }
 
@@ -583,7 +583,7 @@ export default function StaffRoles() {
       const savedDoc = await createDocument(COLLECTIONS.EXPENSES, payload);
       setSalaryExpenses((prev) => [savedDoc, ...prev]);
       setShowSalaryModal(false);
-      showToast(`₹${finalAmount.toLocaleString('en-IN')} सैलरी सफलतापूर्वक Expenses में दर्ज की गई!`);
+      showToast(`₹${finalAmount.toLocaleString('en-IN')} salary recorded in Expenses successfully!`);
       fetchData(false);
     } catch (err) {
       console.error(err);
@@ -597,7 +597,7 @@ export default function StaffRoles() {
       await removeDocument(COLLECTIONS.EXPENSES, deleteSalaryTarget.id);
       setSalaryExpenses((prev) => prev.filter((s) => s.id !== deleteSalaryTarget.id));
       setDeleteSalaryTarget(null);
-      showToast('सैलरी खर्च रिकॉर्ड हटा दिया गया');
+      showToast('Salary record deleted successfully');
       fetchData(false);
     } catch (err) {
       console.error(err);
@@ -897,7 +897,7 @@ export default function StaffRoles() {
   const handleDeleteRoleConfirm = async () => {
     if (!deleteRoleTarget) return;
     if (['role_owner', 'role_receptionist', 'role_manager'].includes(deleteRoleTarget.id)) {
-      showToast('डिफ़ॉल्ट सिस्टम रोल डिलीट नहीं किया जा सकता (Default system role cannot be deleted)');
+      showToast('Default system role cannot be deleted');
       setDeleteRoleTarget(null);
       return;
     }
@@ -1150,7 +1150,7 @@ export default function StaffRoles() {
                     <div className="bg-slate-50 p-3.5 rounded-xl border border-slate-200 space-y-2 text-xs">
                       <div className="flex items-center justify-between gap-2">
                         <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">
-                          Login Credentials (आईडी व पासवर्ड):
+                          Login Credentials (ID & Password):
                         </span>
 
                         <button
@@ -1265,7 +1265,7 @@ export default function StaffRoles() {
                     <span>Staff & Payroll Management</span>
                   </h1>
                   <p className="text-gray-500 text-sm mt-0.5">
-                    स्टाफ प्रोफाइल, मासिक वेतन गणना (Days Worked, Bonus, Deductions) व सैलरी भुगतान रिकॉर्ड्स
+                    Manage staff profiles, monthly salary calculation & payment history
                   </p>
                 </div>
 
@@ -1290,7 +1290,7 @@ export default function StaffRoles() {
               <div className="grid grid-cols-2 lg:grid-cols-4 gap-3.5">
                 <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-2xs space-y-1">
                   <div className="flex items-center justify-between">
-                    <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">कुल स्टाफ (Staff)</span>
+                    <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Total Staff</span>
                     <div className="w-7 h-7 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center font-bold">
                       <Users size={14} />
                     </div>
@@ -1300,41 +1300,41 @@ export default function StaffRoles() {
                     <span className="text-[11px] font-bold text-emerald-600">({activeStaffList.length} Active)</span>
                   </div>
                   <p className="text-[11px] text-slate-400 font-medium">
-                    {leftStaffList.length > 0 ? `${leftStaffList.length} स्टाफ छोड़ चुके हैं` : 'सभी स्टाफ सक्रिय हैं'}
+                    {leftStaffList.length > 0 ? `${leftStaffList.length} staff left` : 'All staff active'}
                   </p>
                 </div>
 
                 <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-2xs space-y-1">
                   <div className="flex items-center justify-between">
-                    <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">मासिक बजट (Payroll)</span>
+                    <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Monthly Base Payroll</span>
                     <div className="w-7 h-7 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center font-bold">
                       <Wallet size={14} />
                     </div>
                   </div>
                   <div className="text-2xl font-black text-slate-900">{formatCurrency(totalBasePayroll)}</div>
-                  <p className="text-[11px] text-slate-400 font-medium">सक्रिय स्टाफ का कुल मासिक मूल वेतन</p>
+                  <p className="text-[11px] text-slate-400 font-medium">Total monthly base salary of active staff</p>
                 </div>
 
                 <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-2xs space-y-1">
                   <div className="flex items-center justify-between">
-                    <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">इस माह भुगतान (Paid)</span>
+                    <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Paid This Month</span>
                     <div className="w-7 h-7 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center font-bold">
                       <IndianRupee size={14} />
                     </div>
                   </div>
                   <div className="text-2xl font-black text-emerald-700">{formatCurrency(totalPaidThisMonth)}</div>
-                  <p className="text-[11px] text-emerald-600 font-medium">{thisMonthSalaryExpenses.length} सैलरी वाउचर दर्ज</p>
+                  <p className="text-[11px] text-emerald-600 font-medium">{thisMonthSalaryExpenses.length} salary vouchers recorded</p>
                 </div>
 
                 <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-2xs space-y-1">
                   <div className="flex items-center justify-between">
-                    <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">भुगतान पेंडिंग</span>
+                    <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Pending Payroll</span>
                     <div className="w-7 h-7 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center font-bold">
                       <Clock size={14} />
                     </div>
                   </div>
                   <div className="text-2xl font-black text-amber-700">{pendingPayrollStaff} Staff</div>
-                  <p className="text-[11px] text-slate-400 font-medium">इस महीने अभी भुगतान नहीं हुआ</p>
+                  <p className="text-[11px] text-slate-400 font-medium">Salary pending this month</p>
                 </div>
               </div>
 
@@ -1343,7 +1343,7 @@ export default function StaffRoles() {
                 <div className="flex items-center justify-between">
                   <h3 className="font-bold text-slate-900 text-sm flex items-center gap-2">
                     <Users className="w-4 h-4 text-indigo-600" />
-                    <span>स्टाफ प्रोफाइल्स ({staffMembers.length})</span>
+                    <span>Staff Profiles ({staffMembers.length})</span>
                   </h3>
                 </div>
 
@@ -1450,7 +1450,7 @@ export default function StaffRoles() {
 
                             {/* This Month Payment Status Pill */}
                             <div className="flex items-center justify-between text-xs py-1.5 px-3 rounded-xl border border-slate-100 bg-slate-50/60">
-                              <span className="text-[10px] font-bold text-slate-500 uppercase">इस माह का स्टेटस:</span>
+                              <span className="text-[10px] font-bold text-slate-500 uppercase">This Month Status:</span>
                               {paidRecord ? (
                                 <span className="font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md flex items-center gap-1 text-[11px] border border-emerald-200">
                                   <CheckCircle2 size={12} className="text-emerald-600" />
@@ -1492,7 +1492,7 @@ export default function StaffRoles() {
                                 className="w-full inline-flex items-center justify-center gap-1.5 px-3 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-xl text-xs font-bold shadow-xs hover:shadow transition-all cursor-pointer"
                               >
                                 <Calculator size={13} />
-                                <span>वेतन कैलकुलेट व भुगतान करें (Pay Salary)</span>
+                                <span>Pay / Calculate Salary</span>
                               </button>
                             )}
 
@@ -1502,7 +1502,7 @@ export default function StaffRoles() {
                                 onClick={() => handleQuickToggleStaffStatus(staff, 'active')}
                                 className="w-full inline-flex items-center justify-center gap-1.5 px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 rounded-xl text-xs font-bold transition-colors cursor-pointer"
                               >
-                                <span>🟢 Reactivate Staff (चालू करें)</span>
+                                <span>🟢 Reactivate Staff</span>
                               </button>
                             ) : (
                               <button
@@ -1511,7 +1511,7 @@ export default function StaffRoles() {
                                 className="w-full inline-flex items-center justify-center gap-1.5 px-3 py-1.5 bg-slate-50 hover:bg-rose-50 text-slate-700 hover:text-rose-700 border border-slate-200 hover:border-rose-200 rounded-xl text-xs font-bold transition-colors cursor-pointer"
                                 title="Mark this staff as Left"
                               >
-                                <span>🚪 Mark Left (छोड़ दिया)</span>
+                                <span>🚪 Mark Left</span>
                               </button>
                             )}
                           </div>
@@ -1547,10 +1547,10 @@ export default function StaffRoles() {
                     </div>
                     <div>
                       <h3 className="text-base font-extrabold text-slate-900">
-                        मासिक वेतन भुगतान व खर्च रिकॉर्ड्स (Staff Salary Records)
+                        Staff Salary & Expense Records
                       </h3>
                       <p className="text-xs text-slate-500">
-                        स्टाफ की हाजिरी (Days Worked), बोनस, कटौती (Deductions) व नेट सैलरी खर्च का संपूर्ण ब्यौरा
+                        Monthly attendance, bonus, deductions and payout records
                       </p>
                     </div>
                   </div>
@@ -1582,7 +1582,7 @@ export default function StaffRoles() {
                       onChange={(e) => setSalaryStaffFilter(e.target.value)}
                       className="px-2.5 py-1.5 border border-slate-200 rounded-xl text-xs font-bold text-slate-700 bg-white shadow-2xs"
                     >
-                      <option value="">All Staff (सभी स्टाफ)</option>
+                      <option value="">All Staff</option>
                       {staffMembers.map((s) => (
                         <option key={s.id} value={s.id}>
                           {s.name}
@@ -1604,11 +1604,11 @@ export default function StaffRoles() {
                 {/* Sub-strip with Summary Stats for Filtered Records */}
                 <div className="px-5 py-2.5 bg-slate-50/80 border-b border-slate-100 flex flex-wrap items-center justify-between gap-3 text-xs">
                   <div className="flex items-center gap-4 text-slate-600 font-medium">
-                    <span>दिखाए गए रिकॉर्ड्स: <strong className="text-slate-900 font-extrabold">{filteredSalaryExpenses.length}</strong></span>
-                    <span>कुल भुगतान राशि: <strong className="text-emerald-700 font-black text-sm">{formatCurrency(filteredSalaryTotal)}</strong></span>
+                    <span>Records: <strong className="text-slate-900 font-extrabold">{filteredSalaryExpenses.length}</strong></span>
+                    <span>Total Paid: <strong className="text-emerald-700 font-black text-sm">{formatCurrency(filteredSalaryTotal)}</strong></span>
                   </div>
                   <span className="text-[11px] text-blue-700 bg-blue-50 border border-blue-200 px-2 py-0.5 rounded-md font-bold">
-                    💡 यहाँ दर्ज किया गया वेतन स्वतः "Expenses & Utility" में जुड़ता है।
+                    💡 Salary recorded here automatically syncs with Expenses & Utility.
                   </span>
                 </div>
 
@@ -1731,13 +1731,13 @@ export default function StaffRoles() {
                     <div className="w-12 h-12 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center mx-auto">
                       <Calculator size={22} />
                     </div>
-                    <h4 className="font-bold text-slate-800 text-sm">कोई सैलरी भुगतान रिकॉर्ड नहीं मिला</h4>
+                    <h4 className="font-bold text-slate-800 text-sm">No Salary Payment Records Found</h4>
                     <p className="text-xs text-slate-400 max-w-sm mx-auto">
-                      स्टाफ की सैलरी कैलकुलेट करने और खर्च दर्ज करने के लिए ऊपर <strong>"+ Record Salary"</strong> बटन पर क्लिक करें।
+                      Click <strong>"+ Record Salary"</strong> above to calculate attendance and record salary payment.
                     </p>
                     <div className="pt-2">
                       <Button variant="secondary" icon={<Calculator size={13} />} onClick={() => handleOpenPaySalary()}>
-                        कैलकुलेटर खोलें (Open Calculator)
+                        Open Calculator
                       </Button>
                     </div>
                   </div>
@@ -1760,7 +1760,7 @@ export default function StaffRoles() {
           <div className="bg-indigo-50/70 p-3.5 rounded-2xl border border-indigo-100 space-y-2">
             <div className="flex items-center justify-between">
               <label className="block text-xs font-bold text-indigo-950 uppercase tracking-wider">
-                Quick Role Preset (भूमिका चुनें)
+                Quick Role Preset
               </label>
               <button
                 type="button"
@@ -1866,8 +1866,8 @@ export default function StaffRoles() {
                 onChange={(e) => setFormData({ ...formData, status: e.target.value })}
                 className="w-full px-3 py-2 border border-slate-300 rounded-xl text-xs bg-white font-bold text-slate-800 focus:ring-2 focus:ring-indigo-500"
               >
-                <option value="active">🟢 Active (चालू)</option>
-                <option value="inactive">🔴 Inactive (बंद)</option>
+                <option value="active">🟢 Active</option>
+                <option value="inactive">🔴 Inactive</option>
               </select>
             </div>
           </div>
@@ -1876,7 +1876,7 @@ export default function StaffRoles() {
           <div>
             <div className="flex items-center justify-between mb-2">
               <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider">
-                Module Permissions Matrix (एक्सेस टिक करें)
+                Module Permissions Matrix
               </label>
               <span className="text-[11px] text-indigo-600 font-semibold">Check allowed actions</span>
             </div>
@@ -1957,7 +1957,7 @@ export default function StaffRoles() {
                         <div className="flex items-center justify-between mb-2">
                           <span className="text-xs font-black text-slate-800 flex items-center gap-1.5">
                             <span>🎛️</span>
-                            <span>Dashboard Sections for this Staff (डैशबोर्ड पर क्या-क्या दिखे):</span>
+                            <span>Dashboard Sections for this Staff:</span>
                           </span>
                           <span className="text-[10px] text-indigo-600 font-bold">Tick allowed sections</span>
                         </div>
@@ -2016,7 +2016,7 @@ export default function StaffRoles() {
       <Modal
         isOpen={showRoleModal}
         onClose={() => setShowRoleModal(false)}
-        title={editRole ? `Edit Role Preset: ${editRole.name}` : 'Create New Role Preset (नया रोल बनाएं)'}
+        title={editRole ? `Edit Role Preset: ${editRole.name}` : 'Create New Role Preset'}
         size="lg"
       >
         <form onSubmit={handleSaveRolePreset} className="space-y-4">
@@ -2042,7 +2042,7 @@ export default function StaffRoles() {
 
             <div className="sm:col-span-3">
               <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
-                Role Name (पद का नाम) *
+                Role Name *
               </label>
               <input
                 type="text"
@@ -2057,7 +2057,7 @@ export default function StaffRoles() {
 
           <div>
             <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
-              Role Description (भूमिका विवरण)
+              Role Description
             </label>
             <input
               type="text"
@@ -2072,7 +2072,7 @@ export default function StaffRoles() {
           <div>
             <div className="flex items-center justify-between mb-2">
               <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider">
-                Default Role Permissions (डिफ़ॉल्ट अनुमतियाँ)
+                Default Role Permissions
               </label>
               <span className="text-[11px] text-indigo-600 font-semibold">
                 Set allowed module access for this role
@@ -2152,7 +2152,7 @@ export default function StaffRoles() {
                         <div className="flex items-center justify-between mb-2">
                           <span className="text-xs font-black text-slate-800 flex items-center gap-1.5">
                             <span>🎛️</span>
-                            <span>Dashboard Sections for this Role (इस रोल को क्या-क्या दिखे):</span>
+                            <span>Dashboard Sections for this Role:</span>
                           </span>
                           <span className="text-[10px] text-indigo-600 font-bold">Tick allowed sections</span>
                         </div>
@@ -2232,7 +2232,7 @@ export default function StaffRoles() {
       <Modal
         isOpen={showStaffModal}
         onClose={() => setShowStaffModal(false)}
-        title={editStaffMember ? `Edit Staff: ${editStaffMember.name}` : 'Add New Staff Member (स्टाफ जोड़ें)'}
+        title={editStaffMember ? `Edit Staff: ${editStaffMember.name}` : 'Add New Staff Member'}
         size="md"
       >
         <form onSubmit={handleStaffMemberSubmit} className="space-y-4">
@@ -2327,7 +2327,7 @@ export default function StaffRoles() {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
-                Staff Name (स्टाफ का नाम) *
+                Staff Name *
               </label>
               <input
                 type="text"
@@ -2341,7 +2341,7 @@ export default function StaffRoles() {
 
             <div>
               <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
-                Mobile Number (मोबाइल नंबर)
+                Mobile Number
               </label>
               <input
                 type="tel"
@@ -2357,34 +2357,34 @@ export default function StaffRoles() {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
-                Staff Role (पद / कार्य) *
+                Staff Role *
               </label>
               <select
                 value={staffMemberFormData.role}
                 onChange={(e) => setStaffMemberFormData({ ...staffMemberFormData, role: e.target.value })}
                 className="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl text-sm bg-white font-bold text-slate-800 focus:ring-2 focus:ring-indigo-500"
               >
-                <option value="Receptionist">🛎️ Receptionist (रिसेप्शनिस्ट)</option>
-                <option value="Worker / Cleaner">🧹 Worker / Cleaner (सफाई / वर्कर)</option>
-                <option value="Branch Manager">👔 Branch Manager (मैनेजर)</option>
-                <option value="Security Guard">🛡️ Security Guard (सुरक्षा गार्ड)</option>
-                <option value="Helper / Peon">🤝 Helper / Peon (हेल्पर)</option>
-                <option value="Night Incharge">🌙 Night Incharge (नाईट इंचार्ज)</option>
-                <option value="Other">💼 Other (अन्य)</option>
+                <option value="Receptionist">🛎️ Receptionist</option>
+                <option value="Worker / Cleaner">🧹 Worker / Cleaner</option>
+                <option value="Branch Manager">👔 Branch Manager</option>
+                <option value="Security Guard">🛡️ Security Guard</option>
+                <option value="Helper / Peon">🤝 Helper / Peon</option>
+                <option value="Night Incharge">🌙 Night Incharge</option>
+                <option value="Other">💼 Other</option>
               </select>
             </div>
 
             <div>
               <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
-                Account Status (कार्यरत / छोड़ दिया)
+                Account Status
               </label>
               <select
                 value={staffMemberFormData.status}
                 onChange={(e) => setStaffMemberFormData({ ...staffMemberFormData, status: e.target.value })}
                 className="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl text-sm bg-white font-bold text-slate-800 focus:ring-2 focus:ring-indigo-500"
               >
-                <option value="active">🟢 Active (कार्यरत - सैलरी चालू)</option>
-                <option value="left">🔴 Left (छोड़ दिया - खर्च बंद)</option>
+                <option value="active">🟢 Active</option>
+                <option value="left">🔴 Left</option>
               </select>
             </div>
           </div>
@@ -2394,7 +2394,7 @@ export default function StaffRoles() {
             <div>
               <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1 flex items-center gap-1">
                 <IndianRupee size={13} className="text-emerald-600" />
-                <span>Monthly Salary (मासिक वेतन ₹)</span>
+                <span>Monthly Salary (₹)</span>
               </label>
               <input
                 type="number"
@@ -2409,7 +2409,7 @@ export default function StaffRoles() {
             <div>
               <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1 flex items-center gap-1">
                 <Calendar size={13} className="text-indigo-600" />
-                <span>Joining Date (जॉइनिंग तारीख) *</span>
+                <span>Joining Date *</span>
               </label>
               <input
                 type="date"
@@ -2423,7 +2423,7 @@ export default function StaffRoles() {
 
           {Number(staffMemberFormData.salary) > 0 && staffMemberFormData.joinDate && (
             <div className="p-3 bg-indigo-50 text-indigo-900 rounded-xl border border-indigo-200 text-xs font-medium leading-relaxed">
-              💡 यह वेतन <strong>₹{Number(staffMemberFormData.salary).toLocaleString('en-IN')}/month</strong> हर महीने <strong>{staffMemberFormData.joinDate.split('-')[2]} तारीख</strong> को Expenses & Utility में स्वतः (automatically) सैलरी खर्च के रूप में जुड़ेगा।
+              💡 This salary of <strong>₹{Number(staffMemberFormData.salary).toLocaleString('en-IN')}/month</strong> will be scheduled on day <strong>{staffMemberFormData.joinDate.split('-')[2]}</strong> of each month in Expenses.
             </div>
           )}
 
@@ -2615,7 +2615,7 @@ export default function StaffRoles() {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
             <div>
               <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">
-                Expense Date (भुगतान तारीख) *
+                Expense Date *
               </label>
               <input
                 type="date"
@@ -2628,14 +2628,14 @@ export default function StaffRoles() {
 
             <div>
               <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">
-                Payment Mode (भुगतान माध्यम) *
+                Payment Mode *
               </label>
               <select
                 value={salaryFormData.paymentMode}
                 onChange={(e) => setSalaryFormData({ ...salaryFormData, paymentMode: e.target.value })}
                 className="w-full px-3 py-2 border border-slate-300 rounded-xl text-xs font-bold bg-white focus:ring-2 focus:ring-blue-500"
               >
-                <option value="cash">💵 Cash (नकद)</option>
+                <option value="cash">💵 Cash</option>
                 <option value="upi">📱 UPI / Online</option>
                 <option value="bank">🏦 Bank Transfer (NEFT/IMPS)</option>
                 <option value="cheque">📜 Cheque</option>
@@ -2645,7 +2645,7 @@ export default function StaffRoles() {
 
           <div>
             <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">
-              Total Amount (₹ कुल देय राशि) *
+              Total Amount (₹) *
             </label>
             <input
               type="number"
@@ -2657,13 +2657,13 @@ export default function StaffRoles() {
               className="w-full px-3 py-2 border border-slate-300 rounded-xl text-sm font-black text-blue-900 focus:ring-2 focus:ring-blue-500"
             />
             <p className="text-[11px] text-slate-500 mt-1">
-              यह राशि सीधे Expense Management & Reports में <b>Staff Salary</b> श्रेणी के तहत दर्ज होगी।
+              This amount will be directly recorded under the <b>Staff Salary</b> category in Expenses & Reports.
             </p>
           </div>
 
           <div>
             <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">
-              Description / Notes (विवरण / टिप्पणी)
+              Description / Notes
             </label>
             <textarea
               rows={2}
@@ -2700,7 +2700,7 @@ export default function StaffRoles() {
       <Modal
         isOpen={!!previewAadhar}
         onClose={() => setPreviewAadhar(null)}
-        title="Aadhaar Card Photo (आधार कार्ड)"
+        title="Aadhaar Card Photo"
         size="md"
       >
         <div className="space-y-4 text-center">
