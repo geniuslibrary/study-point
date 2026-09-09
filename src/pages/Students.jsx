@@ -567,7 +567,7 @@ export default function Students() {
       await fetchData();
 
       // 5. Automatically open receipt modal so user can view/print/download the extension bill
-      if (createdFeeDoc) {
+      if (createdFeeDoc && finalPaidNow > 0) {
         setExtensionReceiptFee(createdFeeDoc);
       }
     } catch (err) {
