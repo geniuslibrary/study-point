@@ -62,7 +62,13 @@ export default function ExpenseForm({ isOpen, onClose, onSubmit, editData, staff
         });
 
         if (editData.category === 'Electricity') setFormMode('electricity');
-        else if (editData.category === 'Staff Salary' || editData.expenseType === 'salary') {
+        else if (
+          editData.category === 'Staff Salary' ||
+          editData.expenseType === 'salary' ||
+          editData.type === 'salary' ||
+          editData.isStaffSalaryAuto ||
+          editData.salaryDetails
+        ) {
           setFormMode('salary');
           if (editData.salaryDetails) {
             setSalaryData({
@@ -80,7 +86,7 @@ export default function ExpenseForm({ isOpen, onClose, onSubmit, editData, staff
           } else {
             setSalaryData({
               staffId: editData.staffId || '',
-              staffName: editData.description?.replace('Staff Salary: ', '')?.split('(')[0]?.trim() || '',
+              staffName: editData.description?.replace('Staff Salary: ', '')?.split('(')[0]?.replace('[Auto-Scheduled]', '')?.trim() || '',
               role: '',
               baseSalary: String(editData.amount || ''),
               daysInMonth: '30',
@@ -220,14 +226,35 @@ export default function ExpenseForm({ isOpen, onClose, onSubmit, editData, staff
         d.setMonth(d.getMonth() + 1);
         nextDueDateStr = d.toISOString().split('T')[0];
     }
+
+    const dateStr = typeof formData.date === 'string' && formData.date.length >= 10
+      ? formData.date.slice(0, 10)
+      : new Date(formData.date).toISOString().split('T')[0];
+
+    const isSalary = formMode === 'salary' || formData.category === 'Staff Salary';
     
     onSubmit({
       ...formData,
       amount: finalAmount,
-      date: new Date(formData.date).toISOString(),
+      date: dateStr,
+      category: isSalary ? 'Staff Salary' : formData.category,
       expenseType: formMode,
+      type: isSalary ? 'salary' : (formData.type || 'expense'),
+      title: isSalary ? `Salary - ${salaryData.staffName || 'Staff'}` : (formData.title || formData.category),
+      staffId: isSalary ? (salaryData.staffId || formData.staffId || null) : (formData.staffId || null),
       meterDetails: formMode === 'electricity' ? meterData : null,
-      salaryDetails: formMode === 'salary' ? salaryData : null,
+      salaryDetails: isSalary ? {
+        staffId: salaryData.staffId || formData.staffId || null,
+        staffName: salaryData.staffName || '',
+        role: salaryData.role || 'Staff',
+        baseSalary: Number(salaryData.baseSalary) || finalAmount,
+        daysInMonth: Number(salaryData.daysInMonth) || 30,
+        daysWorked: Number(salaryData.daysWorked) || 30,
+        bonus: Number(salaryData.bonus) || 0,
+        deductions: Number(salaryData.deductions) || 0,
+        netSalary: finalAmount,
+        paymentMode: salaryData.paymentMode || formData.paymentMode || 'cash',
+      } : null,
       isRecurring: formData.isRecurring || false,
       nextDueDate: formData.isRecurring ? (formData.nextDueDate || nextDueDateStr) : null
     });

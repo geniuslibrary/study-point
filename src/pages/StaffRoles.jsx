@@ -197,6 +197,7 @@ export default function StaffRoles() {
   // Staff Salary History & Calculator State
   const [salaryExpenses, setSalaryExpenses] = useState([]);
   const [showSalaryModal, setShowSalaryModal] = useState(false);
+  const [editingSalaryId, setEditingSalaryId] = useState(null);
   const [salaryMonthFilter, setSalaryMonthFilter] = useState('');
   const [salaryStaffFilter, setSalaryStaffFilter] = useState('');
   const [deleteSalaryTarget, setDeleteSalaryTarget] = useState(null);
@@ -546,10 +547,22 @@ export default function StaffRoles() {
   const handleDeleteStaffMemberConfirm = async () => {
     if (!deleteStaffTarget) return;
     try {
-      await removeDocument(COLLECTIONS.STAFF_MEMBERS, deleteStaffTarget.id);
+      const sId = deleteStaffTarget.id;
+      await removeDocument(COLLECTIONS.STAFF_MEMBERS, sId);
+
+      // Also clean up associated salary expenses for this staff member in Expenses & Utility
+      const allExpenses = await fetchCollectionData(COLLECTIONS.EXPENSES);
+      const staffExpenses = (allExpenses || []).filter(
+        (e) => e.staffId === sId || e.salaryDetails?.staffId === sId
+      );
+      for (const exp of staffExpenses) {
+        await removeDocument(COLLECTIONS.EXPENSES, exp.id);
+      }
+      setSalaryExpenses((prev) => prev.filter((s) => s.staffId !== sId && s.salaryDetails?.staffId !== sId));
+
       setDeleteStaffTarget(null);
       await fetchStaffMembersData();
-      showToast('Staff member deleted');
+      showToast(`Staff member "${deleteStaffTarget.name}" and associated records deleted`);
     } catch (e) {
       console.error(e);
       showToast('Error deleting staff member');
@@ -558,6 +571,7 @@ export default function StaffRoles() {
 
   // Staff Salary Calculator & Payment Handlers
   const handleOpenPaySalary = (staff = null) => {
+    setEditingSalaryId(null);
     const defaultStaff = staff || staffMembers.find((s) => s.status !== 'left') || staffMembers[0];
     const rawBase = defaultStaff ? (defaultStaff.salary ?? defaultStaff.monthlySalary ?? 0) : 0;
     const base = Number(rawBase) || 0;
@@ -585,6 +599,38 @@ export default function StaffRoles() {
       paymentMode: 'cash',
       amount: String(net || ''),
       description: desc,
+    });
+    setShowSalaryModal(true);
+  };
+
+  const handleOpenEditSalary = (rec) => {
+    const details = rec.salaryDetails || {};
+    const staff = staffMembers.find((s) => s.id === rec.staffId || s.id === details.staffId) || null;
+    const base = details.baseSalary || rec.amount || 0;
+    const daysTotal = details.daysInMonth || 30;
+    const daysWorked = details.daysWorked !== undefined ? details.daysWorked : 30;
+    const bonus = details.bonus || '';
+    const deductions = details.deductions || '';
+    const net = rec.amount || 0;
+    const sName = details.staffName || rec.staffName || (staff ? staff.name : '');
+    const sRole = details.role || rec.role || (staff ? staff.role : 'Staff');
+    const recDate = rec.date ? (typeof rec.date === 'string' ? rec.date.slice(0, 10) : new Date(rec.date.seconds ? rec.date.seconds * 1000 : rec.date).toISOString().slice(0, 10)) : new Date().toISOString().slice(0, 10);
+
+    setEditingSalaryId(rec.id);
+    setSalaryFormData({
+      staffId: rec.staffId || details.staffId || (staff ? staff.id : ''),
+      staffName: sName,
+      role: sRole,
+      baseSalary: String(base || ''),
+      daysInMonth: daysTotal,
+      daysWorked: daysWorked,
+      bonus: bonus ? String(bonus) : '',
+      deductions: deductions ? String(deductions) : '',
+      netSalary: net,
+      date: recDate,
+      paymentMode: details.paymentMode || rec.paymentMode || 'cash',
+      amount: String(net),
+      description: rec.description || `Salary for ${sName} (${sRole}) [${daysWorked}/${daysTotal} days]`,
     });
     setShowSalaryModal(true);
   };
@@ -672,17 +718,24 @@ export default function StaffRoles() {
         removeTenantItem(`cancelled_salary_${sId}_${targetMonth}`);
       }
 
-      if (existingRecord) {
+      if (editingSalaryId) {
+        await updateDocument(COLLECTIONS.EXPENSES, editingSalaryId, payload);
+        setSalaryExpenses((prev) =>
+          prev.map((s) => (s.id === editingSalaryId ? { ...s, ...payload, id: editingSalaryId } : s))
+        );
+        showToast(`₹${finalAmount.toLocaleString('en-IN')} salary updated in Expenses & Staff successfully!`);
+      } else if (existingRecord) {
         await updateDocument(COLLECTIONS.EXPENSES, existingRecord.id, payload);
         setSalaryExpenses((prev) =>
           prev.map((s) => (s.id === existingRecord.id ? { ...existingRecord, ...payload, id: existingRecord.id } : s))
         );
-        showToast(`₹${finalAmount.toLocaleString('en-IN')} salary updated in Expenses successfully!`);
+        showToast(`₹${finalAmount.toLocaleString('en-IN')} salary updated in Expenses & Staff successfully!`);
       } else {
         const savedDoc = await createDocument(COLLECTIONS.EXPENSES, payload);
         setSalaryExpenses((prev) => [savedDoc, ...prev]);
-        showToast(`₹${finalAmount.toLocaleString('en-IN')} salary recorded in Expenses successfully!`);
+        showToast(`₹${finalAmount.toLocaleString('en-IN')} salary recorded in Expenses & Staff successfully!`);
       }
+      setEditingSalaryId(null);
       setShowSalaryModal(false);
       fetchData(false);
     } catch (err) {
@@ -1816,14 +1869,24 @@ export default function StaffRoles() {
                               </td>
 
                               <td className="py-3 px-4 text-center whitespace-nowrap">
-                                <button
-                                  type="button"
-                                  onClick={() => setDeleteSalaryTarget(rec)}
-                                  className="p-1.5 text-rose-500 hover:text-rose-700 hover:bg-rose-50 rounded-lg cursor-pointer transition-colors"
-                                  title="Delete Salary Expense Record"
-                                >
-                                  <Trash2 size={14} />
-                                </button>
+                                <div className="flex items-center justify-center gap-1">
+                                  <button
+                                    type="button"
+                                    onClick={() => handleOpenEditSalary(rec)}
+                                    className="p-1.5 text-indigo-600 hover:text-indigo-800 hover:bg-indigo-50 rounded-lg cursor-pointer transition-colors"
+                                    title="Edit Salary Expense Record"
+                                  >
+                                    <Edit size={14} />
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => setDeleteSalaryTarget(rec)}
+                                    className="p-1.5 text-rose-500 hover:text-rose-700 hover:bg-rose-50 rounded-lg cursor-pointer transition-colors"
+                                    title="Delete Salary Expense Record"
+                                  >
+                                    <Trash2 size={14} />
+                                  </button>
+                                </div>
                               </td>
                             </tr>
                           );
@@ -2562,8 +2625,11 @@ export default function StaffRoles() {
       {/* Staff Salary & Attendance Calculator Modal */}
       <Modal
         isOpen={showSalaryModal}
-        onClose={() => setShowSalaryModal(false)}
-        title="💸 Staff Salary & Attendance Calculator"
+        onClose={() => {
+          setShowSalaryModal(false);
+          setEditingSalaryId(null);
+        }}
+        title={editingSalaryId ? `✏️ Edit Staff Salary: ${salaryFormData.staffName}` : "💸 Staff Salary & Attendance Calculator"}
         size="lg"
       >
         <form onSubmit={handleSaveSalaryExpense} className="space-y-4">
@@ -2799,11 +2865,18 @@ export default function StaffRoles() {
           </div>
 
           <div className="flex justify-end gap-3 pt-3 border-t border-slate-100">
-            <Button variant="secondary" onClick={() => setShowSalaryModal(false)} type="button">
+            <Button
+              variant="secondary"
+              onClick={() => {
+                setShowSalaryModal(false);
+                setEditingSalaryId(null);
+              }}
+              type="button"
+            >
               Cancel
             </Button>
             <Button variant="primary" type="submit" icon={<Wallet size={14} />}>
-              Save & Add to Expenses
+              {editingSalaryId ? 'Save & Update in Expenses' : 'Save & Add to Expenses'}
             </Button>
           </div>
         </form>
