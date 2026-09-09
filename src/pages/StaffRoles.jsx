@@ -38,6 +38,11 @@ import {
   Camera,
   Calendar,
   FileText,
+  Calculator,
+  Wallet,
+  Clock,
+  TrendingUp,
+  Filter,
 } from 'lucide-react';
 import { COLLECTIONS, PERMISSION_MODULES, ROLE_PRESETS } from '../utils/constants';
 import {
@@ -181,6 +186,28 @@ export default function StaffRoles() {
   const [isCompressingPhoto, setIsCompressingPhoto] = useState(false);
   const [isCompressingAadhar, setIsCompressingAadhar] = useState(false);
 
+  // Staff Salary History & Calculator State
+  const [salaryExpenses, setSalaryExpenses] = useState([]);
+  const [showSalaryModal, setShowSalaryModal] = useState(false);
+  const [salaryMonthFilter, setSalaryMonthFilter] = useState('');
+  const [salaryStaffFilter, setSalaryStaffFilter] = useState('');
+  const [deleteSalaryTarget, setDeleteSalaryTarget] = useState(null);
+  const [salaryFormData, setSalaryFormData] = useState({
+    staffId: '',
+    staffName: '',
+    role: '',
+    baseSalary: '',
+    daysInMonth: 30,
+    daysWorked: 30,
+    bonus: '',
+    deductions: '',
+    netSalary: 0,
+    date: new Date().toISOString().split('T')[0],
+    paymentMode: 'cash',
+    amount: '',
+    description: '',
+  });
+
   // Staff modal states
   const [showModal, setShowModal] = useState(false);
   const [editStaff, setEditStaff] = useState(null);
@@ -218,10 +245,11 @@ export default function StaffRoles() {
   const fetchData = async (showFullLoader = true) => {
     if (showFullLoader) setLoading(true);
     try {
-      const [staffData, rolesData, staffMembersData] = await Promise.all([
+      const [staffData, rolesData, staffMembersData, expensesData] = await Promise.all([
         fetchCollectionData(COLLECTIONS.STAFF_USERS),
         fetchCollectionData(COLLECTIONS.ROLE_PRESETS),
         fetchCollectionData(COLLECTIONS.STAFF_MEMBERS),
+        fetchCollectionData(COLLECTIONS.EXPENSES),
       ]);
 
       const ownerDoc = (rolesData || []).find((r) => r.id === 'role_owner' || r.isOwner);
@@ -265,9 +293,25 @@ export default function StaffRoles() {
         });
       }
 
+      // Filter and sort staff salary expense records
+      const staffSalaryList = (expensesData || [])
+        .filter(
+          (e) =>
+            e.type === 'salary' ||
+            e.category === 'Staff Salary' ||
+            e.isStaffSalaryAuto ||
+            e.salaryDetails
+        )
+        .sort((a, b) => {
+          const dateA = a.date?.seconds ? a.date.seconds * 1000 : new Date(a.date || a.createdAt || 0).getTime();
+          const dateB = b.date?.seconds ? b.date.seconds * 1000 : new Date(b.date || b.createdAt || 0).getTime();
+          return dateB - dateA;
+        });
+
       setStaffList(staffData || []);
       setRolesList(finalRolesList);
       setStaffMembers(staffMembersData || []);
+      setSalaryExpenses(staffSalaryList);
     } catch (e) {
       console.error('Error fetching staff data:', e);
     } finally {
@@ -277,8 +321,27 @@ export default function StaffRoles() {
 
   const fetchStaffMembersData = async () => {
     try {
-      const data = await fetchCollectionData(COLLECTIONS.STAFF_MEMBERS);
-      setStaffMembers(data || []);
+      const [members, expenses] = await Promise.all([
+        fetchCollectionData(COLLECTIONS.STAFF_MEMBERS),
+        fetchCollectionData(COLLECTIONS.EXPENSES),
+      ]);
+      setStaffMembers(members || []);
+      if (expenses) {
+        const staffSalaryList = expenses
+          .filter(
+            (e) =>
+              e.type === 'salary' ||
+              e.category === 'Staff Salary' ||
+              e.isStaffSalaryAuto ||
+              e.salaryDetails
+          )
+          .sort((a, b) => {
+            const dateA = a.date?.seconds ? a.date.seconds * 1000 : new Date(a.date || a.createdAt || 0).getTime();
+            const dateB = b.date?.seconds ? b.date.seconds * 1000 : new Date(b.date || b.createdAt || 0).getTime();
+            return dateB - dateA;
+          });
+        setSalaryExpenses(staffSalaryList);
+      }
     } catch (err) {
       console.error('Error fetching staff members:', err);
     }
@@ -417,6 +480,128 @@ export default function StaffRoles() {
     } catch (e) {
       console.error(e);
       showToast('Error deleting staff member');
+    }
+  };
+
+  // Staff Salary Calculator & Payment Handlers
+  const handleOpenPaySalary = (staff = null) => {
+    const defaultStaff = staff || staffMembers.find((s) => s.status !== 'left') || staffMembers[0];
+    const base = defaultStaff ? Number(defaultStaff.salary) || 0 : 0;
+    const name = defaultStaff ? defaultStaff.name : '';
+    const role = defaultStaff ? (defaultStaff.role || 'Staff') : '';
+    const daysInMonth = 30;
+    const daysWorked = 30;
+    const bonus = '';
+    const deductions = '';
+    const net = base;
+    const date = new Date().toISOString().split('T')[0];
+    const desc = `Salary for ${name || 'Staff'} (${role || 'Role'}) [${daysWorked}/${daysInMonth} days + Bonus ₹0 - Deduct ₹0]`;
+
+    setSalaryFormData({
+      staffId: defaultStaff ? defaultStaff.id : '',
+      staffName: name,
+      role: role,
+      baseSalary: base || '',
+      daysInMonth: 30,
+      daysWorked: 30,
+      bonus: '',
+      deductions: '',
+      netSalary: net,
+      date,
+      paymentMode: 'cash',
+      amount: String(net || ''),
+      description: desc,
+    });
+    setShowSalaryModal(true);
+  };
+
+  const updateSalaryCalculation = (updates) => {
+    setSalaryFormData((prev) => {
+      const next = { ...prev, ...updates };
+      const base = Number(next.baseSalary) || 0;
+      const daysTotal = Number(next.daysInMonth) || 30;
+      const worked = Number(next.daysWorked) || 0;
+      const bonus = Number(next.bonus) || 0;
+      const deductions = Number(next.deductions) || 0;
+
+      const perDay = daysTotal > 0 ? base / daysTotal : 0;
+      const earned = Math.round(perDay * worked) + bonus - deductions;
+      const net = Math.max(0, earned);
+
+      const desc = `Salary for ${next.staffName || 'Staff'} (${next.role || 'Role'}) [${worked}/${daysTotal} days + Bonus ₹${bonus} - Deduct ₹${deductions}]`;
+
+      return {
+        ...next,
+        netSalary: net,
+        amount: String(net),
+        description: desc,
+      };
+    });
+  };
+
+  const handleSaveSalaryExpense = async (e) => {
+    e.preventDefault();
+    if (!salaryFormData.staffName.trim()) {
+      showToast('कृपया स्टाफ का नाम चुनें या दर्ज करें');
+      return;
+    }
+    const finalAmount = Number(salaryFormData.amount) || salaryFormData.netSalary || 0;
+    if (finalAmount <= 0) {
+      showToast('सैलरी राशि शून्य से अधिक होनी चाहिए');
+      return;
+    }
+
+    const activeTenantId = getActiveTenantId();
+    const payload = {
+      title: `Salary - ${salaryFormData.staffName}`,
+      category: 'Staff Salary',
+      type: 'salary',
+      amount: finalAmount,
+      date: salaryFormData.date,
+      month: salaryFormData.date.slice(0, 7),
+      paymentMode: salaryFormData.paymentMode || 'cash',
+      description: salaryFormData.description || `Staff Salary for ${salaryFormData.staffName}`,
+      staffId: salaryFormData.staffId || null,
+      isStaffSalaryAuto: false,
+      tenantId: activeTenantId,
+      ownerId: activeTenantId,
+      salaryDetails: {
+        staffId: salaryFormData.staffId,
+        staffName: salaryFormData.staffName,
+        role: salaryFormData.role,
+        baseSalary: Number(salaryFormData.baseSalary) || 0,
+        daysInMonth: Number(salaryFormData.daysInMonth) || 30,
+        daysWorked: Number(salaryFormData.daysWorked) || 30,
+        bonus: Number(salaryFormData.bonus) || 0,
+        deductions: Number(salaryFormData.deductions) || 0,
+        netSalary: finalAmount,
+        paymentMode: salaryFormData.paymentMode || 'cash',
+      },
+    };
+
+    try {
+      const savedDoc = await createDocument(COLLECTIONS.EXPENSES, payload);
+      setSalaryExpenses((prev) => [savedDoc, ...prev]);
+      setShowSalaryModal(false);
+      showToast(`₹${finalAmount.toLocaleString('en-IN')} सैलरी सफलतापूर्वक Expenses में दर्ज की गई!`);
+      fetchData(false);
+    } catch (err) {
+      console.error(err);
+      showToast('Error saving salary expense: ' + err.message);
+    }
+  };
+
+  const handleDeleteSalaryConfirm = async () => {
+    if (!deleteSalaryTarget) return;
+    try {
+      await removeDocument(COLLECTIONS.EXPENSES, deleteSalaryTarget.id);
+      setSalaryExpenses((prev) => prev.filter((s) => s.id !== deleteSalaryTarget.id));
+      setDeleteSalaryTarget(null);
+      showToast('सैलरी खर्च रिकॉर्ड हटा दिया गया');
+      fetchData(false);
+    } catch (err) {
+      console.error(err);
+      showToast('Error deleting salary record');
     }
   };
 
@@ -1049,197 +1234,518 @@ export default function StaffRoles() {
     )}
 
         {/* TAB 2: Staff */}
-        {activeTab === 'staff' && (
-          <div className="space-y-6">
-            {/* Header Bar for Staff */}
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-              <div>
-                <h1 className="text-2xl font-bold text-gray-900">Staff Members</h1>
-                <p className="text-gray-500 text-sm mt-0.5">
-                  स्टाफ की फोटो, मोबाइल नंबर, आधार कार्ड, मासिक वेतन व जॉइनिंग डेट प्रबंधित करें
-                </p>
-              </div>
+        {activeTab === 'staff' && (() => {
+          const currentMonthStr = new Date().toISOString().slice(0, 7);
+          const activeStaffList = staffMembers.filter((s) => s.status !== 'left');
+          const leftStaffList = staffMembers.filter((s) => s.status === 'left');
+          const totalBasePayroll = activeStaffList.reduce((acc, s) => acc + (Number(s.salary) || 0), 0);
 
-              <Button
-                icon={<UserPlus className="w-4 h-4" />}
-                onClick={handleOpenAddStaffMember}
-              >
-                + Add Staff
-              </Button>
-            </div>
+          const thisMonthSalaryExpenses = salaryExpenses.filter((e) => {
+            return e.month === currentMonthStr || (e.date && e.date.startsWith(currentMonthStr));
+          });
+          const totalPaidThisMonth = thisMonthSalaryExpenses.reduce((acc, e) => acc + (Number(e.amount) || 0), 0);
+          const paidStaffCount = new Set(thisMonthSalaryExpenses.map((e) => e.staffId || e.salaryDetails?.staffId || e.salaryDetails?.staffName)).size;
+          const pendingPayrollStaff = Math.max(0, activeStaffList.length - paidStaffCount);
 
-            {/* Staff Members List */}
-            {staffMembers.length > 0 ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {staffMembers.map((staff) => {
-                  const joinDay = staff.joinDate ? parseInt(staff.joinDate.split('-')[2], 10) : null;
-                  const isLeft = staff.status === 'left';
-                  const roleLabel = staff.role || 'Staff';
+          // Filtered salary expenses for the table
+          const filteredSalaryExpenses = salaryExpenses.filter((e) => {
+            const matchMonth = salaryMonthFilter ? (e.month === salaryMonthFilter || (e.date && e.date.startsWith(salaryMonthFilter))) : true;
+            const matchStaff = salaryStaffFilter ? (e.staffId === salaryStaffFilter || e.salaryDetails?.staffId === salaryStaffFilter || (e.salaryDetails?.staffName && e.salaryDetails.staffName.toLowerCase().includes(salaryStaffFilter.toLowerCase()))) : true;
+            return matchMonth && matchStaff;
+          });
 
-                  return (
-                    <div
-                      key={staff.id}
-                      className={`bg-white rounded-2xl p-5 border shadow-xs space-y-4 transition-all flex flex-col justify-between ${
-                        isLeft ? 'border-rose-200 bg-rose-50/20' : 'border-slate-200 hover:border-indigo-300'
-                      }`}
-                    >
-                      <div className="space-y-3">
-                        {/* Top: Photo, Name, Role, Status & Actions */}
-                        <div className="flex items-start justify-between gap-3">
-                          <div className="flex items-center gap-3 min-w-0">
-                            {staff.photo ? (
-                              <img
-                                src={staff.photo}
-                                alt={staff.name}
-                                className="w-14 h-14 rounded-2xl object-cover border border-indigo-200 shrink-0 shadow-2xs"
-                              />
-                            ) : (
-                              <div className="w-14 h-14 rounded-2xl bg-indigo-50 border border-indigo-100 text-indigo-700 flex items-center justify-center font-black text-xl shrink-0">
-                                {staff.name?.charAt(0)?.toUpperCase() || 'S'}
-                              </div>
-                            )}
-                            <div className="min-w-0">
-                              <div className="flex flex-wrap items-center gap-1.5">
-                                <h4 className="font-extrabold text-slate-900 text-base leading-tight truncate">
-                                  {staff.name}
-                                </h4>
-                                <span
-                                  className={`text-[10px] font-black uppercase px-2 py-0.5 rounded-full ${
-                                    isLeft
-                                      ? 'bg-rose-100 text-rose-700 border border-rose-200'
-                                      : 'bg-emerald-100 text-emerald-800 border border-emerald-200'
-                                  }`}
-                                >
-                                  {isLeft ? '🔴 Left' : '🟢 Active'}
-                                </span>
-                              </div>
-                              <div className="flex items-center gap-1.5 mt-1">
-                                <span className="inline-flex items-center text-[11px] font-bold px-2 py-0.5 rounded-md bg-indigo-50 text-indigo-700 border border-indigo-100">
-                                  {roleLabel}
-                                </span>
-                                {staff.phone && (
-                                  <p className="text-xs text-slate-500 flex items-center gap-1 font-medium">
-                                    <Phone size={11} className="text-slate-400" />
-                                    <span>{staff.phone}</span>
-                                  </p>
-                                )}
-                              </div>
-                            </div>
-                          </div>
+          const filteredSalaryTotal = filteredSalaryExpenses.reduce((acc, e) => acc + (Number(e.amount) || 0), 0);
 
-                          <div className="flex items-center gap-1 shrink-0">
-                            <button
-                              type="button"
-                              onClick={() => handleOpenEditStaffMember(staff)}
-                              className="p-1.5 text-indigo-600 hover:bg-indigo-50 rounded-lg cursor-pointer transition-colors"
-                              title="Edit Staff"
-                            >
-                              <Edit size={16} />
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => setDeleteStaffTarget(staff)}
-                              className="p-1.5 text-rose-600 hover:bg-rose-50 rounded-lg cursor-pointer transition-colors"
-                              title="Delete Staff"
-                            >
-                              <Trash2 size={16} />
-                            </button>
-                          </div>
-                        </div>
-
-                        {/* Salary & Joining Date row */}
-                        <div className="grid grid-cols-2 gap-2 bg-slate-50 p-2.5 rounded-xl border border-slate-200/80 text-xs">
-                          <div>
-                            <span className="text-[10px] font-bold text-slate-400 uppercase block">Monthly Salary:</span>
-                            <span className="font-extrabold text-emerald-700 text-sm">
-                              {staff.salary ? formatCurrency(staff.salary) : '—'}
-                            </span>
-                          </div>
-                          <div>
-                            <span className="text-[10px] font-bold text-slate-400 uppercase block">Joining Date:</span>
-                            <span className="font-bold text-slate-800 text-xs flex items-center gap-1">
-                              <Calendar size={12} className="text-indigo-600" />
-                              <span>{formatDate(staff.joinDate)}</span>
-                            </span>
-                          </div>
-                        </div>
-
-                        {/* Aadhaar card button */}
-                        <div>
-                          {staff.aadharPhoto ? (
-                            <button
-                              type="button"
-                              onClick={() => setPreviewAadhar(staff.aadharPhoto)}
-                              className="w-full inline-flex items-center justify-center gap-1.5 px-3 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-800 border border-blue-200 rounded-xl text-xs font-bold transition-colors cursor-pointer"
-                            >
-                              <FileText size={14} className="text-blue-600" />
-                              <span>Aadhaar Card (Click to View)</span>
-                            </button>
-                          ) : (
-                            <span className="text-xs text-slate-400 italic block text-center py-1 bg-slate-50 rounded-xl border border-dashed border-slate-200">
-                              Aadhaar photo not uploaded
-                            </span>
-                          )}
-                        </div>
-
-                        {/* Expense auto-sync or Left alert */}
-                        {isLeft ? (
-                          <div className="bg-rose-50 p-2.5 rounded-xl border border-rose-200 text-xs text-rose-700 font-semibold flex items-center gap-1.5">
-                            <span className="shrink-0 font-bold">⚠️</span>
-                            <span>स्टाफ छोड़ चुका है (Left) — Expenses में सैलरी जुड़ना बंद है।</span>
-                          </div>
-                        ) : (
-                          Number(staff.salary) > 0 && (
-                            <div className="bg-emerald-50/70 p-2 rounded-xl border border-emerald-100 text-[11px] text-emerald-800 font-medium leading-relaxed">
-                              🔄 हर महीने {joinDay ? `${joinDay} तारीख` : 'जॉइनिंग डेट'} को Expenses में स्वतः जुड़ेगा।
-                            </div>
-                          )
-                        )}
-
-                        {/* Action Buttons: Active / Left Status Toggle */}
-                        <div className="pt-2 border-t border-slate-100">
-                          {isLeft ? (
-                            <button
-                              type="button"
-                              onClick={() => handleQuickToggleStaffStatus(staff, 'active')}
-                              className="w-full inline-flex items-center justify-center gap-1.5 px-3 py-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 rounded-xl text-xs font-bold transition-colors cursor-pointer"
-                            >
-                              <span>🟢 Reactivate Staff (चालू करें)</span>
-                            </button>
-                          ) : (
-                            <button
-                              type="button"
-                              onClick={() => handleQuickToggleStaffStatus(staff, 'left')}
-                              className="w-full inline-flex items-center justify-center gap-1.5 px-3 py-2 bg-slate-50 hover:bg-rose-50 text-slate-700 hover:text-rose-700 border border-slate-200 hover:border-rose-200 rounded-xl text-xs font-bold transition-colors cursor-pointer"
-                              title="Mark this staff as Left"
-                            >
-                              <span>🚪 Mark Left (छोड़ दिया)</span>
-                            </button>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            ) : (
-              <div className="p-12 bg-white rounded-2xl border border-slate-200 text-center space-y-3">
-                <div className="w-14 h-14 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center mx-auto">
-                  <Users size={26} />
+          return (
+            <div className="space-y-6">
+              {/* Top Header Bar for Staff */}
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                <div>
+                  <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
+                    <span>Staff & Payroll Management</span>
+                  </h1>
+                  <p className="text-gray-500 text-sm mt-0.5">
+                    स्टाफ प्रोफाइल, मासिक वेतन गणना (Days Worked, Bonus, Deductions) व सैलरी भुगतान रिकॉर्ड्स
+                  </p>
                 </div>
-                <h4 className="font-bold text-slate-800 text-base">No Staff Members Added Yet</h4>
-                <p className="text-xs text-slate-400 max-w-sm mx-auto">
-                  Click <strong>"+ Add Staff"</strong> to register staff with photo, mobile number, Aadhaar card, monthly salary & joining date.
-                </p>
-                <div className="pt-2">
-                  <Button icon={<UserPlus className="w-4 h-4" />} onClick={handleOpenAddStaffMember}>
-                    + Add Staff
+
+                <div className="flex flex-wrap items-center gap-2.5">
+                  <Button
+                    variant="secondary"
+                    icon={<Calculator className="w-4 h-4 text-blue-600" />}
+                    onClick={() => handleOpenPaySalary()}
+                  >
+                    + Calculate & Pay Salary
+                  </Button>
+                  <Button
+                    icon={<UserPlus className="w-4 h-4" />}
+                    onClick={handleOpenAddStaffMember}
+                  >
+                    + Add Staff Member
                   </Button>
                 </div>
               </div>
-            )}
-          </div>
-        )}
+
+              {/* Stat Cards Row */}
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-3.5">
+                <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-2xs space-y-1">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">कुल स्टाफ (Staff)</span>
+                    <div className="w-7 h-7 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center font-bold">
+                      <Users size={14} />
+                    </div>
+                  </div>
+                  <div className="flex items-baseline gap-2">
+                    <span className="text-2xl font-black text-slate-900">{staffMembers.length}</span>
+                    <span className="text-[11px] font-bold text-emerald-600">({activeStaffList.length} Active)</span>
+                  </div>
+                  <p className="text-[11px] text-slate-400 font-medium">
+                    {leftStaffList.length > 0 ? `${leftStaffList.length} स्टाफ छोड़ चुके हैं` : 'सभी स्टाफ सक्रिय हैं'}
+                  </p>
+                </div>
+
+                <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-2xs space-y-1">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">मासिक बजट (Payroll)</span>
+                    <div className="w-7 h-7 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center font-bold">
+                      <Wallet size={14} />
+                    </div>
+                  </div>
+                  <div className="text-2xl font-black text-slate-900">{formatCurrency(totalBasePayroll)}</div>
+                  <p className="text-[11px] text-slate-400 font-medium">सक्रिय स्टाफ का कुल मासिक मूल वेतन</p>
+                </div>
+
+                <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-2xs space-y-1">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">इस माह भुगतान (Paid)</span>
+                    <div className="w-7 h-7 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center font-bold">
+                      <IndianRupee size={14} />
+                    </div>
+                  </div>
+                  <div className="text-2xl font-black text-emerald-700">{formatCurrency(totalPaidThisMonth)}</div>
+                  <p className="text-[11px] text-emerald-600 font-medium">{thisMonthSalaryExpenses.length} सैलरी वाउचर दर्ज</p>
+                </div>
+
+                <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-2xs space-y-1">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">भुगतान पेंडिंग</span>
+                    <div className="w-7 h-7 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center font-bold">
+                      <Clock size={14} />
+                    </div>
+                  </div>
+                  <div className="text-2xl font-black text-amber-700">{pendingPayrollStaff} Staff</div>
+                  <p className="text-[11px] text-slate-400 font-medium">इस महीने अभी भुगतान नहीं हुआ</p>
+                </div>
+              </div>
+
+              {/* Staff Members Cards */}
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <h3 className="font-bold text-slate-900 text-sm flex items-center gap-2">
+                    <Users className="w-4 h-4 text-indigo-600" />
+                    <span>स्टाफ प्रोफाइल्स ({staffMembers.length})</span>
+                  </h3>
+                </div>
+
+                {staffMembers.length > 0 ? (
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {staffMembers.map((staff) => {
+                      const joinDay = staff.joinDate ? parseInt(staff.joinDate.split('-')[2], 10) : null;
+                      const isLeft = staff.status === 'left';
+                      const roleLabel = staff.role || 'Staff';
+
+                      const paidRecord = salaryExpenses.find((e) => {
+                        const matchStaff = e.staffId === staff.id || e.salaryDetails?.staffId === staff.id || (e.salaryDetails?.staffName && e.salaryDetails.staffName.toLowerCase() === staff.name.toLowerCase());
+                        const matchMonth = e.month === currentMonthStr || (e.date && e.date.startsWith(currentMonthStr));
+                        return matchStaff && matchMonth;
+                      });
+
+                      return (
+                        <div
+                          key={staff.id}
+                          className={`bg-white rounded-2xl p-5 border shadow-xs space-y-4 transition-all flex flex-col justify-between ${
+                            isLeft ? 'border-rose-200 bg-rose-50/20' : 'border-slate-200 hover:border-indigo-300'
+                          }`}
+                        >
+                          <div className="space-y-3">
+                            {/* Top: Photo, Name, Role, Status & Actions */}
+                            <div className="flex items-start justify-between gap-3">
+                              <div className="flex items-center gap-3 min-w-0">
+                                {staff.photo ? (
+                                  <img
+                                    src={staff.photo}
+                                    alt={staff.name}
+                                    className="w-14 h-14 rounded-2xl object-cover border border-indigo-200 shrink-0 shadow-2xs"
+                                  />
+                                ) : (
+                                  <div className="w-14 h-14 rounded-2xl bg-indigo-50 border border-indigo-100 text-indigo-700 flex items-center justify-center font-black text-xl shrink-0">
+                                    {staff.name?.charAt(0)?.toUpperCase() || 'S'}
+                                  </div>
+                                )}
+                                <div className="min-w-0">
+                                  <div className="flex flex-wrap items-center gap-1.5">
+                                    <h4 className="font-extrabold text-slate-900 text-base leading-tight truncate">
+                                      {staff.name}
+                                    </h4>
+                                    <span
+                                      className={`text-[10px] font-black uppercase px-2 py-0.5 rounded-full ${
+                                        isLeft
+                                          ? 'bg-rose-100 text-rose-700 border border-rose-200'
+                                          : 'bg-emerald-100 text-emerald-800 border border-emerald-200'
+                                      }`}
+                                    >
+                                      {isLeft ? '🔴 Left' : '🟢 Active'}
+                                    </span>
+                                  </div>
+                                  <div className="flex items-center gap-1.5 mt-1">
+                                    <span className="inline-flex items-center text-[11px] font-bold px-2 py-0.5 rounded-md bg-indigo-50 text-indigo-700 border border-indigo-100">
+                                      {roleLabel}
+                                    </span>
+                                    {staff.phone && (
+                                      <p className="text-xs text-slate-500 flex items-center gap-1 font-medium">
+                                        <Phone size={11} className="text-slate-400" />
+                                        <span>{staff.phone}</span>
+                                      </p>
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
+
+                              <div className="flex items-center gap-1 shrink-0">
+                                <button
+                                  type="button"
+                                  onClick={() => handleOpenEditStaffMember(staff)}
+                                  className="p-1.5 text-indigo-600 hover:bg-indigo-50 rounded-lg cursor-pointer transition-colors"
+                                  title="Edit Staff"
+                                >
+                                  <Edit size={16} />
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => setDeleteStaffTarget(staff)}
+                                  className="p-1.5 text-rose-600 hover:bg-rose-50 rounded-lg cursor-pointer transition-colors"
+                                  title="Delete Staff"
+                                >
+                                  <Trash2 size={16} />
+                                </button>
+                              </div>
+                            </div>
+
+                            {/* Salary & Joining Date row */}
+                            <div className="grid grid-cols-2 gap-2 bg-slate-50 p-2.5 rounded-xl border border-slate-200/80 text-xs">
+                              <div>
+                                <span className="text-[10px] font-bold text-slate-400 uppercase block">Monthly Base:</span>
+                                <span className="font-extrabold text-emerald-700 text-sm">
+                                  {staff.salary ? formatCurrency(staff.salary) : '—'}
+                                </span>
+                              </div>
+                              <div>
+                                <span className="text-[10px] font-bold text-slate-400 uppercase block">Joining Date:</span>
+                                <span className="font-bold text-slate-800 text-xs flex items-center gap-1">
+                                  <Calendar size={12} className="text-indigo-600" />
+                                  <span>{formatDate(staff.joinDate)}</span>
+                                </span>
+                              </div>
+                            </div>
+
+                            {/* This Month Payment Status Pill */}
+                            <div className="flex items-center justify-between text-xs py-1.5 px-3 rounded-xl border border-slate-100 bg-slate-50/60">
+                              <span className="text-[10px] font-bold text-slate-500 uppercase">इस माह का स्टेटस:</span>
+                              {paidRecord ? (
+                                <span className="font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md flex items-center gap-1 text-[11px] border border-emerald-200">
+                                  <CheckCircle2 size={12} className="text-emerald-600" />
+                                  <span>Paid: {formatCurrency(paidRecord.amount)}</span>
+                                </span>
+                              ) : (
+                                <span className="font-bold text-amber-700 bg-amber-50 px-2 py-0.5 rounded-md flex items-center gap-1 text-[11px] border border-amber-200">
+                                  <Clock size={12} className="text-amber-600" />
+                                  <span>Pending</span>
+                                </span>
+                              )}
+                            </div>
+
+                            {/* Aadhaar card button */}
+                            <div>
+                              {staff.aadharPhoto ? (
+                                <button
+                                  type="button"
+                                  onClick={() => setPreviewAadhar(staff.aadharPhoto)}
+                                  className="w-full inline-flex items-center justify-center gap-1.5 px-3 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-800 border border-blue-200 rounded-xl text-xs font-bold transition-colors cursor-pointer"
+                                >
+                                  <FileText size={14} className="text-blue-600" />
+                                  <span>Aadhaar Card (Click to View)</span>
+                                </button>
+                              ) : (
+                                <span className="text-xs text-slate-400 italic block text-center py-1 bg-slate-50 rounded-xl border border-dashed border-slate-200">
+                                  Aadhaar photo not uploaded
+                                </span>
+                              )}
+                            </div>
+                          </div>
+
+                          {/* Action Buttons: Pay Salary & Active / Left Status Toggle */}
+                          <div className="space-y-2 pt-2 border-t border-slate-100">
+                            {!isLeft && (
+                              <button
+                                type="button"
+                                onClick={() => handleOpenPaySalary(staff)}
+                                className="w-full inline-flex items-center justify-center gap-1.5 px-3 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-xl text-xs font-bold shadow-xs hover:shadow transition-all cursor-pointer"
+                              >
+                                <Calculator size={13} />
+                                <span>वेतन कैलकुलेट व भुगतान करें (Pay Salary)</span>
+                              </button>
+                            )}
+
+                            {isLeft ? (
+                              <button
+                                type="button"
+                                onClick={() => handleQuickToggleStaffStatus(staff, 'active')}
+                                className="w-full inline-flex items-center justify-center gap-1.5 px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 rounded-xl text-xs font-bold transition-colors cursor-pointer"
+                              >
+                                <span>🟢 Reactivate Staff (चालू करें)</span>
+                              </button>
+                            ) : (
+                              <button
+                                type="button"
+                                onClick={() => handleQuickToggleStaffStatus(staff, 'left')}
+                                className="w-full inline-flex items-center justify-center gap-1.5 px-3 py-1.5 bg-slate-50 hover:bg-rose-50 text-slate-700 hover:text-rose-700 border border-slate-200 hover:border-rose-200 rounded-xl text-xs font-bold transition-colors cursor-pointer"
+                                title="Mark this staff as Left"
+                              >
+                                <span>🚪 Mark Left (छोड़ दिया)</span>
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <div className="p-12 bg-white rounded-2xl border border-slate-200 text-center space-y-3">
+                    <div className="w-14 h-14 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center mx-auto">
+                      <Users size={26} />
+                    </div>
+                    <h4 className="font-bold text-slate-800 text-base">No Staff Members Added Yet</h4>
+                    <p className="text-xs text-slate-400 max-w-sm mx-auto">
+                      Click <strong>"+ Add Staff"</strong> to register staff with photo, mobile number, Aadhaar card, monthly salary & joining date.
+                    </p>
+                    <div className="pt-2">
+                      <Button icon={<UserPlus className="w-4 h-4" />} onClick={handleOpenAddStaffMember}>
+                        + Add Staff
+                      </Button>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* NEW SECTION: Staff Monthly Salary & Expense History Table */}
+              <div className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
+                {/* Table Header with Filters */}
+                <div className="p-4 sm:p-5 border-b border-slate-100 flex flex-col md:flex-row md:items-center justify-between gap-4 bg-gradient-to-r from-blue-50/50 via-indigo-50/20 to-transparent">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-2xl bg-blue-600 text-white flex items-center justify-center font-black shadow-md shadow-blue-500/20 shrink-0">
+                      <Calculator size={20} />
+                    </div>
+                    <div>
+                      <h3 className="text-base font-extrabold text-slate-900">
+                        मासिक वेतन भुगतान व खर्च रिकॉर्ड्स (Staff Salary Records)
+                      </h3>
+                      <p className="text-xs text-slate-500">
+                        स्टाफ की हाजिरी (Days Worked), बोनस, कटौती (Deductions) व नेट सैलरी खर्च का संपूर्ण ब्यौरा
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex flex-wrap items-center gap-2.5">
+                    {/* Month Picker Filter */}
+                    <div className="flex items-center gap-1.5 bg-white border border-slate-200 rounded-xl px-2.5 py-1.5 shadow-2xs">
+                      <Calendar size={13} className="text-slate-400" />
+                      <input
+                        type="month"
+                        value={salaryMonthFilter}
+                        onChange={(e) => setSalaryMonthFilter(e.target.value)}
+                        className="text-xs font-bold text-slate-800 bg-transparent outline-none cursor-pointer"
+                      />
+                      {salaryMonthFilter && (
+                        <button
+                          onClick={() => setSalaryMonthFilter('')}
+                          className="text-[10px] text-rose-600 hover:text-rose-800 font-bold ml-1 cursor-pointer"
+                          title="Clear month filter"
+                        >
+                          ✕ All
+                        </button>
+                      )}
+                    </div>
+
+                    {/* Staff Member Filter Dropdown */}
+                    <select
+                      value={salaryStaffFilter}
+                      onChange={(e) => setSalaryStaffFilter(e.target.value)}
+                      className="px-2.5 py-1.5 border border-slate-200 rounded-xl text-xs font-bold text-slate-700 bg-white shadow-2xs"
+                    >
+                      <option value="">All Staff (सभी स्टाफ)</option>
+                      {staffMembers.map((s) => (
+                        <option key={s.id} value={s.id}>
+                          {s.name}
+                        </option>
+                      ))}
+                    </select>
+
+                    {/* Calculate & Pay Salary Button */}
+                    <Button
+                      variant="primary"
+                      icon={<Plus size={14} />}
+                      onClick={() => handleOpenPaySalary()}
+                    >
+                      + Record Salary
+                    </Button>
+                  </div>
+                </div>
+
+                {/* Sub-strip with Summary Stats for Filtered Records */}
+                <div className="px-5 py-2.5 bg-slate-50/80 border-b border-slate-100 flex flex-wrap items-center justify-between gap-3 text-xs">
+                  <div className="flex items-center gap-4 text-slate-600 font-medium">
+                    <span>दिखाए गए रिकॉर्ड्स: <strong className="text-slate-900 font-extrabold">{filteredSalaryExpenses.length}</strong></span>
+                    <span>कुल भुगतान राशि: <strong className="text-emerald-700 font-black text-sm">{formatCurrency(filteredSalaryTotal)}</strong></span>
+                  </div>
+                  <span className="text-[11px] text-blue-700 bg-blue-50 border border-blue-200 px-2 py-0.5 rounded-md font-bold">
+                    💡 यहाँ दर्ज किया गया वेतन स्वतः "Expenses & Utility" में जुड़ता है।
+                  </span>
+                </div>
+
+                {/* Table Data */}
+                {filteredSalaryExpenses.length > 0 ? (
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left text-xs border-collapse">
+                      <thead>
+                        <tr className="bg-slate-100/70 border-b border-slate-200 text-slate-600 font-extrabold uppercase tracking-wider text-[11px]">
+                          <th className="py-3 px-4">Date / Month</th>
+                          <th className="py-3 px-4">Staff Member</th>
+                          <th className="py-3 px-4 text-right">Monthly Base</th>
+                          <th className="py-3 px-4 text-center">Days Worked</th>
+                          <th className="py-3 px-4 text-right">Bonus</th>
+                          <th className="py-3 px-4 text-right">Deduction</th>
+                          <th className="py-3 px-4 text-right">Net Paid</th>
+                          <th className="py-3 px-4">Notes / Description</th>
+                          <th className="py-3 px-4 text-center">Source</th>
+                          <th className="py-3 px-4 text-center">Action</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100 font-medium">
+                        {filteredSalaryExpenses.map((rec) => {
+                          const details = rec.salaryDetails || {};
+                          const staffName = details.staffName || rec.staffName || rec.title?.replace('Salary - ', '') || 'Staff';
+                          const role = details.role || rec.role || 'Staff';
+                          const base = details.baseSalary || rec.amount || 0;
+                          const daysTotal = details.daysInMonth || 30;
+                          const daysWorked = details.daysWorked !== undefined ? details.daysWorked : 30;
+                          const bonus = details.bonus || 0;
+                          const deduction = details.deductions || 0;
+                          const net = rec.amount || 0;
+                          const paymentMode = details.paymentMode || rec.paymentMode || 'cash';
+
+                          return (
+                            <tr key={rec.id} className="hover:bg-slate-50/80 transition-colors">
+                              <td className="py-3 px-4 whitespace-nowrap">
+                                <div className="font-bold text-slate-900">{formatDate(rec.date)}</div>
+                                <div className="text-[10px] text-slate-400 font-mono font-semibold">{rec.month || rec.date?.slice(0, 7) || '—'}</div>
+                              </td>
+
+                              <td className="py-3 px-4">
+                                <div className="flex items-center gap-2">
+                                  <div className="w-8 h-8 rounded-xl bg-indigo-50 text-indigo-700 flex items-center justify-center font-black text-xs shrink-0 border border-indigo-100">
+                                    {staffName.charAt(0).toUpperCase()}
+                                  </div>
+                                  <div>
+                                    <div className="font-extrabold text-slate-900 leading-tight">{staffName}</div>
+                                    <div className="text-[11px] text-indigo-600 font-bold">{role}</div>
+                                  </div>
+                                </div>
+                              </td>
+
+                              <td className="py-3 px-4 text-right whitespace-nowrap font-bold text-slate-700">
+                                {formatCurrency(base)}
+                              </td>
+
+                              <td className="py-3 px-4 text-center whitespace-nowrap">
+                                <span className={`inline-flex items-center px-2 py-0.5 rounded-md font-extrabold text-[11px] ${
+                                  daysWorked < daysTotal
+                                    ? 'bg-amber-50 text-amber-800 border border-amber-200'
+                                    : 'bg-emerald-50 text-emerald-800 border border-emerald-200'
+                                }`}>
+                                  {daysWorked}/{daysTotal} Days
+                                </span>
+                              </td>
+
+                              <td className="py-3 px-4 text-right whitespace-nowrap font-bold">
+                                {bonus > 0 ? (
+                                  <span className="text-emerald-600">+{formatCurrency(bonus)}</span>
+                                ) : (
+                                  <span className="text-slate-300">—</span>
+                                )}
+                              </td>
+
+                              <td className="py-3 px-4 text-right whitespace-nowrap font-bold">
+                                {deduction > 0 ? (
+                                  <span className="text-rose-600">-{formatCurrency(deduction)}</span>
+                                ) : (
+                                  <span className="text-slate-300">—</span>
+                                )}
+                              </td>
+
+                              <td className="py-3 px-4 text-right whitespace-nowrap">
+                                <div className="font-black text-slate-900 text-sm">{formatCurrency(net)}</div>
+                                <span className="inline-block px-1.5 py-0.2 rounded text-[10px] uppercase font-bold bg-slate-100 text-slate-600">
+                                  {paymentMode}
+                                </span>
+                              </td>
+
+                              <td className="py-3 px-4 max-w-xs truncate text-slate-600 text-xs font-normal" title={rec.description}>
+                                {rec.description || 'Staff Salary Payment'}
+                              </td>
+
+                              <td className="py-3 px-4 text-center whitespace-nowrap">
+                                <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-200">
+                                  <CheckCircle2 size={10} />
+                                  <span>Expenses</span>
+                                </span>
+                              </td>
+
+                              <td className="py-3 px-4 text-center whitespace-nowrap">
+                                <button
+                                  type="button"
+                                  onClick={() => setDeleteSalaryTarget(rec)}
+                                  className="p-1.5 text-rose-500 hover:text-rose-700 hover:bg-rose-50 rounded-lg cursor-pointer transition-colors"
+                                  title="Delete Salary Expense Record"
+                                >
+                                  <Trash2 size={14} />
+                                </button>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                ) : (
+                  <div className="p-12 text-center space-y-3">
+                    <div className="w-12 h-12 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center mx-auto">
+                      <Calculator size={22} />
+                    </div>
+                    <h4 className="font-bold text-slate-800 text-sm">कोई सैलरी भुगतान रिकॉर्ड नहीं मिला</h4>
+                    <p className="text-xs text-slate-400 max-w-sm mx-auto">
+                      स्टाफ की सैलरी कैलकुलेट करने और खर्च दर्ज करने के लिए ऊपर <strong>"+ Record Salary"</strong> बटन पर क्लिक करें।
+                    </p>
+                    <div className="pt-2">
+                      <Button variant="secondary" icon={<Calculator size={13} />} onClick={() => handleOpenPaySalary()}>
+                        कैलकुलेटर खोलें (Open Calculator)
+                      </Button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          );
+        })()}
       </div>
 
       {/* Add / Edit Staff Modal */}
@@ -1939,6 +2445,253 @@ export default function StaffRoles() {
         onConfirm={handleDeleteStaffMemberConfirm}
         title="Delete Staff Member"
         message={`Are you sure you want to remove "${deleteStaffTarget?.name}"?`}
+        confirmText="Delete"
+        variant="danger"
+      />
+
+      {/* Staff Salary & Attendance Calculator Modal */}
+      <Modal
+        isOpen={showSalaryModal}
+        onClose={() => setShowSalaryModal(false)}
+        title="💸 Staff Salary & Attendance Calculator"
+        size="lg"
+      >
+        <form onSubmit={handleSaveSalaryExpense} className="space-y-4">
+          {/* Blue Calculator Container */}
+          <div className="bg-blue-50/80 border border-blue-200 p-4 rounded-xl space-y-3.5 shadow-sm">
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2">
+                <Users className="w-4 h-4 text-blue-600" />
+                <h4 className="text-xs font-bold text-blue-900 uppercase tracking-wider">
+                  Staff Salary & Attendance Calculator
+                </h4>
+              </div>
+              <span className="text-[10px] font-bold text-blue-700 bg-blue-100/80 px-2 py-0.5 rounded">
+                Monthly Auto-Schedule
+              </span>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label className="block text-[11px] font-bold text-gray-700 mb-1">
+                  Staff Name *
+                </label>
+                {staffMembers.length > 0 && (
+                  <select
+                    value={salaryFormData.staffId || ''}
+                    onChange={(e) => {
+                      const selectedId = e.target.value;
+                      const selected = staffMembers.find((s) => s.id === selectedId);
+                      if (selected) {
+                        const base = Number(selected.monthlySalary) || 0;
+                        updateSalaryCalculation({
+                          staffId: selected.id,
+                          staffName: selected.name,
+                          role: selected.role || '',
+                          baseSalary: base ? String(base) : salaryFormData.baseSalary,
+                        });
+                      } else {
+                        updateSalaryCalculation({
+                          staffId: '',
+                          staffName: '',
+                        });
+                      }
+                    }}
+                    className="w-full mb-1.5 px-2.5 py-1.5 bg-white border border-blue-200 rounded-lg text-xs font-semibold text-slate-800 focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="">-- Select Staff Member --</option>
+                    {staffMembers.map((s) => (
+                      <option key={s.id} value={s.id}>
+                        {s.name} ({s.role || 'Staff'}) {s.monthlySalary ? `- ₹${Number(s.monthlySalary).toLocaleString('en-IN')}/mo` : ''}
+                      </option>
+                    ))}
+                  </select>
+                )}
+                <input
+                  type="text"
+                  required
+                  value={salaryFormData.staffName}
+                  onChange={(e) => updateSalaryCalculation({ staffName: e.target.value })}
+                  placeholder="e.g. Ramesh Kumar"
+                  className="w-full px-2.5 py-1.5 bg-white border border-blue-200 rounded-lg text-xs font-semibold focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-bold text-gray-700 mb-1">
+                  Role / Designation
+                </label>
+                <input
+                  type="text"
+                  value={salaryFormData.role}
+                  onChange={(e) => updateSalaryCalculation({ role: e.target.value })}
+                  placeholder="e.g. Caretaker, Receptionist"
+                  className="w-full px-2.5 py-1.5 bg-white border border-blue-200 rounded-lg text-xs font-semibold focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              <div>
+                <label className="block text-[11px] font-bold text-gray-700 mb-1">
+                  Monthly Base (₹)
+                </label>
+                <input
+                  type="number"
+                  min="0"
+                  value={salaryFormData.baseSalary}
+                  onChange={(e) => updateSalaryCalculation({ baseSalary: e.target.value })}
+                  placeholder="e.g. 8000"
+                  className="w-full px-2.5 py-1.5 bg-white border border-blue-200 rounded-lg text-xs font-semibold focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-bold text-gray-700 mb-1">
+                  Days Worked
+                </label>
+                <div className="flex items-center gap-1">
+                  <input
+                    type="number"
+                    min="0"
+                    max="31"
+                    value={salaryFormData.daysWorked}
+                    onChange={(e) => updateSalaryCalculation({ daysWorked: e.target.value })}
+                    placeholder="30"
+                    className="w-full px-2.5 py-1.5 bg-white border border-blue-200 rounded-lg text-xs font-semibold focus:ring-2 focus:ring-blue-500"
+                  />
+                  <span className="text-[10px] text-slate-500 font-bold">/</span>
+                  <input
+                    type="number"
+                    min="1"
+                    max="31"
+                    value={salaryFormData.daysInMonth}
+                    onChange={(e) => updateSalaryCalculation({ daysInMonth: e.target.value })}
+                    placeholder="30"
+                    title="Total days in month"
+                    className="w-14 px-1.5 py-1.5 bg-slate-100 border border-blue-200 rounded-lg text-xs text-center font-bold text-slate-600 focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-bold text-gray-700 mb-1">
+                  Bonus / Incentive (₹)
+                </label>
+                <input
+                  type="number"
+                  min="0"
+                  value={salaryFormData.bonus}
+                  onChange={(e) => updateSalaryCalculation({ bonus: e.target.value })}
+                  placeholder="0"
+                  className="w-full px-2.5 py-1.5 bg-white border border-blue-200 rounded-lg text-xs text-emerald-700 font-bold focus:ring-2 focus:ring-emerald-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-bold text-gray-700 mb-1">
+                  Deduction (₹)
+                </label>
+                <input
+                  type="number"
+                  min="0"
+                  value={salaryFormData.deductions}
+                  onChange={(e) => updateSalaryCalculation({ deductions: e.target.value })}
+                  placeholder="0"
+                  className="w-full px-2.5 py-1.5 bg-white border border-blue-200 rounded-lg text-xs text-rose-700 font-bold focus:ring-2 focus:ring-rose-500"
+                />
+              </div>
+            </div>
+
+            <div className="flex items-center justify-between text-xs bg-white/90 p-3 rounded-lg border border-blue-200 font-bold text-blue-950">
+              <span>Calculated Net Payable Salary:</span>
+              <span className="text-blue-700 text-base font-black">
+                {formatCurrency(salaryFormData.netSalary || 0)}
+              </span>
+            </div>
+          </div>
+
+          {/* Standard Expense Fields */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+            <div>
+              <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">
+                Expense Date (भुगतान तारीख) *
+              </label>
+              <input
+                type="date"
+                required
+                value={salaryFormData.date}
+                onChange={(e) => setSalaryFormData({ ...salaryFormData, date: e.target.value })}
+                className="w-full px-3 py-2 border border-slate-300 rounded-xl text-xs font-semibold focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">
+                Payment Mode (भुगतान माध्यम) *
+              </label>
+              <select
+                value={salaryFormData.paymentMode}
+                onChange={(e) => setSalaryFormData({ ...salaryFormData, paymentMode: e.target.value })}
+                className="w-full px-3 py-2 border border-slate-300 rounded-xl text-xs font-bold bg-white focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="cash">💵 Cash (नकद)</option>
+                <option value="upi">📱 UPI / Online</option>
+                <option value="bank">🏦 Bank Transfer (NEFT/IMPS)</option>
+                <option value="cheque">📜 Cheque</option>
+              </select>
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">
+              Total Amount (₹ कुल देय राशि) *
+            </label>
+            <input
+              type="number"
+              required
+              min="1"
+              value={salaryFormData.amount}
+              onChange={(e) => setSalaryFormData({ ...salaryFormData, amount: e.target.value })}
+              placeholder="0"
+              className="w-full px-3 py-2 border border-slate-300 rounded-xl text-sm font-black text-blue-900 focus:ring-2 focus:ring-blue-500"
+            />
+            <p className="text-[11px] text-slate-500 mt-1">
+              यह राशि सीधे Expense Management & Reports में <b>Staff Salary</b> श्रेणी के तहत दर्ज होगी।
+            </p>
+          </div>
+
+          <div>
+            <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">
+              Description / Notes (विवरण / टिप्पणी)
+            </label>
+            <textarea
+              rows={2}
+              value={salaryFormData.description}
+              onChange={(e) => setSalaryFormData({ ...salaryFormData, description: e.target.value })}
+              placeholder="e.g. Paid salary for August month with overtime"
+              className="w-full px-3 py-2 border border-slate-300 rounded-xl text-xs focus:ring-2 focus:ring-blue-500 font-medium"
+            />
+          </div>
+
+          <div className="flex justify-end gap-3 pt-3 border-t border-slate-100">
+            <Button variant="secondary" onClick={() => setShowSalaryModal(false)} type="button">
+              Cancel
+            </Button>
+            <Button variant="primary" type="submit" icon={<Wallet size={14} />}>
+              Save & Add to Expenses
+            </Button>
+          </div>
+        </form>
+      </Modal>
+
+      {/* Delete Salary Expense Confirm Dialog */}
+      <ConfirmDialog
+        isOpen={!!deleteSalaryTarget}
+        onClose={() => setDeleteSalaryTarget(null)}
+        onConfirm={handleDeleteSalaryConfirm}
+        title="Delete Salary Record"
+        message={`Are you sure you want to delete this salary payment record of ₹${Number(deleteSalaryTarget?.amount || 0).toLocaleString('en-IN')} for "${deleteSalaryTarget?.salaryDetails?.staffName || deleteSalaryTarget?.title}"? This will also remove it from Expenses.`}
         confirmText="Delete"
         variant="danger"
       />
