@@ -107,6 +107,18 @@ export const setTenantItem = (baseKey, value) => {
   }
 };
 
+export const removeTenantItem = (baseKey) => {
+  try {
+    const tenantKey = getTenantStorageKey(baseKey);
+    localStorage.removeItem(tenantKey);
+    if (getActiveTenantId() === 'genius_root') {
+      localStorage.removeItem(`studypoint_${baseKey}`);
+    }
+  } catch (e) {
+    console.error('Error removing tenant localStorage item', e);
+  }
+};
+
 const getLocalKey = (coll) => {
   const tenantId = getActiveTenantId();
   return `studypoint_${tenantId}_db_${coll}`;

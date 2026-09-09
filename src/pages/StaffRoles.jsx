@@ -51,6 +51,9 @@ import {
   updateDocument,
   removeDocument,
   getActiveTenantId,
+  getTenantItem,
+  setTenantItem,
+  removeTenantItem,
 } from '../firebase/storageService';
 import { compressImageFile, formatDate, formatCurrency } from '../utils/helpers';
 import {
@@ -664,6 +667,11 @@ export default function StaffRoles() {
         return matchId || matchName;
       });
 
+      const sId = salaryFormData.staffId;
+      if (sId && targetMonth) {
+        removeTenantItem(`cancelled_salary_${sId}_${targetMonth}`);
+      }
+
       if (existingRecord) {
         await updateDocument(COLLECTIONS.EXPENSES, existingRecord.id, payload);
         setSalaryExpenses((prev) =>
@@ -686,6 +694,11 @@ export default function StaffRoles() {
   const handleDeleteSalaryConfirm = async () => {
     if (!deleteSalaryTarget) return;
     try {
+      const sId = deleteSalaryTarget.staffId || deleteSalaryTarget.salaryDetails?.staffId;
+      const targetMonth = deleteSalaryTarget.month || (deleteSalaryTarget.date ? String(deleteSalaryTarget.date).slice(0, 7) : new Date().toISOString().slice(0, 7));
+      if (sId && targetMonth) {
+        setTenantItem(`cancelled_salary_${sId}_${targetMonth}`, 'true');
+      }
       await removeDocument(COLLECTIONS.EXPENSES, deleteSalaryTarget.id);
       setSalaryExpenses((prev) => prev.filter((s) => s.id !== deleteSalaryTarget.id));
       setDeleteSalaryTarget(null);

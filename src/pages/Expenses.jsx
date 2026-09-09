@@ -13,6 +13,9 @@ import {
   createDocument,
   updateDocument,
   removeDocument,
+  getTenantItem,
+  setTenantItem,
+  removeTenantItem,
 } from '../firebase/storageService';
 
 import { useAuth } from '../context/AuthContext';
@@ -29,6 +32,8 @@ export default function Expenses() {
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editData, setEditData] = useState(null);
   const [deleteData, setDeleteData] = useState(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [toastMessage, setToastMessage] = useState('');
   const [loading, setLoading] = useState(true);
 
   // Month filter: format YYYY-MM
@@ -36,8 +41,8 @@ export default function Expenses() {
   const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
   const [selectedMonth, setSelectedMonth] = useState(currentMonth);
 
-  const fetchData = async () => {
-    setLoading(true);
+  const fetchData = async (showLoader = true) => {
+    if (showLoader) setLoading(true);
     try {
       const [expensesData, feesData, staffUsersData, staffMembersData] = await Promise.all([
         fetchCollectionData(COLLECTIONS.EXPENSES),
@@ -111,6 +116,12 @@ export default function Expenses() {
 
         // If selectedMonth is before the staff's joining month, do not generate
         if (startMonth && selectedMonth < startMonth) {
+          continue;
+        }
+
+        // If user cancelled / deleted this salary for this month, do NOT auto-resurrect!
+        const isCancelled = getTenantItem(`cancelled_salary_${staff.id}_${selectedMonth}`);
+        if (isCancelled === 'true') {
           continue;
         }
 
@@ -269,6 +280,11 @@ export default function Expenses() {
       }
     }
 
+    const sId = data.staffId || data.salaryDetails?.staffId;
+    if (sId && recordMonth) {
+      removeTenantItem(`cancelled_salary_${sId}_${recordMonth}`);
+    }
+
     const expenseRecord = {
       ...data,
       month: recordMonth,
@@ -276,18 +292,45 @@ export default function Expenses() {
 
     if (editData && editData.id) {
       await updateDocument(COLLECTIONS.EXPENSES, editData.id, expenseRecord);
+      setToastMessage('Expense updated successfully!');
     } else {
       await createDocument(COLLECTIONS.EXPENSES, expenseRecord);
+      setToastMessage('Expense added successfully!');
     }
+    setTimeout(() => setToastMessage(''), 3500);
     setIsFormOpen(false);
-    fetchData();
+    fetchData(false);
   };
 
   const confirmDelete = async () => {
-    if (deleteData) {
-      await removeDocument(COLLECTIONS.EXPENSES, deleteData.id);
-      setDeleteData(null);
-      fetchData();
+    if (!deleteData) return;
+    setIsDeleting(true);
+    const targetId = deleteData.id;
+    const targetName = deleteData.description || deleteData.category || 'Expense';
+
+    // 1. If this was a staff salary, mark it cancelled for this month to prevent auto-sync resurrection
+    const sId = deleteData.staffId || deleteData.salaryDetails?.staffId;
+    const targetMonth = deleteData.month || (deleteData.date ? String(deleteData.date).slice(0, 7) : selectedMonth);
+    if (sId && targetMonth) {
+      setTenantItem(`cancelled_salary_${sId}_${targetMonth}`, 'true');
+    }
+
+    // 2. Optimistic UI update: remove immediately so UI responds with zero delay
+    setExpenses((prev) => prev.filter((exp) => exp.id !== targetId));
+    setDeleteData(null);
+
+    try {
+      await removeDocument(COLLECTIONS.EXPENSES, targetId);
+      setToastMessage(`"${targetName}" deleted successfully!`);
+      setTimeout(() => setToastMessage(''), 3500);
+      await fetchData(false);
+    } catch (err) {
+      console.error('Failed to delete expense:', err);
+      setToastMessage('Failed to delete expense. Please try again.');
+      setTimeout(() => setToastMessage(''), 3500);
+      await fetchData(false);
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -304,6 +347,22 @@ export default function Expenses() {
   return (
     <Layout title="Expenses & Financials">
       <div className="space-y-6">
+        {/* Toast Alert Banner */}
+        {toastMessage && (
+          <div className="bg-emerald-600 text-white px-4 py-2.5 rounded-xl shadow-md text-xs sm:text-sm font-medium flex items-center justify-between animate-in fade-in slide-in-from-top-2">
+            <span className="flex items-center gap-2">
+              <Sparkles className="w-4 h-4 text-emerald-200 shrink-0" />
+              <span>{toastMessage}</span>
+            </span>
+            <button
+              onClick={() => setToastMessage('')}
+              className="text-white/80 hover:text-white font-bold ml-4 cursor-pointer text-xs"
+            >
+              ✕
+            </button>
+          </div>
+        )}
+
         {/* Top Header & Actions */}
         <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
           <div>
@@ -368,9 +427,13 @@ export default function Expenses() {
       <ConfirmDialog
         isOpen={!!deleteData}
         title="Delete Expense"
-        message="Are you sure you want to delete this expense record?"
+        message={`Are you sure you want to delete "${deleteData?.description || deleteData?.category || 'this expense'}"? This action cannot be undone.`}
+        confirmText="Delete"
+        loading={isDeleting}
         onConfirm={confirmDelete}
-        onClose={() => setDeleteData(null)}
+        onClose={() => {
+          if (!isDeleting) setDeleteData(null);
+        }}
         variant="danger"
       />
     </Layout>
