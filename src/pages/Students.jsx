@@ -151,8 +151,8 @@ export default function Students() {
   };
 
   const handleAddStudent = async (formData) => {
-    // Prevent duplicate phone number across entire system (student & staff)
-    const phoneDup = await checkDuplicatePhoneNumber({ phone: formData.phone });
+    // Prevent duplicate phone number across students (student to student only)
+    const phoneDup = await checkDuplicatePhoneNumber({ phone: formData.phone, scope: 'student' });
     if (phoneDup) {
       alert(`⚠️ मोबाइल नंबर अमान्य:\n\n${phoneDup.message}`);
       return;
@@ -275,8 +275,8 @@ export default function Students() {
   const handleEditStudent = async (formData) => {
     if (!editData) return;
 
-    // Prevent duplicate phone number across entire system (student & staff)
-    const phoneDup = await checkDuplicatePhoneNumber({ phone: formData.phone, excludeId: editData.id });
+    // Prevent duplicate phone number across students (student to student only)
+    const phoneDup = await checkDuplicatePhoneNumber({ phone: formData.phone, excludeId: editData.id, scope: 'student' });
     if (phoneDup) {
       alert(`⚠️ मोबाइल नंबर अमान्य:\n\n${phoneDup.message}`);
       return;

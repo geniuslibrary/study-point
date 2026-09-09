@@ -238,7 +238,6 @@ export default function StaffRoles() {
   const [toastMessage, setToastMessage] = useState('');
   const [visiblePasswords, setVisiblePasswords] = useState({});
   const [copiedId, setCopiedId] = useState(null);
-  const [studentsList, setStudentsList] = useState([]);
 
   // Staff Form states
   const [formData, setFormData] = useState({
@@ -256,7 +255,7 @@ export default function StaffRoles() {
   const staffMemberPhoneWarning = checkDuplicatePhoneSync({
     phone: staffMemberFormData.phone,
     excludeId: editStaffMember?.id,
-    students: studentsList,
+    scope: 'staff',
     staffUsers: staffList,
     staffMembers: staffMembers,
   });
@@ -264,7 +263,7 @@ export default function StaffRoles() {
   const staffUserPhoneWarning = checkDuplicatePhoneSync({
     phone: formData.phone,
     excludeId: editStaff?.id,
-    students: studentsList,
+    scope: 'staff',
     staffUsers: staffList,
     staffMembers: staffMembers,
   });
@@ -272,12 +271,11 @@ export default function StaffRoles() {
   const fetchData = async (showFullLoader = true) => {
     if (showFullLoader) setLoading(true);
     try {
-      const [staffData, rolesData, staffMembersData, expensesData, studentsData] = await Promise.all([
+      const [staffData, rolesData, staffMembersData, expensesData] = await Promise.all([
         fetchCollectionData(COLLECTIONS.STAFF_USERS),
         fetchCollectionData(COLLECTIONS.ROLE_PRESETS),
         fetchCollectionData(COLLECTIONS.STAFF_MEMBERS),
         fetchCollectionData(COLLECTIONS.EXPENSES),
-        fetchCollectionData(COLLECTIONS.STUDENTS),
       ]);
 
       const ownerDoc = (rolesData || []).find((r) => r.id === 'role_owner' || r.isOwner);
@@ -340,7 +338,6 @@ export default function StaffRoles() {
       setRolesList(finalRolesList);
       setStaffMembers(staffMembersData || []);
       setSalaryExpenses(staffSalaryList);
-      setStudentsList(studentsData || []);
     } catch (e) {
       console.error('Error fetching staff data:', e);
     } finally {
@@ -450,6 +447,7 @@ export default function StaffRoles() {
       const dupCheck = await checkDuplicatePhoneNumber({
         phone: staffMemberFormData.phone,
         excludeId: editStaffMember?.id,
+        scope: 'staff',
       });
       if (dupCheck) {
         alert(`⚠️ मोबाइल नंबर अमान्य:\n\n${dupCheck.message}`);
@@ -932,6 +930,7 @@ export default function StaffRoles() {
       const dupCheck = await checkDuplicatePhoneNumber({
         phone: formData.phone,
         excludeId: editStaff?.id,
+        scope: 'staff',
       });
       if (dupCheck) {
         alert(`⚠️ मोबाइल नंबर अमान्य:\n\n${dupCheck.message}`);

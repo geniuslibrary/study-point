@@ -540,6 +540,7 @@ export const normalizePhone = (phone) => {
 export const checkDuplicatePhoneSync = ({
   phone,
   excludeId = null,
+  scope = 'all', // 'student' | 'staff' | 'all'
   students = [],
   staffUsers = [],
   staffMembers = [],
@@ -547,48 +548,54 @@ export const checkDuplicatePhoneSync = ({
   const norm = normalizePhone(phone);
   if (!norm || norm.length !== 10) return null;
 
-  if (Array.isArray(students)) {
-    const matched = students.find(
-      (s) => !s.isDeleted && s.id !== excludeId && normalizePhone(s.phone) === norm
-    );
-    if (matched) {
-      return {
-        exists: true,
-        type: 'student',
-        name: matched.name,
-        phone: matched.phone,
-        message: `यह मोबाइल नंबर (${norm}) पहले से छात्र "${matched.name}" के नाम पर रजिस्टर्ड है! एक नंबर से दूसरा छात्र या स्टाफ रजिस्टर नहीं हो सकता।`,
-      };
+  // 1. Student-to-Student check (if scope is 'student' or 'all')
+  if (scope === 'student' || scope === 'all') {
+    if (Array.isArray(students)) {
+      const matched = students.find(
+        (s) => !s.isDeleted && s.id !== excludeId && normalizePhone(s.phone) === norm
+      );
+      if (matched) {
+        return {
+          exists: true,
+          type: 'student',
+          name: matched.name,
+          phone: matched.phone,
+          message: `Yeh mobile number (${norm}) pehle se student "${matched.name}" ke paas registered hai! Do students ka same number nahi ho sakta.`,
+        };
+      }
     }
   }
 
-  if (Array.isArray(staffUsers)) {
-    const matched = staffUsers.find(
-      (u) => u.id !== excludeId && normalizePhone(u.phone) === norm
-    );
-    if (matched) {
-      return {
-        exists: true,
-        type: 'staff',
-        name: matched.name,
-        phone: matched.phone,
-        message: `यह मोबाइल नंबर (${norm}) पहले से स्टाफ "${matched.name}" के पास रजिस्टर्ड है! एक नंबर से दूसरा छात्र या स्टाफ रजिस्टर नहीं हो सकता।`,
-      };
+  // 2. Staff-to-Staff check (if scope is 'staff' or 'all')
+  if (scope === 'staff' || scope === 'all') {
+    if (Array.isArray(staffUsers)) {
+      const matched = staffUsers.find(
+        (u) => u.id !== excludeId && normalizePhone(u.phone) === norm
+      );
+      if (matched) {
+        return {
+          exists: true,
+          type: 'staff',
+          name: matched.name,
+          phone: matched.phone,
+          message: `Yeh mobile number (${norm}) pehle se staff "${matched.name}" ke paas registered hai! Do staff members ka same number nahi ho sakta.`,
+        };
+      }
     }
-  }
 
-  if (Array.isArray(staffMembers)) {
-    const matched = staffMembers.find(
-      (m) => m.id !== excludeId && m.status !== 'deleted' && normalizePhone(m.phone) === norm
-    );
-    if (matched) {
-      return {
-        exists: true,
-        type: 'staff',
-        name: matched.name,
-        phone: matched.phone,
-        message: `यह मोबाइल नंबर (${norm}) पहले से स्टाफ सदस्य "${matched.name}" के पास रजिस्टर्ड है! एक नंबर से दूसरा छात्र या स्टाफ रजिस्टर नहीं हो सकता।`,
-      };
+    if (Array.isArray(staffMembers)) {
+      const matched = staffMembers.find(
+        (m) => m.id !== excludeId && m.status !== 'deleted' && normalizePhone(m.phone) === norm
+      );
+      if (matched) {
+        return {
+          exists: true,
+          type: 'staff',
+          name: matched.name,
+          phone: matched.phone,
+          message: `Yeh mobile number (${norm}) pehle se staff member "${matched.name}" ke paas registered hai! Do staff members ka same number nahi ho sakta.`,
+        };
+      }
     }
   }
 
@@ -596,20 +603,29 @@ export const checkDuplicatePhoneSync = ({
 };
 
 // Comprehensive Asynchronous check against database collections
-export const checkDuplicatePhoneNumber = async ({ phone, excludeId = null }) => {
+export const checkDuplicatePhoneNumber = async ({ phone, excludeId = null, scope = 'all' }) => {
   const norm = normalizePhone(phone);
   if (!norm || norm.length !== 10) return null;
 
   try {
-    const [students, staffUsers, staffMembers] = await Promise.all([
-      fetchCollectionData(COLLECTIONS.STUDENTS).catch(() => []),
-      fetchCollectionData(COLLECTIONS.STAFF_USERS).catch(() => []),
-      fetchCollectionData(COLLECTIONS.STAFF_MEMBERS).catch(() => []),
-    ]);
+    let students = [];
+    let staffUsers = [];
+    let staffMembers = [];
+
+    if (scope === 'student' || scope === 'all') {
+      students = await fetchCollectionData(COLLECTIONS.STUDENTS).catch(() => []);
+    }
+    if (scope === 'staff' || scope === 'all') {
+      [staffUsers, staffMembers] = await Promise.all([
+        fetchCollectionData(COLLECTIONS.STAFF_USERS).catch(() => []),
+        fetchCollectionData(COLLECTIONS.STAFF_MEMBERS).catch(() => []),
+      ]);
+    }
 
     return checkDuplicatePhoneSync({
       phone: norm,
       excludeId,
+      scope,
       students: students || [],
       staffUsers: staffUsers || [],
       staffMembers: staffMembers || [],

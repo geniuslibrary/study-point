@@ -52,27 +52,11 @@ export default function StudentForm({
   const [isCameraModalOpen, setIsCameraModalOpen] = useState(false);
   const [isCompressing, setIsCompressing] = useState(false);
   const galleryInputRef = useRef(null);
-  const [staffUsers, setStaffUsers] = useState([]);
-  const [staffMembers, setStaffMembers] = useState([]);
-
-  useEffect(() => {
-    if (isOpen) {
-      Promise.all([
-        fetchCollectionData(COLLECTIONS.STAFF_USERS).catch(() => []),
-        fetchCollectionData(COLLECTIONS.STAFF_MEMBERS).catch(() => []),
-      ]).then(([users, members]) => {
-        setStaffUsers(users || []);
-        setStaffMembers(members || []);
-      });
-    }
-  }, [isOpen]);
-
   const phoneDuplicateWarning = checkDuplicatePhoneSync({
     phone: formData.phone,
     excludeId: editData?.id,
+    scope: 'student',
     students,
-    staffUsers,
-    staffMembers,
   });
 
   useEffect(() => {
@@ -351,6 +335,7 @@ export default function StudentForm({
     const dupCheck = await checkDuplicatePhoneNumber({
       phone: formData.phone,
       excludeId: editData?.id,
+      scope: 'student',
     });
     if (dupCheck) {
       alert(`⚠️ मोबाइल नंबर अमान्य:\n\n${dupCheck.message}`);
