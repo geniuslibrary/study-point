@@ -419,7 +419,7 @@ export default function StudentForm({
       isOpen={isOpen}
       onClose={onClose}
       title={editData ? 'Edit Student Admission & Shift' : 'Add New Student Admission'}
-      size="lg"
+      size="xl"
     >
       <form onSubmit={handleSubmit} className="space-y-4">
         {/* Student Photo Upload & Capture Card with 2 Clear Options */}
@@ -819,7 +819,7 @@ export default function StudentForm({
               </span>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5">
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2.5">
               {configuredAddons.map((item) => {
                 const nameLower = item.name?.toLowerCase();
                 const isCovered = isAddonCoveredByPlan(item.name);
@@ -856,15 +856,17 @@ export default function StudentForm({
                         }}
                         className="rounded text-indigo-600 focus:ring-indigo-500 shrink-0 cursor-pointer"
                       />
-                      <span className="text-xs font-bold text-slate-800 break-words leading-tight">{item.name}</span>
+                      <span className="text-xs font-bold text-slate-800 whitespace-nowrap overflow-hidden text-ellipsis" title={item.name}>
+                        {item.name}
+                      </span>
                     </div>
                     {isCovered ? (
-                      <span className="text-[10px] font-black text-emerald-800 bg-emerald-100 px-2 py-0.5 rounded border border-emerald-300 shrink-0 flex items-center gap-1">
+                      <span className="text-[10px] font-black text-emerald-800 bg-emerald-100 px-1.5 py-0.5 rounded border border-emerald-300 shrink-0 flex items-center gap-0.5 whitespace-nowrap">
                         <Check className="w-3 h-3 text-emerald-600 stroke-[3]" /> Free
                       </span>
                     ) : (
-                      <span className="text-[10px] font-bold text-indigo-900 shrink-0 bg-indigo-50 px-2 py-0.5 rounded border border-indigo-200">
-                        ₹{item.monthlyCharge}/month
+                      <span className="text-[10px] font-bold text-indigo-900 shrink-0 bg-indigo-50/90 px-1.5 py-0.5 rounded border border-indigo-200 whitespace-nowrap">
+                        ₹{item.monthlyCharge}/mo
                       </span>
                     )}
                   </label>
