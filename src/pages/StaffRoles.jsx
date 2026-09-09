@@ -211,6 +211,15 @@ export default function StaffRoles() {
         ).catch(console.warn);
       }
 
+      const activeTenantId = getActiveTenantId();
+      if (staffData && staffData.length > 0 && activeTenantId) {
+        staffData.forEach((s) => {
+          if (!s.tenantId) {
+            updateDocument(COLLECTIONS.STAFF_USERS, s.id, { tenantId: activeTenantId, ownerId: activeTenantId }).catch(console.warn);
+          }
+        });
+      }
+
       setStaffList(staffData);
       setRolesList(regularRoles);
       setStaffMembers(staffMembersData || []);
@@ -433,11 +442,19 @@ export default function StaffRoles() {
     const allRoles = [ownerRole, ...rolesList];
     const preset = allRoles.find((r) => r.id === presetId);
     if (preset) {
+      const permissions = preset.permissions
+        ? JSON.parse(JSON.stringify(preset.permissions))
+        : JSON.parse(JSON.stringify(ROLE_PRESETS.receptionist.permissions));
+
+      if (!permissions.students) {
+        permissions.students = { view: true, create: true, edit: true, delete: false };
+      }
+
       setFormData((prev) => ({
         ...prev,
         role: preset.id,
         roleLabel: preset.label || `${preset.emoji || '💼'} ${preset.name}`,
-        permissions: JSON.parse(JSON.stringify(preset.permissions)),
+        permissions,
         dashboardWidgets: preset.dashboardWidgets
           ? { ...DEFAULT_STAFF_DASHBOARD_WIDGETS, ...preset.dashboardWidgets }
           : prev.dashboardWidgets,
@@ -488,11 +505,18 @@ export default function StaffRoles() {
     }
 
     try {
+      const activeTenantId = getActiveTenantId();
+      const payload = {
+        ...formData,
+        tenantId: activeTenantId,
+        ownerId: activeTenantId,
+      };
+
       if (editStaff) {
-        await updateDocument(COLLECTIONS.STAFF_USERS, editStaff.id, formData);
+        await updateDocument(COLLECTIONS.STAFF_USERS, editStaff.id, payload);
         showToast(`Staff member "${formData.name}" updated successfully!`);
       } else {
-        await createDocument(COLLECTIONS.STAFF_USERS, formData);
+        await createDocument(COLLECTIONS.STAFF_USERS, payload);
         showToast(`New staff member "${formData.name}" created successfully!`);
       }
       setShowModal(false);

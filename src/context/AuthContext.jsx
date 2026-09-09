@@ -51,9 +51,30 @@ export const AuthProvider = ({ children }) => {
         const cloudStaff = await fetchCollectionData(COLLECTIONS.STAFF_USERS);
         if (cloudStaff && cloudStaff.length > 0) staffList = cloudStaff;
 
-        const staffMember = staffList.find(
+        let staffMember = staffList.find(
           (s) => s.id === currUser.uid || s.email?.toLowerCase() === currUser.email?.toLowerCase()
         );
+
+        if (!staffMember) {
+          try {
+            const groupSnap = await getDocs(collectionGroup(db, COLLECTIONS.STAFF_USERS));
+            if (groupSnap && groupSnap.docs) {
+              for (const d of groupSnap.docs) {
+                if (
+                  d.id === currUser.uid ||
+                  (d.data().email || '').toLowerCase() === (currUser.email || '').toLowerCase()
+                ) {
+                  const parentTenantId = d.ref?.parent?.parent?.id || null;
+                  const resolvedTenantId = d.data().tenantId || d.data().ownerId || parentTenantId || currUser.tenantId;
+                  staffMember = { id: d.id, ...d.data(), tenantId: resolvedTenantId };
+                  break;
+                }
+              }
+            }
+          } catch (cgErr) {
+            console.warn('Cross-library staff sync warning:', cgErr);
+          }
+        }
 
         if (staffMember) {
           if (staffMember.status === 'inactive') {
@@ -63,11 +84,12 @@ export const AuthProvider = ({ children }) => {
             return;
           }
 
+          const normalizedRole = (staffMember.role || '').replace(/^role_/, '');
           const roleLabel =
             staffMember.roleLabel ||
-            (staffMember.role === 'receptionist'
+            (normalizedRole === 'receptionist'
               ? '🛎️ Receptionist'
-              : staffMember.role === 'manager'
+              : normalizedRole === 'manager'
               ? '👔 Branch Manager'
               : '⚙️ Custom Role');
 
@@ -76,16 +98,14 @@ export const AuthProvider = ({ children }) => {
             displayName: staffMember.name || currUser.displayName,
             role: staffMember.role || 'receptionist',
             roleLabel,
+            tenantId: staffMember.tenantId || currUser.tenantId,
+            ownerId: staffMember.tenantId || currUser.tenantId,
             permissions: staffMember.permissions || currUser.permissions,
             dashboardWidgets: staffMember.dashboardWidgets || currUser.dashboardWidgets,
             phone: staffMember.phone || currUser.phone,
           };
           setUser(updated);
           localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(updated));
-        } else if (staffList.length > 0 && cloudStaff && cloudStaff.length > 0) {
-          // Staff member was deleted
-          localStorage.removeItem(LOCAL_STORAGE_KEY);
-          setUser(null);
         }
       } catch (e) {
         console.warn('Session sync error:', e);
@@ -229,11 +249,26 @@ export const AuthProvider = ({ children }) => {
 
   const hasPermission = (moduleName, action = 'view') => {
     if (!user) return false;
-    if (!user.role || user.role === 'owner') return true;
+    if (!user.role || user.role === 'owner' || user.role === 'role_owner') return true;
 
     const modulePerms = user.permissions?.[moduleName];
-    if (!modulePerms) return false;
-    return !!modulePerms[action];
+    if (modulePerms && modulePerms[action] !== undefined) {
+      return !!modulePerms[action];
+    }
+
+    // Fallback to role presets if module not explicitly mapped
+    const normalizedRole = (user.role || '').replace(/^role_/, '');
+    const preset = ROLE_PRESETS[normalizedRole] || ROLE_PRESETS[user.role] || ROLE_PRESETS.receptionist;
+    if (preset?.permissions?.[moduleName]?.[action] !== undefined) {
+      return !!preset.permissions[moduleName][action];
+    }
+
+    // Default permission for view on essential operational modules
+    if (action === 'view' && ['dashboard', 'sections', 'visitors', 'students', 'fees', 'memberships'].includes(moduleName)) {
+      return true;
+    }
+
+    return false;
   };
 
   const login = async (identifier, password) => {
@@ -272,13 +307,25 @@ export const AuthProvider = ({ children }) => {
         );
       });
 
+      if (staffMember && !staffMember.tenantId) {
+        staffMember.tenantId = getActiveTenantId();
+      }
+
       // If staff not found in active tenant, search across all libraries using collectionGroup
       if (!staffMember) {
         try {
           const groupSnap = await getDocs(collectionGroup(db, COLLECTIONS.STAFF_USERS));
           if (groupSnap && groupSnap.docs) {
             for (const d of groupSnap.docs) {
-              const s = { id: d.id, ...d.data() };
+              const data = d.data() || {};
+              const parentTenantId = d.ref?.parent?.parent?.id || null;
+              const resolvedTenantId = data.tenantId || data.ownerId || parentTenantId || 'genius_root';
+              const s = {
+                id: d.id,
+                ...data,
+                tenantId: resolvedTenantId,
+                ownerId: resolvedTenantId,
+              };
               const sEmail = (s.email || '').trim().toLowerCase();
               const sName = (s.name || '').trim().toLowerCase();
               const sPhone = (s.phone || '').trim().toLowerCase();
@@ -306,13 +353,19 @@ export const AuthProvider = ({ children }) => {
         }
 
         // Build staff session
-        const fallbackPerms = ROLE_PRESETS[staffMember.role]?.permissions || ROLE_PRESETS.receptionist.permissions;
+        const normalizedRole = (staffMember.role || '').replace(/^role_/, '');
+        const fallbackPerms =
+          ROLE_PRESETS[normalizedRole]?.permissions ||
+          ROLE_PRESETS[staffMember.role]?.permissions ||
+          ROLE_PRESETS.receptionist.permissions;
         const defaultLabel =
-          staffMember.role === 'receptionist'
+          normalizedRole === 'receptionist'
             ? '🛎️ Receptionist'
-            : staffMember.role === 'manager'
+            : normalizedRole === 'manager'
             ? '👔 Branch Manager'
             : staffMember.role || 'Staff Member';
+
+        const staffTenantId = staffMember.tenantId || staffMember.ownerId || 'genius_root';
 
         const staffSession = {
           uid: staffMember.id,
@@ -320,7 +373,8 @@ export const AuthProvider = ({ children }) => {
           displayName: staffMember.name || 'Staff Member',
           role: staffMember.role || 'receptionist',
           roleLabel: staffMember.roleLabel || defaultLabel,
-          tenantId: staffMember.tenantId || staffMember.ownerId || 'genius_root',
+          tenantId: staffTenantId,
+          ownerId: staffTenantId,
           permissions: staffMember.permissions || fallbackPerms,
           dashboardWidgets: staffMember.dashboardWidgets || null,
           phone: staffMember.phone || '',

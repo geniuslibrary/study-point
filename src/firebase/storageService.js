@@ -26,8 +26,15 @@ export const getActiveTenantId = () => {
         if (session.tenantId) {
           return session.tenantId;
         }
+        if (session.ownerId) {
+          return session.ownerId;
+        }
         const email = (session.email || '').toLowerCase().trim();
         if (email === 'geniuslibrary1526@gmail.com') {
+          return 'genius_root';
+        }
+        // For staff users, never use staff doc ID as tenantId
+        if (session.role && session.role !== 'owner') {
           return 'genius_root';
         }
         if (session.uid) {
