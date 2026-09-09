@@ -500,6 +500,7 @@ export default function Students() {
           seatId: st.seatId || '',
           planId: st.membershipPlanId || 'custom_days',
           planName: `Extension (+${extraDays} Days)`,
+          isExtension: true,
           amount: finalTotalFee,
           baseFee: finalTotalFee,
           paidAmount: finalPaidNow,

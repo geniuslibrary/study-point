@@ -82,6 +82,20 @@ export default function Fees() {
           return fee;
         }
 
+        // Do not overwrite extension fees with admission monthly rates
+        const isExtensionFee =
+          Boolean(fee.isExtension) ||
+          fee.planName?.toLowerCase().includes('extension') ||
+          fee.receiptNumber?.startsWith('EXT-') ||
+          fee.notes?.toLowerCase().includes('extended');
+
+        if (isExtensionFee) {
+          const effDue = Number(fee.dueAmount) > 0
+            ? Number(fee.dueAmount)
+            : (student ? (Number(student.dueFeeAmount) || Number(fee.amount)) : Number(fee.amount));
+          return { ...fee, dueAmount: effDue };
+        }
+
         const seat = allSeats.find((s) => s.id === student.seatId);
         const isDay = Boolean(
           student.isDayBased ||
