@@ -574,7 +574,14 @@ export default function Students() {
 
   const handleOpenCollectFee = (student) => {
     if (!student) return;
-    const studentPendingFee = fees.find((f) => f.studentId === student.id && f.status === 'pending');
+    // Find any existing active fee with pending dues (partial or pending)
+    const studentUnpaidFees = fees.filter(
+      (f) => f.studentId === student.id && (f.status === 'partial' || f.status === 'pending' || Number(f.dueAmount) > 0)
+    );
+    const studentPendingFee = studentUnpaidFees.length > 0
+      ? studentUnpaidFees.sort((a, b) => new Date(b.createdAt || b.paidDate || b.month || 0) - new Date(a.createdAt || a.paidDate || a.month || 0))[0]
+      : null;
+
     if (studentPendingFee) {
       setCollectFeeRecord(studentPendingFee);
       setCollectFeeStudent(student);
@@ -597,14 +604,25 @@ export default function Students() {
       const durFactor = isDay ? Math.max(1, Math.round(durDays / 30)) : dur;
       const { charges, total } = calculateSeatAddonCharges(targetSeat?.addons, addonPricing, durFactor);
 
-      const periodStart = student.membershipStart || student.joinDate || new Date().toISOString();
-      let periodEnd = student.membershipEnd;
-      if (!periodEnd) {
-        const d = new Date(periodStart);
-        if (isDay) d.setDate(d.getDate() + durDays);
-        else d.setMonth(d.getMonth() + dur);
-        periodEnd = d.toISOString();
+      // For renewal when student is already active and fully paid
+      const hasActiveExpiry = student.membershipEnd && (!student.dueFeeAmount || Number(student.dueFeeAmount) <= 0);
+      let periodStart = new Date().toISOString();
+      if (hasActiveExpiry) {
+        const prevEnd = student.membershipEnd.toDate ? student.membershipEnd.toDate() : new Date(student.membershipEnd);
+        if (!isNaN(prevEnd.getTime()) && prevEnd > new Date()) {
+          periodStart = prevEnd.toISOString();
+        }
+      } else if (student.membershipStart) {
+        periodStart = student.membershipStart;
+      } else if (student.joinDate) {
+        periodStart = student.joinDate;
       }
+
+      let periodEnd;
+      const d = new Date(periodStart);
+      if (isDay) d.setDate(d.getDate() + durDays);
+      else d.setMonth(d.getMonth() + dur);
+      periodEnd = d.toISOString();
 
       const currentMonth = getMonthYear();
       const tempFee = {

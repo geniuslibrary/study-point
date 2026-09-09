@@ -109,7 +109,7 @@ export default function CollectFeeModal({
 
       setDiscountAmount(disc !== '' ? String(disc) : '');
       setPaymentMode(fee?.paymentMode === 'split' ? 'split' : (fee?.paymentMode || 'cash'));
-      setPaymentType(fee?.status === 'partial' ? 'partial' : 'full');
+      setPaymentType('full');
       setCustomPayingAmount(fee?.dueAmount ? String(fee.dueAmount) : '');
       if (fee?.splitDetails) {
         setSplitCash(String(fee.splitDetails.cash || ''));
@@ -161,38 +161,56 @@ export default function CollectFeeModal({
         }
       }
 
-      // Determine initial start date:
-      let initStart = formatDateInput(new Date());
+      // Check if modal opened to collect dues for an existing unpaid / partial fee
+      const isDueOrPartialFee = Boolean(
+        fee && (
+          fee.status === 'partial' ||
+          fee.status === 'pending' ||
+          (fee.dueAmount !== undefined && Number(fee.dueAmount) > 0)
+        )
+      );
 
-      if (isDay && student?.membershipStart) {
-        initStart = formatDateInput(student.membershipStart);
-      } else if (isDay && student?.joinDate) {
-        initStart = formatDateInput(student.joinDate);
-      } else if (fee?.periodStart) {
-        initStart = formatDateInput(fee.periodStart);
-      } else if (student?.membershipStart) {
-        initStart = formatDateInput(student.membershipStart);
-      } else if (student?.joinDate) {
-        initStart = formatDateInput(student.joinDate);
-      }
-
-      // If student already has completed fees in the past and has an active cycle ending in future (renewal):
-      if (student?.hasPaidBefore && student?.membershipEnd) {
-        const prevEnd = student.membershipEnd.toDate ? student.membershipEnd.toDate() : new Date(student.membershipEnd);
-        if (!isNaN(prevEnd.getTime()) && prevEnd > new Date()) {
-          initStart = formatDateInput(prevEnd);
-        }
-      }
-
-      // Determine initial end date:
+      let initStart = '';
       let initEnd = '';
-      if (isDay && student?.membershipEnd) {
-        initEnd = formatDateInput(student.membershipEnd);
-      } else if (fee?.periodEnd && (!isDay || fee.isDayBased)) {
-        initEnd = formatDateInput(fee.periodEnd);
-      } else if (student?.membershipEnd && !student?.hasPaidBefore) {
-        initEnd = formatDateInput(student.membershipEnd);
+
+      if (isDueOrPartialFee) {
+        // CASE 1: Collecting remaining dues for an existing bill/cycle
+        // Preserve the start date of this fee (e.g. 09/09/2026)
+        initStart = formatDateInput(
+          fee.periodStart || student?.membershipStart || student?.joinDate || new Date()
+        );
+        // Preserve the end date of this fee (e.g. 09/10/2026)
+        initEnd = formatDateInput(
+          fee.periodEnd || student?.membershipEnd || computeEndDate(initStart, tempActivePlan)
+        );
+
+        // Safety check: end date must be strictly after start date
+        if (!initEnd || initEnd <= initStart) {
+          initEnd = computeEndDate(initStart, tempActivePlan);
+        }
       } else {
+        // CASE 2: Renewal for upcoming cycle OR New Admission
+        const prevEnd = student?.membershipEnd
+          ? (student.membershipEnd.toDate ? student.membershipEnd.toDate() : new Date(student.membershipEnd))
+          : null;
+        const isFutureRenewal = Boolean(
+          student?.hasPaidBefore &&
+          prevEnd &&
+          !isNaN(prevEnd.getTime()) &&
+          prevEnd > new Date()
+        );
+
+        if (isFutureRenewal) {
+          initStart = formatDateInput(prevEnd);
+        } else if (student?.membershipStart && !student?.hasPaidBefore) {
+          initStart = formatDateInput(student.membershipStart);
+        } else if (student?.joinDate && !student?.hasPaidBefore) {
+          initStart = formatDateInput(student.joinDate);
+        } else {
+          initStart = formatDateInput(new Date());
+        }
+
+        // Renewal / New Admission end date is ALWAYS computed by adding plan duration to initStart
         initEnd = computeEndDate(initStart, tempActivePlan);
       }
 
@@ -318,7 +336,11 @@ export default function CollectFeeModal({
   const totalPayable = Math.max(0, planPrice + addonTotal - discount);
 
   // Partial / Installment & Balance Due calculations
-  const previouslyPaid = Number(fee?.paidAmount) || (fee?.status === 'partial' && fee?.amount && fee?.dueAmount !== undefined ? Math.max(0, Number(fee.amount) - Number(fee.dueAmount)) : 0);
+  const previouslyPaid =
+    Number(fee?.paidAmount) ||
+    (Number(fee?.amount) > 0 && fee?.dueAmount !== undefined ? Math.max(0, Number(fee.amount) - Number(fee.dueAmount)) : 0) ||
+    (Number(student?.dueFeeAmount) > 0 && Number(student?.planPrice) > Number(student?.dueFeeAmount) ? Number(student.planPrice) - Number(student.dueFeeAmount) : 0) ||
+    0;
   const totalBalanceDue = Math.max(0, totalPayable - previouslyPaid);
 
   const actualPaidNow = paymentType === 'full'
