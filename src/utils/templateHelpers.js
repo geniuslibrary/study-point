@@ -88,7 +88,7 @@ export const DEFAULT_WHATSAPP_TEMPLATES = {
     badge: '🧾 Receipt',
     description: 'Sent automatically after collecting fee along with official payment confirmation.',
     template:
-      '🎉 *FEE PAYMENT RECEIPT - {library_name}*\n\nनमस्ते *{student_name}* जी,\nआपकी फीस *₹{amount}* सफलतापूर्वक प्राप्त हो गई है! ✅\n\n🧾 *रसीद सं. (Receipt No):* {receipt_no}\n📦 *प्लान:* {plan_name}\n📅 *वैलिडिटी:* {validity_period}\n💺 *सीट आवंटित:* Seat #{seat_number} ({shift})\n💳 *माध्यम:* {payment_mode}\n\nधन्यवाद! पढ़ाई जारी रखें और उज्ज्वल भविष्य बनाएं। ✨\n— *{library_name}*',
+      '🎉 *FEE PAYMENT RECEIPT - {library_name}*\n\nनमस्ते *{student_name}* जी,\nआपकी फीस *₹{amount}* सफलतापूर्वक प्राप्त हो गई है! ✅\n\n🧾 *रसीद सं. (Receipt No):* {receipt_no}\n📦 *प्लान:* {plan_name}\n📅 *वैलिडिटी:* {validity_period}\n💺 *सीट आवंटित:* Seat #{seat_number} ({shift})\n💳 *माध्यम:* {payment_mode}\n\n📜 *Terms & Conditions:*\n1. Your seat is reserved for the subscribed period.\n2. The fee is non-refundable under any circumstances.\n3. The fee is non-transferrable.\n\nधन्यवाद! पढ़ाई जारी रखें और उज्ज्वल भविष्य बनाएं। ✨\n— *{library_name}*',
     availableTags: [
       'student_name',
       'library_name',
@@ -228,11 +228,11 @@ export const TEMPLATE_PRESETS = {
   },
   feeReceipt: {
     hinglish:
-      '🎉 *FEE PAYMENT RECEIPT - {library_name}*\n\nनमस्ते *{student_name}* जी,\nआपकी फीस *₹{amount}* सफलतापूर्वक प्राप्त हो गई है! ✅\n\n🧾 *रसीद सं. (Receipt No):* {receipt_no}\n📦 *प्लान:* {plan_name}\n📅 *वैलिडिटी:* {validity_period}\n💺 *सीट आवंटित:* Seat #{seat_number} ({shift})\n💳 *माध्यम:* {payment_mode}\n\nधन्यवाद! पढ़ाई जारी रखें और उज्ज्वल भविष्य बनाएं। ✨\n— *{library_name}*',
+      '🎉 *FEE PAYMENT RECEIPT - {library_name}*\n\nनमस्ते *{student_name}* जी,\nआपकी फीस *₹{amount}* सफलतापूर्वक प्राप्त हो गई है! ✅\n\n🧾 *रसीद सं. (Receipt No):* {receipt_no}\n📦 *प्लान:* {plan_name}\n📅 *वैलिडिटी:* {validity_period}\n💺 *सीट आवंटित:* Seat #{seat_number} ({shift})\n💳 *माध्यम:* {payment_mode}\n\n📜 *Terms & Conditions:*\n1. Your seat is reserved for the subscribed period.\n2. The fee is non-refundable under any circumstances.\n3. The fee is non-transferrable.\n\nधन्यवाद! पढ़ाई जारी रखें और उज्ज्वल भविष्य बनाएं। ✨\n— *{library_name}*',
     english:
-      '🎉 *OFFICIAL PAYMENT RECEIPT*\n\nDear *{student_name}*,\nPayment of *₹{amount}* has been successfully received at *{library_name}*.\n\nReceipt: {receipt_no}\nSeat: #{seat_number} ({shift})\nPlan: {plan_name}\nValid: {validity_period}\nMode: {payment_mode}\nStatus: PAID & VERIFIED\n\nThank you for choosing {library_name}!',
+      '🎉 *OFFICIAL PAYMENT RECEIPT*\n\nDear *{student_name}*,\nPayment of *₹{amount}* has been successfully received at *{library_name}*.\n\nReceipt: {receipt_no}\nSeat: #{seat_number} ({shift})\nPlan: {plan_name}\nValid: {validity_period}\nMode: {payment_mode}\nStatus: PAID & VERIFIED\n\n📜 *Terms & Conditions:*\n1. Your seat is reserved for the subscribed period.\n2. The fee is non-refundable under any circumstances.\n3. The fee is non-transferrable.\n\nThank you for choosing {library_name}!',
     short:
-      '✅ *Payment Received:* ₹{amount} received for {student_name} at {library_name}. Receipt #{receipt_no}. Valid: {validity_period}. Thank you!',
+      '✅ *Payment Received:* ₹{amount} received for {student_name} at {library_name}. Receipt #{receipt_no}. Valid: {validity_period}. Non-refundable & non-transferrable. Thank you!',
   },
   membershipExtended: {
     hinglish:

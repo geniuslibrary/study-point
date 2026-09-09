@@ -392,6 +392,7 @@ export default function CollectFeeModal({
 
           if (addonSummary) message += `\n${addonSummary}`;
           if (discount > 0) message += `\n🏷️ *Discount:* -₹${discount}`;
+          message += `\n\n📜 *Terms & Conditions:*\n1. Your seat is reserved for the subscribed period.\n2. The fee is non-refundable under any circumstances.\n3. The fee is non-transferrable.`;
           if (onlineReceiptUrl) {
             message += `\n\n📄 *View Receipt Online:*\n👉 ${onlineReceiptUrl}`;
           }

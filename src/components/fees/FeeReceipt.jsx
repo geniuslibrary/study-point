@@ -184,6 +184,10 @@ export default function FeeReceipt({ isOpen, onClose, fee, student, section, sea
       `📍 *Seat Allocated:* Seat #${displaySeatNumber} (${student?.shiftTiming || 'Shift'})\n` +
       `💳 *Payment Mode:* ${(fee.paymentMode || 'CASH').toUpperCase()}\n` +
       `✅ *Status:* PAID & VERIFIED\n\n` +
+      `📜 *Terms & Conditions:*\n` +
+      `1. Your seat is reserved for the subscribed period.\n` +
+      `2. The fee is non-refundable under any circumstances.\n` +
+      `3. The fee is non-transferrable.\n\n` +
       `📄 *View & Download Official PDF Receipt:* \n👉 ${onlineReceiptUrl}\n\n` +
       `Thank you for studying at ${libraryTitle}! 🙏`;
 
@@ -376,6 +380,18 @@ export default function FeeReceipt({ isOpen, onClose, fee, student, section, sea
                 </div>
               )}
             </div>
+          </div>
+
+          {/* Terms & Conditions Box */}
+          <div className="p-3 bg-slate-50/90 border border-slate-200/90 rounded-xl text-[11px] text-slate-600 space-y-1">
+            <p className="font-bold text-slate-800 uppercase tracking-wider text-[10px]">
+              Terms & Conditions:
+            </p>
+            <ol className="list-decimal list-inside space-y-0.5 text-slate-600 font-medium pl-0.5 leading-relaxed">
+              <li>Your seat is reserved for the subscribed period.</li>
+              <li>The fee is non-refundable under any circumstances.</li>
+              <li>The fee is non-transferrable.</li>
+            </ol>
           </div>
         </div>
 

@@ -356,6 +356,18 @@ export default function PublicReceipt() {
             </div>
           </div>
 
+          {/* Terms & Conditions Box */}
+          <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-xl text-[11px] text-slate-600 space-y-1">
+            <p className="font-bold text-slate-800 uppercase tracking-wider text-[10px]">
+              Terms & Conditions:
+            </p>
+            <ol className="list-decimal list-inside space-y-0.5 text-slate-600 font-medium pl-0.5 leading-relaxed">
+              <li>Your seat is reserved for the subscribed period.</li>
+              <li>The fee is non-refundable under any circumstances.</li>
+              <li>The fee is non-transferrable.</li>
+            </ol>
+          </div>
+
           <div className="text-center pt-2 text-[11px] text-slate-400">
             Official computer-generated receipt issued by <strong>{libraryTitle}</strong>.
           </div>
