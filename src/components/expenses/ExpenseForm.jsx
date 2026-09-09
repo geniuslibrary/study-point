@@ -177,7 +177,8 @@ export default function ExpenseForm({ isOpen, onClose, onSubmit, editData, staff
       const deductions = Number(salaryData.deductions) || 0;
 
       const perDay = daysTotal > 0 ? base / daysTotal : 0;
-      const earned = Math.round(perDay * daysWorked) + bonus - deductions;
+      const earnedBase = (daysTotal > 0 && daysWorked === daysTotal) ? base : Math.round(perDay * daysWorked);
+      const earned = earnedBase + bonus - deductions;
       const finalNet = Math.max(0, earned);
 
       setSalaryData((prevD) => ({ ...prevD, netSalary: finalNet }));
@@ -186,7 +187,7 @@ export default function ExpenseForm({ isOpen, onClose, onSubmit, editData, staff
           ...prevD,
           amount: String(finalNet),
           category: 'Staff Salary',
-          description: `Salary for ${salaryData.staffName || 'Staff'} (${salaryData.role || 'Role'}) [${daysWorked}/${daysTotal} days + Bonus ₹${bonus} - Deduct ₹${deductions}]`,
+          description: `Salary for ${salaryData.staffName || 'Staff'} (${salaryData.role || 'Role'}) [${daysWorked}/${daysTotal} days${bonus ? ` + Bonus ₹${bonus}` : ''}${deductions ? ` - Deduct ₹${deductions}` : ''}]`,
         }));
       }
     }
@@ -430,6 +431,52 @@ export default function ExpenseForm({ isOpen, onClose, onSubmit, editData, staff
                   <label className="block text-[11px] font-bold text-gray-700 mb-1">
                     Staff Name *
                   </label>
+                  {staffList && staffList.length > 0 && (
+                    <select
+                      value={salaryData.staffId || ''}
+                      onChange={(e) => {
+                        const selectedId = e.target.value;
+                        const selected = staffList.find((s) => s.id === selectedId);
+                        if (selected) {
+                          const sBase = Number(selected.salary ?? selected.monthlySalary) || 0;
+                          setSalaryData((prev) => ({
+                            ...prev,
+                            staffId: selected.id,
+                            staffName: selected.name,
+                            role: selected.role || 'Staff',
+                            baseSalary: sBase ? String(sBase) : '',
+                            daysWorked: '30',
+                            daysInMonth: '30',
+                            bonus: '',
+                            deductions: '',
+                          }));
+                        } else {
+                          setSalaryData((prev) => ({
+                            ...prev,
+                            staffId: '',
+                            staffName: '',
+                            role: '',
+                            baseSalary: '',
+                            daysWorked: '30',
+                            daysInMonth: '30',
+                            bonus: '',
+                            deductions: '',
+                          }));
+                        }
+                      }}
+                      className="w-full mb-1.5 px-2.5 py-1.5 bg-white border border-blue-200 rounded-lg text-xs font-semibold text-slate-800 focus:ring-2 focus:ring-blue-500"
+                    >
+                      <option value="">-- Select Staff Member --</option>
+                      {staffList.map((s) => {
+                        const sSalary = Number(s.salary ?? s.monthlySalary) || 0;
+                        return (
+                          <option key={s.id} value={s.id}>
+                            {s.name} ({s.role || 'Staff'}) {sSalary ? `- ₹${sSalary.toLocaleString('en-IN')}/mo` : ''}
+                          </option>
+                        );
+                      })}
+                    </select>
+                  )}
                   <input
                     type="text"
                     required

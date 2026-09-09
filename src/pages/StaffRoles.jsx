@@ -442,6 +442,30 @@ export default function StaffRoles() {
         );
         await updateDocument(COLLECTIONS.STAFF_MEMBERS, editStaffMember.id, payload);
         showToast(`Staff "${payload.name}" updated successfully!`);
+
+        // If salary or name was updated, also update any auto-scheduled expense for current month
+        if (payload.salary > 0 && payload.status !== 'left') {
+          const currentMonth = new Date().toISOString().slice(0, 7);
+          const existingExpenses = await fetchCollectionData(COLLECTIONS.EXPENSES);
+          const currentMonthSal = (existingExpenses || []).find((exp) => {
+            const isSal = exp.category === 'Staff Salary' || exp.type === 'salary';
+            const mId = exp.staffId === editStaffMember.id || exp.salaryDetails?.staffId === editStaffMember.id;
+            const mMonth = (exp.date && exp.date.startsWith(currentMonth)) || exp.month === currentMonth;
+            return isSal && mId && mMonth && (exp.isStaffSalaryAuto || !exp.salaryDetails?.deductions);
+          });
+          if (currentMonthSal) {
+            await updateDocument(COLLECTIONS.EXPENSES, currentMonthSal.id, {
+              amount: payload.salary,
+              title: `Salary - ${payload.name}`,
+              description: `Staff Salary: ${payload.name} [Monthly Scheduled]`,
+              'salaryDetails.baseSalary': payload.salary,
+              'salaryDetails.netSalary': payload.salary,
+              'salaryDetails.staffName': payload.name,
+              'salaryDetails.role': payload.role,
+            });
+            fetchData(false);
+          }
+        }
       } else {
         const newMember = await createDocument(COLLECTIONS.STAFF_MEMBERS, payload);
         setStaffMembers((prev) => [newMember, ...prev.filter((s) => s.id !== newMember.id)]);
@@ -530,7 +554,8 @@ export default function StaffRoles() {
   // Staff Salary Calculator & Payment Handlers
   const handleOpenPaySalary = (staff = null) => {
     const defaultStaff = staff || staffMembers.find((s) => s.status !== 'left') || staffMembers[0];
-    const base = defaultStaff ? Number(defaultStaff.salary) || 0 : 0;
+    const rawBase = defaultStaff ? (defaultStaff.salary ?? defaultStaff.monthlySalary ?? 0) : 0;
+    const base = Number(rawBase) || 0;
     const name = defaultStaff ? defaultStaff.name : '';
     const role = defaultStaff ? (defaultStaff.role || 'Staff') : '';
     const daysInMonth = 30;
@@ -545,7 +570,7 @@ export default function StaffRoles() {
       staffId: defaultStaff ? defaultStaff.id : '',
       staffName: name,
       role: role,
-      baseSalary: base || '',
+      baseSalary: base ? String(base) : '',
       daysInMonth: 30,
       daysWorked: 30,
       bonus: '',
@@ -564,15 +589,17 @@ export default function StaffRoles() {
       const next = { ...prev, ...updates };
       const base = Number(next.baseSalary) || 0;
       const daysTotal = Number(next.daysInMonth) || 30;
-      const worked = Number(next.daysWorked) || 0;
+      const workedInput = next.daysWorked !== '' && next.daysWorked !== undefined ? Number(next.daysWorked) : daysTotal;
+      const worked = isNaN(workedInput) ? 0 : workedInput;
       const bonus = Number(next.bonus) || 0;
       const deductions = Number(next.deductions) || 0;
 
       const perDay = daysTotal > 0 ? base / daysTotal : 0;
-      const earned = Math.round(perDay * worked) + bonus - deductions;
+      const earnedBase = (daysTotal > 0 && worked === daysTotal) ? base : Math.round(perDay * worked);
+      const earned = earnedBase + bonus - deductions;
       const net = Math.max(0, earned);
 
-      const desc = `Salary for ${next.staffName || 'Staff'} (${next.role || 'Role'}) [${worked}/${daysTotal} days + Bonus ₹${bonus} - Deduct ₹${deductions}]`;
+      const desc = `Salary for ${next.staffName || 'Staff'} (${next.role || 'Role'}) [${worked}/${daysTotal} days${bonus ? ` + Bonus ₹${bonus}` : ''}${deductions ? ` - Deduct ₹${deductions}` : ''}]`;
 
       return {
         ...next,
@@ -2546,28 +2573,42 @@ export default function StaffRoles() {
                       const selectedId = e.target.value;
                       const selected = staffMembers.find((s) => s.id === selectedId);
                       if (selected) {
-                        const base = Number(selected.monthlySalary) || 0;
+                        const rawBase = selected.salary ?? selected.monthlySalary ?? 0;
+                        const base = Number(rawBase) || 0;
                         updateSalaryCalculation({
                           staffId: selected.id,
                           staffName: selected.name,
-                          role: selected.role || '',
-                          baseSalary: base ? String(base) : salaryFormData.baseSalary,
+                          role: selected.role || 'Staff',
+                          baseSalary: base ? String(base) : '0',
+                          daysWorked: 30,
+                          daysInMonth: 30,
+                          bonus: '',
+                          deductions: '',
                         });
                       } else {
                         updateSalaryCalculation({
                           staffId: '',
                           staffName: '',
+                          role: '',
+                          baseSalary: '',
+                          daysWorked: 30,
+                          daysInMonth: 30,
+                          bonus: '',
+                          deductions: '',
                         });
                       }
                     }}
                     className="w-full mb-1.5 px-2.5 py-1.5 bg-white border border-blue-200 rounded-lg text-xs font-semibold text-slate-800 focus:ring-2 focus:ring-blue-500"
                   >
                     <option value="">-- Select Staff Member --</option>
-                    {staffMembers.map((s) => (
-                      <option key={s.id} value={s.id}>
-                        {s.name} ({s.role || 'Staff'}) {s.monthlySalary ? `- ₹${Number(s.monthlySalary).toLocaleString('en-IN')}/mo` : ''}
-                      </option>
-                    ))}
+                    {staffMembers.map((s) => {
+                      const sSalary = Number(s.salary ?? s.monthlySalary) || 0;
+                      return (
+                        <option key={s.id} value={s.id}>
+                          {s.name} ({s.role || 'Staff'}) {sSalary ? `- ₹${sSalary.toLocaleString('en-IN')}/mo` : ''}
+                        </option>
+                      );
+                    })}
                   </select>
                 )}
                 <input
