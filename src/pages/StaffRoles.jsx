@@ -773,45 +773,9 @@ export default function StaffRoles() {
   }
 
   return (
-    <Layout title={activeTab === 'staff' ? 'Staff Members' : 'Role & Permission'}>
+    <Layout title={activeTab === 'staff' ? 'Staff' : 'Role & Permission'}>
       <div className="space-y-6">
-        {/* Navigation Tabs Bar */}
-        <div className="flex border-b border-gray-200 gap-2">
-          <button
-            type="button"
-            onClick={() => handleTabChange('roles')}
-            className={`flex items-center gap-2 py-3 px-5 text-sm font-bold border-b-2 transition-all cursor-pointer ${
-              activeTab === 'roles'
-                ? 'border-indigo-600 text-indigo-600 bg-indigo-50/50 rounded-t-xl'
-                : 'border-transparent text-gray-500 hover:text-gray-800 hover:border-gray-300'
-            }`}
-          >
-            <ShieldCheck className="w-4 h-4" />
-            <span>Role & Permission</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => handleTabChange('staff')}
-            className={`flex items-center gap-2 py-3 px-5 text-sm font-bold border-b-2 transition-all cursor-pointer ${
-              activeTab === 'staff'
-                ? 'border-indigo-600 text-indigo-600 bg-indigo-50/50 rounded-t-xl'
-                : 'border-transparent text-gray-500 hover:text-gray-800 hover:border-gray-300'
-            }`}
-          >
-            <Users className="w-4 h-4" />
-            <span>Staff Members</span>
-            <span
-              className={`text-xs px-2 py-0.5 rounded-full font-extrabold ${
-                activeTab === 'staff' ? 'bg-indigo-100 text-indigo-700' : 'bg-gray-100 text-gray-600'
-              }`}
-            >
-              {staffMembers.length}
-            </span>
-          </button>
-        </div>
-
-        {/* TAB 1: Role & Permission */}
+        {/* SECTION 1: Role & Permission */}
         {activeTab === 'roles' && (
           <div className="space-y-6">
             {/* Header Bar */}
