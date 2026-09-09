@@ -420,10 +420,16 @@ export default function Students() {
   const handleExtendMembership = async ({
     studentId,
     extraDays,
+    totalFee,
     feeAmount,
+    paidNow,
+    dueAmount,
+    paymentType,
     paymentMode,
+    splitDetails,
     newExpiryDate,
     notes,
+    paymentRemarks,
     sendWhatsApp,
   }) => {
     setExtendingLoading(true);
@@ -454,15 +460,34 @@ export default function Students() {
         });
       }
 
-      // 3. Create fee record if feeAmount > 0
+      // 3. Create fee record if total fee > 0
       let createdFeeDoc = null;
-      if (feeAmount > 0) {
+      const finalTotalFee = Number(totalFee !== undefined ? totalFee : feeAmount) || 0;
+      const finalPaidNow = Number(paidNow !== undefined ? paidNow : finalTotalFee) || 0;
+      const finalDueAmount = Number(dueAmount !== undefined ? dueAmount : Math.max(0, finalTotalFee - finalPaidNow)) || 0;
+
+      if (finalTotalFee > 0) {
+        const isFullyPaid = finalDueAmount <= 0;
+        const feeStatus = isFullyPaid ? 'paid' : (finalPaidNow > 0 ? 'partial' : 'pending');
         const todayStr = new Date().toISOString();
         const todayDateOnly = todayStr.split('T')[0];
         const monthCode = todayDateOnly.slice(0, 7);
         const currentEnd = st.membershipEnd ? (st.membershipEnd.toDate ? st.membershipEnd.toDate() : new Date(st.membershipEnd)) : null;
         const now = new Date();
         const periodStart = (currentEnd && currentEnd > now) ? currentEnd.toISOString() : todayStr;
+        const receiptNum = `EXT-${Date.now().toString().slice(-6)}`;
+
+        const payments = finalPaidNow > 0 ? [{
+          id: `pay_${Date.now()}`,
+          amount: finalPaidNow,
+          paidDate: todayStr,
+          paymentMode: paymentMode || 'cash',
+          splitDetails: splitDetails || null,
+          notes: paymentRemarks || notes || '',
+          receiptNumber: receiptNum,
+          collectedBy: 'Admin',
+        }] : [];
+
         const feePayload = {
           studentId: st.id,
           studentName: st.name,
@@ -471,14 +496,18 @@ export default function Students() {
           seatId: st.seatId || '',
           planId: st.membershipPlanId || 'custom_days',
           planName: `Extension (+${extraDays} Days)`,
-          amount: feeAmount,
-          baseFee: feeAmount,
-          paidAmount: feeAmount,
+          amount: finalTotalFee,
+          baseFee: finalTotalFee,
+          paidAmount: finalPaidNow,
+          paidNow: finalPaidNow,
+          dueAmount: finalDueAmount,
           discountAmount: 0,
           addonCharges: {},
-          status: 'paid',
+          status: feeStatus,
           paymentMode: paymentMode || 'cash',
-          paidDate: todayStr,
+          splitDetails: splitDetails || null,
+          payments,
+          paidDate: finalPaidNow > 0 ? todayStr : null,
           date: todayDateOnly,
           periodStart: periodStart,
           periodEnd: newExpiryDate,
@@ -487,8 +516,9 @@ export default function Students() {
           durationDays: extraDays,
           durationUnit: 'days',
           planDuration: extraDays,
-          receiptNumber: `EXT-${Date.now().toString().slice(-6)}`,
+          receiptNumber: receiptNum,
           notes: notes || `Membership extended by ${extraDays} days`,
+          paymentRemarks: paymentRemarks || '',
           collectedBy: 'Admin',
         };
         const docRecord = await createDocument(COLLECTIONS.FEES, feePayload);
@@ -505,6 +535,13 @@ export default function Students() {
           currentTemplates?.membershipExtended?.template ||
           DEFAULT_WHATSAPP_TEMPLATES.membershipExtended?.template;
         const assignedSeat = seats.find((s) => s.id === st.seatId);
+        const feeDisplayStr = finalDueAmount > 0
+          ? `${finalPaidNow} (Paid) / Due: ₹${finalDueAmount}`
+          : String(finalPaidNow || finalTotalFee);
+        const modeDisplayStr = paymentMode === 'split' && splitDetails
+          ? `SPLIT (Cash: ₹${splitDetails.cash || 0} + UPI: ₹${splitDetails.upi || 0})`
+          : (paymentMode || 'cash').toUpperCase();
+
         const msg = renderTemplate(tpl, {
           student_name: st.name,
           library_name: getTenantItem('library_name', 'Study Point Library'),
@@ -512,8 +549,8 @@ export default function Students() {
           new_expiry_date: newDateFormatted,
           seat_number: assignedSeat?.seatNumber || '—',
           shift: st.shift || 'Full Day',
-          fee_amount: feeAmount,
-          payment_mode: (paymentMode || 'cash').toUpperCase(),
+          fee_amount: feeDisplayStr,
+          payment_mode: modeDisplayStr,
           phone: st.phone,
         });
         const waUrl = `https://api.whatsapp.com/send?phone=${phoneWithCountry}&text=${encodeURIComponent(msg)}`;
