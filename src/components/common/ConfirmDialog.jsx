@@ -10,16 +10,20 @@ const ConfirmDialog = ({
   title,
   message,
   confirmText = 'Confirm',
+  cancelText = 'Cancel',
   variant = 'primary',
-  loading = false
+  loading = false,
+  icon: CustomIcon,
 }) => {
+  const IconComponent = CustomIcon || AlertTriangle;
+
   return (
     <Modal isOpen={isOpen} onClose={onClose} size="sm">
       <div className="flex flex-col items-center text-center pt-2 pb-4">
         <div className={`w-12 h-12 rounded-full flex items-center justify-center mb-4 ${
           variant === 'danger' ? 'bg-red-100 text-red-600' : 'bg-indigo-100 text-indigo-600'
         }`}>
-          <AlertTriangle className="w-6 h-6" />
+          <IconComponent className="w-6 h-6" />
         </div>
         
         <h3 className="text-lg font-bold text-gray-900 mb-2">{title}</h3>
@@ -28,7 +32,7 @@ const ConfirmDialog = ({
 
       <div className="flex items-center justify-end gap-3 mt-4">
         <Button variant="ghost" onClick={onClose} disabled={loading}>
-          Cancel
+          {cancelText}
         </Button>
         <Button
           variant={variant}
