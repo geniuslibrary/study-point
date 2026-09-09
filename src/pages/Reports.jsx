@@ -10,7 +10,6 @@ import {
   TrendingUp,
   TrendingDown,
   Users,
-  Printer,
   Loader2,
   Wallet,
   ArrowUpRight,
@@ -333,15 +332,6 @@ export default function Reports() {
                 <span>Custom / Lifetime</span>
               </button>
             </div>
-
-            <Button
-              variant="secondary"
-              icon={<Printer className="w-4 h-4" />}
-              onClick={handlePrint}
-              title="Print formatted report"
-            >
-              Print Report
-            </Button>
           </div>
         </div>
 
