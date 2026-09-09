@@ -271,7 +271,7 @@ export default function StudentList({
                 <th className="px-5 py-3.5">Seat & Shift</th>
                 <th className="px-5 py-3.5">Plan & Fee</th>
                 <th className="px-5 py-3.5 text-center">Status</th>
-                <th className="px-5 py-3.5 text-right min-w-[340px]">Actions</th>
+                <th className="px-5 py-3.5 text-right whitespace-nowrap min-w-[390px]">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 text-sm font-medium">
@@ -394,12 +394,12 @@ export default function StudentList({
                       </span>
                     </td>
 
-                    {/* Actions: Clean, Colorful, Clearly Labeled Button Pills */}
-                    <td className="px-5 py-3.5 text-right">
-                      <div className="flex items-center justify-end flex-wrap gap-1.5">
+                    {/* Actions: Clean, Colorful, Clearly Labeled Button Pills in a Single Line */}
+                    <td className="px-5 py-3.5 text-right whitespace-nowrap">
+                      <div className="flex items-center justify-end flex-nowrap gap-1.5 whitespace-nowrap">
                         <button
                           onClick={() => onViewProfile(student)}
-                          className="px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-bold inline-flex items-center gap-1 cursor-pointer transition-colors shadow-2xs"
+                          className="px-2 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-[11px] font-bold inline-flex items-center gap-1 cursor-pointer transition-colors shadow-2xs shrink-0"
                           title="View Student Profile & Fee History"
                         >
                           <Eye size={12} className="text-slate-600" />
@@ -409,7 +409,7 @@ export default function StudentList({
                         {onExtend && (
                           <button
                             onClick={() => onExtend(student)}
-                            className="px-2.5 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 rounded-lg text-xs font-bold inline-flex items-center gap-1 cursor-pointer transition-colors shadow-2xs"
+                            className="px-2 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 rounded-lg text-[11px] font-bold inline-flex items-center gap-1 cursor-pointer transition-colors shadow-2xs shrink-0"
                             title="Extend Membership Validity (दिन आगे बढ़ाएं)"
                           >
                             <CalendarPlus size={12} className="text-emerald-600" />
@@ -420,7 +420,7 @@ export default function StudentList({
                         {!isLeft && canCollectFee && (
                           <button
                             onClick={() => onCollectFee(student)}
-                            className="px-2.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold inline-flex items-center gap-1 cursor-pointer transition-colors shadow-2xs"
+                            className="px-2 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-[11px] font-bold inline-flex items-center gap-1 cursor-pointer transition-colors shadow-2xs shrink-0"
                             title="Collect Fee / Record Payment"
                           >
                             <IndianRupee size={12} />
@@ -431,7 +431,7 @@ export default function StudentList({
                         {canEdit && (
                           <button
                             onClick={() => onEdit(student)}
-                            className="px-2.5 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 rounded-lg text-xs font-bold inline-flex items-center gap-1 cursor-pointer transition-colors shadow-2xs"
+                            className="px-2 py-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 rounded-lg text-[11px] font-bold inline-flex items-center gap-1 cursor-pointer transition-colors shadow-2xs shrink-0"
                             title="Edit Student Admission / Shift"
                           >
                             <Edit size={12} className="text-indigo-600" />
@@ -442,7 +442,7 @@ export default function StudentList({
                         {!isLeft && onToggleStatus && (
                           <button
                             onClick={() => onToggleStatus(student)}
-                            className="px-2.5 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 rounded-lg text-xs font-bold inline-flex items-center gap-1 cursor-pointer transition-colors shadow-2xs"
+                            className="px-2 py-1 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 rounded-lg text-[11px] font-bold inline-flex items-center gap-1 cursor-pointer transition-colors shadow-2xs shrink-0"
                             title="Mark Left & Free Seat (छोड़ दिया)"
                           >
                             <UserX size={12} className="text-rose-600" />
@@ -453,7 +453,7 @@ export default function StudentList({
                         {canDelete && (
                           <button
                             onClick={() => onDelete(student)}
-                            className="p-1.5 bg-slate-50 hover:bg-rose-50 text-slate-400 hover:text-rose-600 border border-slate-200 hover:border-rose-200 rounded-lg text-xs font-bold inline-flex items-center justify-center cursor-pointer transition-colors"
+                            className="p-1.5 bg-slate-50 hover:bg-rose-50 text-slate-400 hover:text-rose-600 border border-slate-200 hover:border-rose-200 rounded-lg text-xs font-bold inline-flex items-center justify-center cursor-pointer transition-colors shrink-0"
                             title="Delete Student Record"
                           >
                             <Trash2 size={13} />
