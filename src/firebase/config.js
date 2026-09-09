@@ -1,6 +1,9 @@
 import { initializeApp } from "firebase/app";
-import { initializeFirestore } from "firebase/firestore";
+import { initializeFirestore, setLogLevel } from "firebase/firestore";
 import { getAuth } from "firebase/auth";
+
+// Suppress internal non-critical Firestore SDK warnings like BloomFilterError
+setLogLevel("error");
 
 const firebaseConfig = {
   apiKey: "AIzaSyBN1oVgbiYOmoOvEOQrSmy98Fg2Bu8OZ5o",
