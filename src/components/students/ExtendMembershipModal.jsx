@@ -118,6 +118,38 @@ export default function ExtendMembershipModal({
     }
   };
 
+  const handleFeeAmountChange = (val) => {
+    setFeeAmount(val);
+    const num = Number(val) || 0;
+    if (paymentType === 'full') {
+      if (paymentMode === 'split') {
+        const half = Math.round(num / 2);
+        setSplitCash(String(half));
+        setSplitUpi(String(num - half));
+      }
+    } else {
+      if (Number(customPayingAmount) > num) {
+        setCustomPayingAmount(String(num));
+      }
+      if (paymentMode === 'split') {
+        const effectivePaid = Math.min(num, Number(customPayingAmount) || 0);
+        const half = Math.round(effectivePaid / 2);
+        setSplitCash(String(half));
+        setSplitUpi(String(effectivePaid - half));
+      }
+    }
+  };
+
+  const handleCustomPayingAmountChange = (val) => {
+    setCustomPayingAmount(val);
+    const num = Number(val) || 0;
+    if (paymentMode === 'split') {
+      const half = Math.round(num / 2);
+      setSplitCash(String(half));
+      setSplitUpi(String(num - half));
+    }
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!extraDays || Number(extraDays) <= 0) {
@@ -282,12 +314,15 @@ export default function ExtendMembershipModal({
             Extension Fee Amount (अतिरिक्त शुल्क - ₹) *
           </label>
           <div className="relative">
-            <span className="absolute left-3.5 top-2.5 text-slate-400 font-bold">₹</span>
+            <span className="absolute left-3.5 top-2.5 text-slate-400 font-bold pointer-events-none">₹</span>
             <input
               type="number"
               min="0"
               value={feeAmount}
               onChange={(e) => handleFeeAmountChange(e.target.value)}
+              onFocus={(e) => {
+                if (e.target.value === '0') setFeeAmount('');
+              }}
               className="w-full pl-8 pr-3 py-2 bg-white border border-slate-300 rounded-xl text-base font-extrabold text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500"
               placeholder="0"
             />
@@ -336,7 +371,7 @@ export default function ExtendMembershipModal({
                   Amount Paying Now (आज कितना जमा कर रहे हैं) *
                 </label>
                 <div className="relative max-w-xs">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 font-bold text-slate-500">₹</span>
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 font-bold text-slate-500 pointer-events-none">₹</span>
                   <input
                     type="number"
                     min="1"
