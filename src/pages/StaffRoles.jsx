@@ -56,7 +56,7 @@ import {
   setTenantItem,
   removeTenantItem,
 } from '../firebase/storageService';
-import { compressImageFile, formatDate, formatCurrency, checkDuplicatePhoneNumber, checkDuplicatePhoneSync, normalizePhone } from '../utils/helpers';
+import { compressImageFile, formatDate, formatCurrency, checkDuplicatePhoneNumber, checkDuplicatePhoneSync, normalizePhone, getDaysInMonth } from '../utils/helpers';
 import {
   DEFAULT_STAFF_DASHBOARD_WIDGETS,
   DASHBOARD_WIDGET_OPTIONS,
@@ -202,20 +202,24 @@ export default function StaffRoles() {
   const [salaryMonthFilter, setSalaryMonthFilter] = useState('');
   const [salaryStaffFilter, setSalaryStaffFilter] = useState('');
   const [deleteSalaryTarget, setDeleteSalaryTarget] = useState(null);
-  const [salaryFormData, setSalaryFormData] = useState({
-    staffId: '',
-    staffName: '',
-    role: '',
-    baseSalary: '',
-    daysInMonth: 30,
-    daysWorked: 30,
-    bonus: '',
-    deductions: '',
-    netSalary: 0,
-    date: new Date().toISOString().split('T')[0],
-    paymentMode: 'cash',
-    amount: '',
-    description: '',
+  const [salaryFormData, setSalaryFormData] = useState(() => {
+    const today = new Date().toISOString().split('T')[0];
+    const totalDays = getDaysInMonth(today);
+    return {
+      staffId: '',
+      staffName: '',
+      role: '',
+      baseSalary: '',
+      daysInMonth: totalDays,
+      daysWorked: totalDays,
+      bonus: '',
+      deductions: '',
+      netSalary: 0,
+      date: today,
+      paymentMode: 'cash',
+      amount: '',
+      description: '',
+    };
   });
 
   // Staff modal states
@@ -534,8 +538,8 @@ export default function StaffRoles() {
               staffName: payload.name,
               role: payload.role,
               baseSalary: payload.salary,
-              daysInMonth: 30,
-              daysWorked: 30,
+              daysInMonth: getDaysInMonth(scheduledDateStr),
+              daysWorked: getDaysInMonth(scheduledDateStr),
               bonus: 0,
               deductions: 0,
               netSalary: payload.salary,
@@ -606,12 +610,12 @@ export default function StaffRoles() {
     const base = Number(rawBase) || 0;
     const name = defaultStaff ? defaultStaff.name : '';
     const role = defaultStaff ? (defaultStaff.role || 'Staff') : '';
-    const daysInMonth = 30;
-    const daysWorked = 30;
+    const date = new Date().toISOString().split('T')[0];
+    const daysInMonth = getDaysInMonth(date);
+    const daysWorked = daysInMonth;
     const bonus = '';
     const deductions = '';
     const net = base;
-    const date = new Date().toISOString().split('T')[0];
     const desc = `Salary for ${name || 'Staff'} (${role || 'Role'}) [${daysWorked}/${daysInMonth} days + Bonus ₹0 - Deduct ₹0]`;
 
     setSalaryFormData({
@@ -619,8 +623,8 @@ export default function StaffRoles() {
       staffName: name,
       role: role,
       baseSalary: base ? String(base) : '',
-      daysInMonth: 30,
-      daysWorked: 30,
+      daysInMonth: daysInMonth,
+      daysWorked: daysWorked,
       bonus: '',
       deductions: '',
       netSalary: net,
@@ -636,14 +640,15 @@ export default function StaffRoles() {
     const details = rec.salaryDetails || {};
     const staff = staffMembers.find((s) => s.id === rec.staffId || s.id === details.staffId) || null;
     const base = details.baseSalary || rec.amount || 0;
-    const daysTotal = details.daysInMonth || 30;
-    const daysWorked = details.daysWorked !== undefined ? details.daysWorked : 30;
+    const recDate = rec.date ? (typeof rec.date === 'string' ? rec.date.slice(0, 10) : new Date(rec.date.seconds ? rec.date.seconds * 1000 : rec.date).toISOString().slice(0, 10)) : new Date().toISOString().slice(0, 10);
+    const monthDays = getDaysInMonth(recDate);
+    const daysTotal = details.daysInMonth || monthDays;
+    const daysWorked = details.daysWorked !== undefined ? details.daysWorked : daysTotal;
     const bonus = details.bonus || '';
     const deductions = details.deductions || '';
     const net = rec.amount || 0;
     const sName = details.staffName || rec.staffName || (staff ? staff.name : '');
     const sRole = details.role || rec.role || (staff ? staff.role : 'Staff');
-    const recDate = rec.date ? (typeof rec.date === 'string' ? rec.date.slice(0, 10) : new Date(rec.date.seconds ? rec.date.seconds * 1000 : rec.date).toISOString().slice(0, 10)) : new Date().toISOString().slice(0, 10);
 
     setEditingSalaryId(rec.id);
     setSalaryFormData({
@@ -668,7 +673,7 @@ export default function StaffRoles() {
     setSalaryFormData((prev) => {
       const next = { ...prev, ...updates };
       const base = Number(next.baseSalary) || 0;
-      const daysTotal = Number(next.daysInMonth) || 30;
+      const daysTotal = Number(next.daysInMonth) || getDaysInMonth(next.date) || 30;
       const workedInput = next.daysWorked !== '' && next.daysWorked !== undefined ? Number(next.daysWorked) : daysTotal;
       const worked = isNaN(workedInput) ? 0 : workedInput;
       const bonus = Number(next.bonus) || 0;
@@ -2725,6 +2730,7 @@ export default function StaffRoles() {
                     onChange={(e) => {
                       const selectedId = e.target.value;
                       const selected = staffMembers.find((s) => s.id === selectedId);
+                      const currMonthDays = getDaysInMonth(salaryFormData.date);
                       if (selected) {
                         const rawBase = selected.salary ?? selected.monthlySalary ?? 0;
                         const base = Number(rawBase) || 0;
@@ -2733,8 +2739,8 @@ export default function StaffRoles() {
                           staffName: selected.name,
                           role: selected.role || 'Staff',
                           baseSalary: base ? String(base) : '0',
-                          daysWorked: 30,
-                          daysInMonth: 30,
+                          daysWorked: currMonthDays,
+                          daysInMonth: currMonthDays,
                           bonus: '',
                           deductions: '',
                         });
@@ -2744,8 +2750,8 @@ export default function StaffRoles() {
                           staffName: '',
                           role: '',
                           baseSalary: '',
-                          daysWorked: 30,
-                          daysInMonth: 30,
+                          daysWorked: currMonthDays,
+                          daysInMonth: currMonthDays,
                           bonus: '',
                           deductions: '',
                         });
@@ -2758,7 +2764,7 @@ export default function StaffRoles() {
                       const sSalary = Number(s.salary ?? s.monthlySalary) || 0;
                       return (
                         <option key={s.id} value={s.id}>
-                          {s.name} ({s.role || 'Staff'}) {sSalary ? `- ₹${sSalary.toLocaleString('en-IN')}/mo` : ''}
+                          {s.name} ({s.role || 'Staff'}) {sSalary > 0 ? `- ₹${sSalary}/mo` : ''}
                         </option>
                       );
                     })}
@@ -2769,7 +2775,7 @@ export default function StaffRoles() {
                   required
                   value={salaryFormData.staffName}
                   onChange={(e) => updateSalaryCalculation({ staffName: e.target.value })}
-                  placeholder="e.g. Ramesh Kumar"
+                  placeholder="Staff Name"
                   className="w-full px-2.5 py-1.5 bg-white border border-blue-200 rounded-lg text-xs font-semibold focus:ring-2 focus:ring-blue-500"
                 />
               </div>
@@ -2782,13 +2788,14 @@ export default function StaffRoles() {
                   type="text"
                   value={salaryFormData.role}
                   onChange={(e) => updateSalaryCalculation({ role: e.target.value })}
-                  placeholder="e.g. Caretaker, Receptionist"
+                  placeholder="e.g. Receptionist"
                   className="w-full px-2.5 py-1.5 bg-white border border-blue-200 rounded-lg text-xs font-semibold focus:ring-2 focus:ring-blue-500"
                 />
               </div>
             </div>
 
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            {/* Salary Calculation Matrix */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
               <div>
                 <label className="block text-[11px] font-bold text-gray-700 mb-1">
                   Monthly Base (₹)
@@ -2804,30 +2811,35 @@ export default function StaffRoles() {
               </div>
 
               <div>
-                <label className="block text-[11px] font-bold text-gray-700 mb-1">
-                  Days Worked
-                </label>
-                <div className="flex items-center gap-1">
+                <div className="flex items-center justify-between mb-1">
+                  <label className="block text-[11px] font-bold text-gray-700">
+                    Days Worked
+                  </label>
+                  <span className="text-[10px] text-blue-700 font-bold bg-blue-100/80 px-1.5 py-0.5 rounded border border-blue-200">
+                    {salaryFormData.daysInMonth || 30} Days Fixed
+                  </span>
+                </div>
+                <div className="flex items-center gap-1.5">
                   <input
                     type="number"
                     min="0"
-                    max="31"
+                    max={salaryFormData.daysInMonth || 31}
                     value={salaryFormData.daysWorked}
                     onChange={(e) => updateSalaryCalculation({ daysWorked: e.target.value })}
-                    placeholder="30"
-                    className="w-full px-2.5 py-1.5 bg-white border border-blue-200 rounded-lg text-xs font-semibold focus:ring-2 focus:ring-blue-500"
+                    placeholder={String(salaryFormData.daysInMonth || 30)}
+                    title="Kitne din kaam kiya dalein"
+                    className="w-full px-2.5 py-1.5 bg-white border border-blue-200 rounded-lg text-xs font-bold text-slate-800 focus:ring-2 focus:ring-blue-500"
                   />
-                  <span className="text-[10px] text-slate-500 font-bold">/</span>
-                  <input
-                    type="number"
-                    min="1"
-                    max="31"
-                    value={salaryFormData.daysInMonth}
-                    onChange={(e) => updateSalaryCalculation({ daysInMonth: e.target.value })}
-                    placeholder="30"
-                    title="Total days in month"
-                    className="w-14 px-1.5 py-1.5 bg-slate-100 border border-blue-200 rounded-lg text-xs text-center font-bold text-slate-600 focus:ring-2 focus:ring-blue-500"
-                  />
+                  <span className="text-xs text-slate-400 font-black">/</span>
+                  <div
+                    title={`Calendar month fixed total: ${salaryFormData.daysInMonth || 30} days (Auto-calculated, fixed)`}
+                    className="w-14 px-2 py-1.5 bg-slate-100 border border-slate-300 rounded-lg text-xs text-center font-black text-slate-700 select-none shadow-2xs"
+                  >
+                    {salaryFormData.daysInMonth || 30}
+                  </div>
+                </div>
+                <div className="text-[10px] text-slate-500 mt-1 font-medium">
+                  {new Date(salaryFormData.date || new Date()).toLocaleString('en-US', { month: 'long', year: 'numeric' })}: {salaryFormData.daysInMonth || 30} din
                 </div>
               </div>
 
@@ -2878,7 +2890,20 @@ export default function StaffRoles() {
                 type="date"
                 required
                 value={salaryFormData.date}
-                onChange={(e) => setSalaryFormData({ ...salaryFormData, date: e.target.value })}
+                onChange={(e) => {
+                  const newDate = e.target.value;
+                  const newMonthDays = getDaysInMonth(newDate);
+                  const prevMonthDays = Number(salaryFormData.daysInMonth) || 30;
+                  const newDaysWorked = (Number(salaryFormData.daysWorked) === prevMonthDays || !salaryFormData.daysWorked)
+                    ? newMonthDays
+                    : Math.min(Number(salaryFormData.daysWorked) || 0, newMonthDays);
+
+                  updateSalaryCalculation({
+                    date: newDate,
+                    daysInMonth: newMonthDays,
+                    daysWorked: newDaysWorked,
+                  });
+                }}
                 className="w-full px-3 py-2 border border-slate-300 rounded-xl text-xs font-semibold focus:ring-2 focus:ring-blue-500"
               />
             </div>

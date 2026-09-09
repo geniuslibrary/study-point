@@ -65,6 +65,23 @@ export const getMonthName = (monthStr) => {
   return date.toLocaleDateString('en-IN', { month: 'long', year: 'numeric' });
 };
 
+export const getDaysInMonth = (dateStringOrDate) => {
+  if (!dateStringOrDate) return 30;
+  if (typeof dateStringOrDate === 'string') {
+    const parts = dateStringOrDate.split('-');
+    if (parts.length >= 2) {
+      const year = parseInt(parts[0], 10);
+      const month = parseInt(parts[1], 10);
+      if (!isNaN(year) && !isNaN(month)) {
+        return new Date(year, month, 0).getDate();
+      }
+    }
+  }
+  const d = dateStringOrDate.toDate ? dateStringOrDate.toDate() : new Date(dateStringOrDate);
+  if (isNaN(d.getTime())) return 30;
+  return new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate();
+};
+
 export const isOverdue = (dueDate, graceDays = 2) => {
   if (!dueDate) return false;
   const due = dueDate.toDate ? dueDate.toDate() : new Date(dueDate);
