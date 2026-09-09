@@ -118,6 +118,14 @@ export default function StudentList({
   };
   const getPlan = (planId) => plans.find((p) => p.id === planId);
 
+  const getStudentDueAmount = (student) => {
+    if (!student) return 0;
+    const studentFees = (fees || []).filter((f) => f.studentId === student.id);
+    const partialFee = studentFees.find((f) => f.status === 'partial' && Number(f.dueAmount) > 0);
+    if (partialFee) return Number(partialFee.dueAmount) || 0;
+    return Number(student.dueFeeAmount) || 0;
+  };
+
   const isStudentFeePaid = (student) => {
     if (!student) return false;
     if (student.status === 'left' || student.status === 'inactive') return false;
@@ -127,20 +135,27 @@ export default function StudentList({
     const isExpired = remaining?.isExpired || (remaining?.diffDays !== null && remaining?.diffDays < 0);
     if (isExpired) return false;
 
+    // 2. If student has partial dues remaining, fee is not fully paid
+    const dueAmount = getStudentDueAmount(student);
+    if (dueAmount > 0) return false;
+
     const studentFees = (fees || []).filter((f) => f.studentId === student.id);
 
-    // 2. If there is ANY pending fee record for this student, fee is not yet collected/paid
+    // 3. If there is ANY pending or partial fee record for this student
     const hasPending = studentFees.some((f) => f.status === 'pending');
     if (hasPending) return false;
 
-    // 3. If there is an explicitly paid fee record for this student
-    const hasPaid = studentFees.some((f) => f.status === 'paid');
+    const hasPartial = studentFees.some((f) => f.status === 'partial' || Number(f.dueAmount) > 0);
+    if (hasPartial) return false;
+
+    // 4. If there is an explicitly paid fee record for this student
+    const hasPaid = studentFees.some((f) => f.status === 'paid' && (!f.dueAmount || Number(f.dueAmount) <= 0));
     if (hasPaid) return true;
 
-    // 4. If marked as hasPaidBefore and still within active non-expired period
-    if (student.hasPaidBefore && remaining?.diffDays >= 0) return true;
+    // 5. If marked as hasPaidBefore and still within active non-expired period and no due
+    if (student.hasPaidBefore && remaining?.diffDays >= 0 && dueAmount <= 0) return true;
 
-    // 5. If net fee is 0 (100% discount or 0 price plan) and no pending fee
+    // 6. If net fee is 0 (100% discount or 0 price plan) and no pending fee
     const plan = getPlan(student.membershipPlanId);
     const planPrice = Number(student.planPrice || plan?.price) || 0;
     const discount = Number(student.discountAmount) || 0;
@@ -366,6 +381,7 @@ export default function StudentList({
                 const planLabel = student.durationLabel || (student.isDayBased ? `${student.durationDays} Days Plan` : plan?.name) || 'Standard Monthly';
                 const remainingInfo = getMembershipRemainingDays(student.membershipEnd);
                 const isPaid = isStudentFeePaid(student);
+                const studentDue = getStudentDueAmount(student);
 
                 return (
                   <tr key={student.id} className="hover:bg-slate-50/80 transition-colors">
@@ -517,6 +533,17 @@ export default function StudentList({
                               <CheckCircle size={11} className="text-emerald-600" />
                               <span>Paid</span>
                             </button>
+                          ) : studentDue > 0 ? (
+                            <button
+                              type="button"
+                              onClick={() => onCollectFee(student)}
+                              className="px-2 py-1 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-[11px] font-bold inline-flex items-center gap-1 cursor-pointer transition-colors shadow-2xs shrink-0 whitespace-nowrap"
+                              title={`Collect Remaining Due Fee (बाकी ₹${studentDue} जमा करें)`}
+                              style={{ flexShrink: 0 }}
+                            >
+                              <IndianRupee size={11} />
+                              <span>Due ₹{studentDue}</span>
+                            </button>
                           ) : (
                             <button
                               type="button"
@@ -589,6 +616,7 @@ export default function StudentList({
             const planLabel = student.durationLabel || (student.isDayBased ? `${student.durationDays} Days Plan` : plan?.name) || 'Standard Monthly';
             const remainingInfo = getMembershipRemainingDays(student.membershipEnd);
             const isPaid = isStudentFeePaid(student);
+            const studentDue = getStudentDueAmount(student);
 
             return (
               <div
@@ -708,6 +736,16 @@ export default function StudentList({
                         <CheckCircle size={13} className="shrink-0 text-emerald-600" />
                         <span>Paid</span>
                       </button>
+                    ) : studentDue > 0 ? (
+                      <button
+                        type="button"
+                        onClick={() => onCollectFee(student)}
+                        className="px-2 py-1.5 bg-amber-600 hover:bg-amber-700 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-1 cursor-pointer transition-colors shadow-2xs"
+                        title={`Collect Remaining Due Fee (बाकी ₹${studentDue} जमा करें)`}
+                      >
+                        <IndianRupee size={13} className="shrink-0" />
+                        <span>Due ₹{studentDue}</span>
+                      </button>
                     ) : (
                       <button
                         type="button"
@@ -767,6 +805,7 @@ export default function StudentList({
           const netFee = Math.max(0, planPrice - discount);
           const planLabel = student.durationLabel || (student.isDayBased ? `${student.durationDays} Days Plan` : plan?.name) || 'Monthly';
           const remainingInfo = getMembershipRemainingDays(student.membershipEnd);
+          const studentDue = getStudentDueAmount(student);
           const isPaid = isStudentFeePaid(student);
 
           return (
@@ -857,7 +896,17 @@ export default function StudentList({
                   </button>
                 )}
                 {!isLeft && canCollectFee && (
-                  isPaid ? (
+                  studentDue > 0 ? (
+                    <button
+                      type="button"
+                      onClick={() => onCollectFee(student)}
+                      className="px-2 py-1.5 bg-amber-600 hover:bg-amber-700 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-1 cursor-pointer transition-colors shadow-2xs"
+                      title={`Partial Fee Paid. Remaining Due: ₹${studentDue}`}
+                    >
+                      <IndianRupee size={13} className="shrink-0" />
+                      <span>Due ₹{studentDue}</span>
+                    </button>
+                  ) : isPaid ? (
                     <button
                       type="button"
                       disabled

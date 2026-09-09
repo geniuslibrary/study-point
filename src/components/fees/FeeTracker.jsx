@@ -84,6 +84,7 @@ export default function FeeTracker({
   const statusCounts = useMemo(() => {
     let all = 0;
     let paid = 0;
+    let partial = 0;
     let ending_soon = 0;
     let expired = 0;
     let overdue = 0;
@@ -94,19 +95,21 @@ export default function FeeTracker({
       if (sectionFilter !== 'all' && st?.sectionId !== sectionFilter) return;
 
       const diff = getFeeDiffDays(f);
-      const isP = f.status === 'paid';
-      const isO = !isP && diff !== null && diff < -2 && st?.status !== 'left';
-      const isExp = !isP && diff !== null && diff < 0 && diff >= -2 && st?.status !== 'left';
-      const isEnd = diff !== null && diff >= 0 && diff <= 3 && st?.status !== 'left';
+      const isPartial = f.status === 'partial' || (Number(f.dueAmount) > 0 && Number(f.paidAmount) > 0);
+      const isP = f.status === 'paid' && !isPartial;
+      const isO = !isP && !isPartial && diff !== null && diff < -2 && st?.status !== 'left';
+      const isExp = !isP && !isPartial && diff !== null && diff < 0 && diff >= -2 && st?.status !== 'left';
+      const isEnd = !isPartial && diff !== null && diff >= 0 && diff <= 3 && st?.status !== 'left';
 
       all++;
+      if (isPartial) partial++;
       if (isP) paid++;
       if (isEnd) ending_soon++;
       if (isExp) expired++;
       if (isO) overdue++;
     });
 
-    return { all, paid, ending_soon, expired, overdue };
+    return { all, paid, partial, ending_soon, expired, overdue };
   }, [fees, students, selectedMonth, sectionFilter]);
 
   // Comprehensive Search & Multi-Filter Logic
@@ -123,12 +126,14 @@ export default function FeeTracker({
 
       // 2. Status Filter
       const diffDays = getFeeDiffDays(fee);
-      const isPaid = fee.status === 'paid';
-      const isOverdue = !isPaid && diffDays !== null && diffDays < -2 && student?.status !== 'left';
-      const isExpired = !isPaid && diffDays !== null && diffDays < 0 && diffDays >= -2 && student?.status !== 'left';
-      const isEndingSoon = diffDays !== null && diffDays >= 0 && diffDays <= 3 && student?.status !== 'left';
+      const isPartial = fee.status === 'partial' || (Number(fee.dueAmount) > 0 && Number(fee.paidAmount) > 0);
+      const isPaid = fee.status === 'paid' && !isPartial;
+      const isOverdue = !isPaid && !isPartial && diffDays !== null && diffDays < -2 && student?.status !== 'left';
+      const isExpired = !isPaid && !isPartial && diffDays !== null && diffDays < 0 && diffDays >= -2 && student?.status !== 'left';
+      const isEndingSoon = !isPartial && diffDays !== null && diffDays >= 0 && diffDays <= 3 && student?.status !== 'left';
 
       if (statusFilter !== 'all') {
+        if (statusFilter === 'partial' && !isPartial) return false;
         if (statusFilter === 'paid' && !isPaid) return false;
         if (statusFilter === 'ending_soon' && !isEndingSoon) return false;
         if (statusFilter === 'expired' && !isExpired) return false;
@@ -226,6 +231,7 @@ export default function FeeTracker({
             {[
               { id: 'all', label: 'All', count: statusCounts.all, dot: 'bg-slate-400', active: 'bg-slate-900 text-white' },
               { id: 'paid', label: 'Paid', count: statusCounts.paid, dot: 'bg-emerald-500', active: 'bg-emerald-600 text-white' },
+              { id: 'partial', label: 'Partial', count: statusCounts.partial, dot: 'bg-amber-500', active: 'bg-amber-600 text-white' },
               { id: 'ending_soon', label: 'Ending Soon', count: statusCounts.ending_soon, dot: 'bg-amber-500', active: 'bg-amber-500 text-white' },
               { id: 'expired', label: 'Expired', count: statusCounts.expired, dot: 'bg-orange-500', active: 'bg-orange-600 text-white' },
               { id: 'overdue', label: 'Overdue', count: statusCounts.overdue, dot: 'bg-rose-500', active: 'bg-rose-600 text-white' },
@@ -304,9 +310,11 @@ export default function FeeTracker({
               const addonTotal = fee.addonCharges ? Object.values(fee.addonCharges).reduce((s, v) => s + (Number(v) || 0), 0) : 0;
               const baseRate = Number(fee.baseFee) || (Number(fee.amount) + discount - addonTotal);
               const diffDays = getFeeDiffDays(fee);
-              const isOverdue = fee.status !== 'paid' && diffDays !== null && diffDays < -2;
-              const isExpired = fee.status !== 'paid' && diffDays !== null && diffDays < 0 && diffDays >= -2;
-              const isEndingSoon = diffDays !== null && diffDays >= 0 && diffDays <= 3 && student?.status !== 'left';
+              const isPartial = fee.status === 'partial' || (Number(fee.dueAmount) > 0 && Number(fee.paidAmount) > 0);
+              const isPaid = fee.status === 'paid' && !isPartial;
+              const isOverdue = !isPaid && !isPartial && diffDays !== null && diffDays < -2;
+              const isExpired = !isPaid && !isPartial && diffDays !== null && diffDays < 0 && diffDays >= -2;
+              const isEndingSoon = !isPartial && diffDays !== null && diffDays >= 0 && diffDays <= 3 && student?.status !== 'left';
 
               return (
                 <tr key={fee.id} className="hover:bg-slate-50/80 transition-colors">
@@ -364,6 +372,12 @@ export default function FeeTracker({
                     <div className="font-extrabold text-slate-900 text-sm">
                       {formatCurrency(fee.amount)}
                     </div>
+                    {isPartial && (
+                      <div className="text-[10px] font-bold mt-0.5 space-y-0.5">
+                        <span className="text-emerald-700 block">Paid: ₹{fee.paidAmount || 0}</span>
+                        <span className="text-amber-700 block font-black">Due: ₹{fee.dueAmount || 0}</span>
+                      </div>
+                    )}
                     {addonTotal > 0 && (
                       <div className="text-[10px] font-bold text-indigo-700 mt-0.5">
                         +₹{addonTotal} ({Object.keys(fee.addonCharges).join(', ')})
@@ -403,7 +417,14 @@ export default function FeeTracker({
                   </td>
 
                   <td className="px-5 py-3.5">
-                    {fee.status === 'paid' ? (
+                    {isPartial ? (
+                      <div>
+                        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-black bg-amber-50 text-amber-900 border border-amber-300">
+                          <AlertCircle className="w-3.5 h-3.5 text-amber-600" />
+                          <span>Partial (Due: ₹{fee.dueAmount})</span>
+                        </span>
+                      </div>
+                    ) : isPaid ? (
                       <div>
                         <StatusBadge status="paid" />
                         {isEndingSoon && (
@@ -449,48 +470,71 @@ export default function FeeTracker({
 
                   <td className="px-5 py-3.5 text-right">
                     <div className="flex justify-end gap-1.5 items-center">
-                      {fee.status !== 'paid' && (
-                        <button
-                          onClick={() => onCollect(fee)}
-                          className="px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 rounded-xl text-xs font-bold flex items-center gap-1 transition-all cursor-pointer shadow-2xs"
-                          title="Collect Fee"
-                        >
-                          <IndianRupee className="w-3.5 h-3.5" />
-                          <span>Collect</span>
-                        </button>
-                      )}
+                      {isPartial ? (
+                        <>
+                          <button
+                            onClick={() => onCollect(fee)}
+                            className="px-3 py-1.5 bg-amber-600 hover:bg-amber-700 text-white rounded-xl text-xs font-bold flex items-center gap-1 transition-all cursor-pointer shadow-2xs"
+                            title={`Collect Remaining Due: ₹${fee.dueAmount}`}
+                          >
+                            <IndianRupee className="w-3.5 h-3.5" />
+                            <span>Due ₹{fee.dueAmount}</span>
+                          </button>
+                          <button
+                            onClick={() => onViewReceipt(fee)}
+                            className="px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 rounded-xl text-xs font-bold flex items-center gap-1 transition-all cursor-pointer shadow-2xs"
+                            title="View & Print Bill"
+                          >
+                            <FileText className="w-3.5 h-3.5" />
+                            <span>Bill / PDF</span>
+                          </button>
+                        </>
+                      ) : (
+                        <>
+                          {!isPaid && (
+                            <button
+                              onClick={() => onCollect(fee)}
+                              className="px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 rounded-xl text-xs font-bold flex items-center gap-1 transition-all cursor-pointer shadow-2xs"
+                              title="Collect Fee"
+                            >
+                              <IndianRupee className="w-3.5 h-3.5" />
+                              <span>Collect</span>
+                            </button>
+                          )}
 
-                      {fee.status === 'paid' && (
-                        <button
-                          onClick={() => onViewReceipt(fee)}
-                          className="px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 rounded-xl text-xs font-bold flex items-center gap-1 transition-all cursor-pointer shadow-2xs"
-                          title="View & Print Bill"
-                        >
-                          <FileText className="w-3.5 h-3.5" />
-                          <span>Bill / PDF</span>
-                        </button>
-                      )}
+                          {isPaid && (
+                            <button
+                              onClick={() => onViewReceipt(fee)}
+                              className="px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 rounded-xl text-xs font-bold flex items-center gap-1 transition-all cursor-pointer shadow-2xs"
+                              title="View & Print Bill"
+                            >
+                              <FileText className="w-3.5 h-3.5" />
+                              <span>Bill / PDF</span>
+                            </button>
+                          )}
 
-                      {fee.status === 'paid' && isEndingSoon && (
-                        <button
-                          onClick={() => onCollect(fee)}
-                          className="px-2.5 py-1.5 bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200 rounded-xl text-xs font-bold flex items-center gap-1 transition-all cursor-pointer shadow-2xs"
-                          title="Renew Membership"
-                        >
-                          <RotateCcw className="w-3.5 h-3.5 text-amber-600" />
-                          <span>Renew</span>
-                        </button>
-                      )}
+                          {isPaid && isEndingSoon && (
+                            <button
+                              onClick={() => onCollect(fee)}
+                              className="px-2.5 py-1.5 bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200 rounded-xl text-xs font-bold flex items-center gap-1 transition-all cursor-pointer shadow-2xs"
+                              title="Renew Membership"
+                            >
+                              <RotateCcw className="w-3.5 h-3.5 text-amber-600" />
+                              <span>Renew</span>
+                            </button>
+                          )}
 
-                      {isOverdue && student?.status !== 'left' && onMarkLeft && (
-                        <button
-                          onClick={() => onMarkLeft(fee, student, seats.find((s) => s.id === student?.seatId))}
-                          className="px-2.5 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 rounded-xl text-xs font-bold flex items-center gap-1 transition-all cursor-pointer shadow-2xs"
-                          title="Student Left & Free Seat"
-                        >
-                          <UserX className="w-3.5 h-3.5 text-rose-600" />
-                          <span>Left</span>
-                        </button>
+                          {isOverdue && student?.status !== 'left' && onMarkLeft && (
+                            <button
+                              onClick={() => onMarkLeft(fee, student, seats.find((s) => s.id === student?.seatId))}
+                              className="px-2.5 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 rounded-xl text-xs font-bold flex items-center gap-1 transition-all cursor-pointer shadow-2xs"
+                              title="Student Left & Free Seat"
+                            >
+                              <UserX className="w-3.5 h-3.5 text-rose-600" />
+                              <span>Left</span>
+                            </button>
+                          )}
+                        </>
                       )}
                     </div>
                   </td>
@@ -509,9 +553,11 @@ export default function FeeTracker({
           const discount = Number(fee.discountAmount) || Number(student?.discountAmount) || 0;
           const addonTotal = fee.addonCharges ? Object.values(fee.addonCharges).reduce((s, v) => s + (Number(v) || 0), 0) : 0;
           const diffDays = getFeeDiffDays(fee);
-          const isOverdue = fee.status !== 'paid' && diffDays !== null && diffDays < -2;
-          const isExpired = fee.status !== 'paid' && diffDays !== null && diffDays < 0 && diffDays >= -2;
-          const isEndingSoon = diffDays !== null && diffDays >= 0 && diffDays <= 3 && student?.status !== 'left';
+          const isPartial = fee.status === 'partial' || (Number(fee.dueAmount) > 0 && Number(fee.paidAmount) > 0);
+          const isPaid = fee.status === 'paid' && !isPartial;
+          const isOverdue = !isPaid && !isPartial && diffDays !== null && diffDays < -2;
+          const isExpired = !isPaid && !isPartial && diffDays !== null && diffDays < 0 && diffDays >= -2;
+          const isEndingSoon = !isPartial && diffDays !== null && diffDays >= 0 && diffDays <= 3 && student?.status !== 'left';
 
           return (
             <div key={fee.id} className="p-4 space-y-2.5">
@@ -538,7 +584,11 @@ export default function FeeTracker({
                   </div>
                 </div>
 
-                {fee.status === 'paid' ? (
+                {isPartial ? (
+                  <span className="px-2 py-0.5 rounded-full text-xs font-black bg-amber-50 text-amber-900 border border-amber-300 flex items-center gap-1">
+                    <AlertCircle className="w-3 h-3 text-amber-600" /> Due ₹{fee.dueAmount}
+                  </span>
+                ) : isPaid ? (
                   <div className="text-right">
                     <StatusBadge status="paid" size="sm" />
                     {isEndingSoon && (
@@ -601,44 +651,73 @@ export default function FeeTracker({
                       </span>
                     )}
                   </div>
+                  {isPartial && (
+                    <div className="text-[10px] font-bold text-slate-600 flex items-center gap-2 mt-0.5">
+                      <span className="text-emerald-700">Paid: ₹{fee.paidAmount || 0}</span>
+                      <span className="text-amber-700 font-black">Due: ₹{fee.dueAmount || 0}</span>
+                    </div>
+                  )}
                 </div>
 
                 <div className="flex flex-wrap gap-1.5 justify-end">
-                  {fee.status !== 'paid' && (
-                    <button
-                      onClick={() => onCollect(fee)}
-                      className="px-3 py-1.5 bg-emerald-600 text-white rounded-xl text-xs font-bold flex items-center gap-1 shadow-xs cursor-pointer"
-                    >
-                      <IndianRupee className="w-3.5 h-3.5" />
-                      <span>Collect</span>
-                    </button>
-                  )}
-                  {fee.status === 'paid' && (
-                    <button
-                      onClick={() => onViewReceipt(fee)}
-                      className="px-3 py-1.5 bg-indigo-600 text-white rounded-xl text-xs font-bold flex items-center gap-1 shadow-xs cursor-pointer"
-                    >
-                      <FileText className="w-3.5 h-3.5" />
-                      <span>Bill / PDF</span>
-                    </button>
-                  )}
-                  {fee.status === 'paid' && isEndingSoon && (
-                    <button
-                      onClick={() => onCollect(fee)}
-                      className="px-2.5 py-1.5 bg-amber-500 text-white rounded-xl text-xs font-bold flex items-center gap-1 shadow-xs cursor-pointer"
-                    >
-                      <RotateCcw className="w-3.5 h-3.5" />
-                      <span>Renew</span>
-                    </button>
-                  )}
-                  {isOverdue && student?.status !== 'left' && onMarkLeft && (
-                    <button
-                      onClick={() => onMarkLeft(fee, student, seats.find((s) => s.id === student?.seatId))}
-                      className="px-2.5 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 rounded-xl text-xs font-bold flex items-center gap-1 shadow-2xs cursor-pointer"
-                    >
-                      <UserX className="w-3.5 h-3.5 text-rose-600" />
-                      <span>Left</span>
-                    </button>
+                  {isPartial ? (
+                    <>
+                      <button
+                        onClick={() => onCollect(fee)}
+                        className="px-3 py-1.5 bg-amber-600 hover:bg-amber-700 text-white rounded-xl text-xs font-bold flex items-center gap-1 shadow-xs cursor-pointer"
+                        title={`Collect Remaining Due: ₹${fee.dueAmount}`}
+                      >
+                        <IndianRupee className="w-3.5 h-3.5" />
+                        <span>Due ₹{fee.dueAmount}</span>
+                      </button>
+                      <button
+                        onClick={() => onViewReceipt(fee)}
+                        className="px-2.5 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 rounded-xl text-xs font-bold flex items-center gap-1 shadow-2xs cursor-pointer"
+                        title="View & Print Bill"
+                      >
+                        <FileText className="w-3.5 h-3.5" />
+                        <span>Bill</span>
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      {!isPaid && (
+                        <button
+                          onClick={() => onCollect(fee)}
+                          className="px-3 py-1.5 bg-emerald-600 text-white rounded-xl text-xs font-bold flex items-center gap-1 shadow-xs cursor-pointer"
+                        >
+                          <IndianRupee className="w-3.5 h-3.5" />
+                          <span>Collect</span>
+                        </button>
+                      )}
+                      {isPaid && (
+                        <button
+                          onClick={() => onViewReceipt(fee)}
+                          className="px-3 py-1.5 bg-indigo-600 text-white rounded-xl text-xs font-bold flex items-center gap-1 shadow-xs cursor-pointer"
+                        >
+                          <FileText className="w-3.5 h-3.5" />
+                          <span>Bill / PDF</span>
+                        </button>
+                      )}
+                      {isPaid && isEndingSoon && (
+                        <button
+                          onClick={() => onCollect(fee)}
+                          className="px-2.5 py-1.5 bg-amber-500 text-white rounded-xl text-xs font-bold flex items-center gap-1 shadow-xs cursor-pointer"
+                        >
+                          <RotateCcw className="w-3.5 h-3.5" />
+                          <span>Renew</span>
+                        </button>
+                      )}
+                      {isOverdue && student?.status !== 'left' && onMarkLeft && (
+                        <button
+                          onClick={() => onMarkLeft(fee, student, seats.find((s) => s.id === student?.seatId))}
+                          className="px-2.5 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 rounded-xl text-xs font-bold flex items-center gap-1 shadow-2xs cursor-pointer"
+                        >
+                          <UserX className="w-3.5 h-3.5 text-rose-600" />
+                          <span>Left</span>
+                        </button>
+                      )}
+                    </>
                   )}
                 </div>
               </div>

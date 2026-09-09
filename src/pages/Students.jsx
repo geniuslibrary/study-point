@@ -587,13 +587,34 @@ export default function Students() {
 
     try {
       const feeId = collectFeeRecord.id;
-      const updatedFeePayload = {
-        studentId: collectFeeStudent.id,
-        status: 'paid',
+      const existingFee = fees.find((f) => f.id === feeId);
+
+      const receiptNum = `REC-${Date.now().toString().slice(-6)}`;
+      const paymentEntry = {
+        id: `pay_${Date.now()}`,
+        amount: paymentData.paidNow,
         paidDate: new Date().toISOString(),
         paymentMode: paymentData.paymentMode || 'cash',
+        splitDetails: paymentData.splitDetails || null,
+        notes: paymentData.notes || '',
+        receiptNumber: receiptNum,
+      };
+
+      const previousPayments = Array.isArray(existingFee?.payments) ? existingFee.payments : [];
+      const updatedPayments = [...previousPayments, paymentEntry];
+
+      const updatedFeePayload = {
+        studentId: collectFeeStudent.id,
+        status: paymentData.status || 'paid',
+        paidDate: new Date().toISOString(),
+        paymentMode: paymentData.paymentMode || 'cash',
+        splitDetails: paymentData.splitDetails || null,
         notes: paymentData.notes || '',
         amount: paymentData.amount,
+        paidAmount: paymentData.paidAmount,
+        paidNow: paymentData.paidNow,
+        dueAmount: paymentData.dueAmount || 0,
+        payments: updatedPayments,
         baseFee: paymentData.baseFee,
         discountAmount: paymentData.discountAmount || 0,
         addonCharges: paymentData.addonCharges || {},
@@ -607,11 +628,10 @@ export default function Students() {
         isDayBased: !!paymentData.isDayBased,
         periodStart: paymentData.periodStart,
         periodEnd: paymentData.periodEnd,
-        receiptNumber: `REC-${Date.now().toString().slice(-6)}`,
+        receiptNumber: receiptNum,
         collectedBy: 'Admin',
       };
 
-      const existingFee = fees.find((f) => f.id === feeId);
       if (existingFee) {
         await updateDocument(COLLECTIONS.FEES, feeId, updatedFeePayload);
       } else {
@@ -631,6 +651,7 @@ export default function Students() {
           isDayBased: !!paymentData.isDayBased,
           durationDays: paymentData.durationDays || null,
           durationMonths: paymentData.durationMonths || null,
+          dueFeeAmount: paymentData.dueAmount || 0,
         });
       }
 

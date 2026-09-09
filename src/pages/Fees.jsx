@@ -392,13 +392,32 @@ export default function Fees() {
   const handleCollectFee = async (paymentData) => {
     if (!collectFee) return;
 
+    const receiptNum = `REC-${Date.now().toString().slice(-6)}`;
+    const paymentEntry = {
+      id: `pay_${Date.now()}`,
+      amount: paymentData.paidNow,
+      paidDate: new Date().toISOString(),
+      paymentMode: paymentData.paymentMode || 'cash',
+      splitDetails: paymentData.splitDetails || null,
+      notes: paymentData.notes || '',
+      receiptNumber: receiptNum,
+    };
+
+    const previousPayments = Array.isArray(collectFee?.payments) ? collectFee.payments : [];
+    const updatedPayments = [...previousPayments, paymentEntry];
+
     // 1. Update Fee Record
     await updateDocument(COLLECTIONS.FEES, collectFee.id, {
-      status: 'paid',
+      status: paymentData.status || 'paid',
       paidDate: new Date().toISOString(),
       paymentMode: paymentData.paymentMode,
+      splitDetails: paymentData.splitDetails || null,
       notes: paymentData.notes,
       amount: paymentData.amount,
+      paidAmount: paymentData.paidAmount,
+      paidNow: paymentData.paidNow,
+      dueAmount: paymentData.dueAmount || 0,
+      payments: updatedPayments,
       baseFee: paymentData.baseFee,
       discountAmount: paymentData.discountAmount || 0,
       addonCharges: paymentData.addonCharges,
@@ -406,6 +425,7 @@ export default function Fees() {
       planDuration: paymentData.planDuration,
       periodStart: paymentData.periodStart,
       periodEnd: paymentData.periodEnd,
+      receiptNumber: receiptNum,
     });
 
     // 2. Automatically Renew Student's Membership Validity Cycle
@@ -416,6 +436,7 @@ export default function Fees() {
         membershipEnd: paymentData.periodEnd,
         hasPaidBefore: true,
         status: 'active',
+        dueFeeAmount: paymentData.dueAmount || 0,
       });
     }
 

@@ -304,30 +304,87 @@ export default function PublicReceipt() {
                     <td className="px-4 py-2.5 text-right">- {formatCurrency(fee.discountAmount)}</td>
                   </tr>
                 )}
-                <tr className="bg-indigo-50/80 font-extrabold text-sm">
-                  <td className="px-4 py-3 text-indigo-950">TOTAL AMOUNT RECEIVED</td>
-                  <td className="px-4 py-3 text-right text-indigo-700 text-base">
+                <tr className="bg-slate-50 font-bold text-xs border-t border-slate-200">
+                  <td className="px-4 py-2.5 text-slate-700">Total Plan Fee</td>
+                  <td className="px-4 py-2.5 text-right text-slate-900 font-extrabold">
                     {formatCurrency(fee.amount)}
                   </td>
                 </tr>
+                <tr className="bg-emerald-50/70 font-black text-xs text-emerald-950">
+                  <td className="px-4 py-2.5">Total Amount Paid</td>
+                  <td className="px-4 py-2.5 text-right text-emerald-800 text-sm">
+                    {formatCurrency(fee.paidAmount !== undefined && fee.paidAmount !== null ? fee.paidAmount : (fee.dueAmount > 0 ? fee.amount - fee.dueAmount : fee.amount))}
+                  </td>
+                </tr>
+                {Number(fee.dueAmount) > 0 && (
+                  <tr className="bg-amber-50 font-black text-xs text-amber-950 border-t border-amber-200">
+                    <td className="px-4 py-2.5 text-amber-900">Remaining Balance Due</td>
+                    <td className="px-4 py-2.5 text-right text-amber-700 text-sm">
+                      {formatCurrency(fee.dueAmount)}
+                    </td>
+                  </tr>
+                )}
               </tbody>
             </table>
           </div>
+
+          {/* Installment Payment History */}
+          {fee.payments && fee.payments.length > 0 && (
+            <div className="border border-slate-200 rounded-2xl overflow-hidden text-xs">
+              <div className="bg-slate-100 px-4 py-2.5 border-b border-slate-200 font-bold text-[11px] text-slate-700 uppercase tracking-wide">
+                Installment Payment History ({fee.payments.length})
+              </div>
+              <table className="w-full">
+                <thead className="bg-slate-50 text-[10px] uppercase text-slate-500 font-semibold border-b border-slate-100">
+                  <tr>
+                    <th className="px-3 py-2 text-left">#</th>
+                    <th className="px-3 py-2 text-left">Date</th>
+                    <th className="px-3 py-2 text-left">Mode</th>
+                    <th className="px-3 py-2 text-right">Amount Paid</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {fee.payments.map((p, idx) => (
+                    <tr key={p.id || idx}>
+                      <td className="px-3 py-2 text-slate-500 font-mono font-bold">{idx + 1}</td>
+                      <td className="px-3 py-2 text-slate-700 font-medium">{formatDate(p.paidDate)}</td>
+                      <td className="px-3 py-2 text-slate-800 font-semibold">
+                        {p.paymentMode === 'split'
+                          ? `Split (Cash: ₹${p.splitDetails?.cash || 0} + UPI: ₹${p.splitDetails?.upi || 0})`
+                          : (p.paymentMode || 'Cash').toUpperCase()}
+                      </td>
+                      <td className="px-3 py-2 text-right font-bold text-emerald-700">
+                        {formatCurrency(p.amount)}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
 
           {/* Payment Mode, Status Badge & Signature Preview */}
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-slate-50 p-4 rounded-2xl border border-slate-200 text-xs">
             <div>
               <p className="text-slate-500">
                 Payment Mode:{' '}
-                <strong className="text-indigo-700 font-extrabold uppercase">
-                  {fee.paymentMode || 'CASH'}
+                <strong className="text-indigo-700 font-extrabold">
+                  {fee.paymentMode === 'split'
+                    ? `SPLIT (Cash: ₹${fee.splitDetails?.cash || 0} + UPI: ₹${fee.splitDetails?.upi || 0})`
+                    : (fee.paymentMode || 'CASH').toUpperCase()}
                 </strong>
               </p>
               {fee.notes && <p className="text-slate-400 text-[11px] mt-0.5">Remarks: {fee.notes}</p>}
-              <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-emerald-100 text-emerald-800 border border-emerald-200 rounded-full font-black text-xs uppercase mt-2">
-                <CheckCircle2 className="w-3.5 h-3.5" />
-                <span>PAID & VERIFIED</span>
-              </span>
+              {Number(fee.dueAmount) > 0 || fee.status === 'partial' ? (
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-amber-100 text-amber-900 border border-amber-300 rounded-full font-black text-xs uppercase mt-2">
+                  <span>🟡 PARTIALLY PAID (₹{fee.dueAmount} DUE)</span>
+                </span>
+              ) : (
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-emerald-100 text-emerald-800 border border-emerald-200 rounded-full font-black text-xs uppercase mt-2">
+                  <CheckCircle2 className="w-3.5 h-3.5" />
+                  <span>PAID & VERIFIED</span>
+                </span>
+              )}
             </div>
 
             {/* Signature Preview Box */}

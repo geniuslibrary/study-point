@@ -23,6 +23,10 @@ export default function CollectFeeModal({
   const [customFeeAmount, setCustomFeeAmount] = useState('400');
   const [discountAmount, setDiscountAmount] = useState('');
   const [paymentMode, setPaymentMode] = useState('cash');
+  const [paymentType, setPaymentType] = useState('full'); // 'full' | 'partial'
+  const [customPayingAmount, setCustomPayingAmount] = useState('');
+  const [splitCash, setSplitCash] = useState('');
+  const [splitUpi, setSplitUpi] = useState('');
   const [notes, setNotes] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -104,7 +108,16 @@ export default function CollectFeeModal({
           : '';
 
       setDiscountAmount(disc !== '' ? String(disc) : '');
-      setPaymentMode('cash');
+      setPaymentMode(fee?.paymentMode === 'split' ? 'split' : (fee?.paymentMode || 'cash'));
+      setPaymentType(fee?.status === 'partial' ? 'partial' : 'full');
+      setCustomPayingAmount(fee?.dueAmount ? String(fee.dueAmount) : '');
+      if (fee?.splitDetails) {
+        setSplitCash(String(fee.splitDetails.cash || ''));
+        setSplitUpi(String(fee.splitDetails.upi || ''));
+      } else {
+        setSplitCash('');
+        setSplitUpi('');
+      }
       setNotes(fee?.notes || '');
 
       // Build temp active plan to calculate correct initial end date
@@ -304,8 +317,59 @@ export default function CollectFeeModal({
   const discount = discountAmount === '' ? 0 : Number(discountAmount) || 0;
   const totalPayable = Math.max(0, planPrice + addonTotal - discount);
 
+  // Partial / Installment & Balance Due calculations
+  const previouslyPaid = Number(fee?.paidAmount) || (fee?.status === 'partial' && fee?.amount && fee?.dueAmount !== undefined ? Math.max(0, Number(fee.amount) - Number(fee.dueAmount)) : 0);
+  const totalBalanceDue = Math.max(0, totalPayable - previouslyPaid);
+
+  const actualPaidNow = paymentType === 'full'
+    ? totalBalanceDue
+    : Math.min(totalBalanceDue, Math.max(0, Number(customPayingAmount) || 0));
+
+  const newCumulativePaid = previouslyPaid + actualPaidNow;
+  const remainingAfterPayment = Math.max(0, totalPayable - newCumulativePaid);
+
+  const handleSplitCashChange = (val) => {
+    setSplitCash(val);
+    const cVal = Number(val) || 0;
+    const remainingForUpi = Math.max(0, actualPaidNow - cVal);
+    setSplitUpi(String(remainingForUpi));
+  };
+
+  const handleSplitUpiChange = (val) => {
+    setSplitUpi(val);
+    const uVal = Number(val) || 0;
+    const remainingForCash = Math.max(0, actualPaidNow - uVal);
+    setSplitCash(String(remainingForCash));
+  };
+
+  const handleSelectPaymentMode = (mode) => {
+    setPaymentMode(mode);
+    if (mode === 'split') {
+      const half = Math.round(actualPaidNow / 2);
+      setSplitCash(String(half));
+      setSplitUpi(String(actualPaidNow - half));
+    }
+  };
+
   const handleSubmit = async (e, shareWhatsApp = false) => {
     if (e) e.preventDefault();
+    if (actualPaidNow <= 0 && totalBalanceDue > 0) {
+      alert('Kripya valid payment amount (₹1 ya usse zyada) darj karein.');
+      return;
+    }
+
+    const isSplit = paymentMode === 'split';
+    let finalSplitDetails = null;
+    if (isSplit) {
+      const cNum = Number(splitCash) || 0;
+      const uNum = Number(splitUpi) || 0;
+      if (cNum + uNum !== actualPaidNow) {
+        alert(`Cash (₹${cNum}) aur UPI (₹${uNum}) ka jod ₹${actualPaidNow} ke barabar hona chahiye!`);
+        return;
+      }
+      finalSplitDetails = { cash: cNum, upi: uNum };
+    }
+
     setLoading(true);
     try {
       const startDateObj = validityStart ? new Date(validityStart) : new Date();
@@ -321,6 +385,9 @@ export default function CollectFeeModal({
         }
       }
 
+      const isFullyPaid = remainingAfterPayment <= 0;
+      const paymentStatus = isFullyPaid ? 'paid' : 'partial';
+
       await onSubmit({
         amount: totalPayable,
         baseFee: planPrice,
@@ -329,6 +396,7 @@ export default function CollectFeeModal({
         includedCharges,
         planFeatures: planPerks,
         paymentMode,
+        splitDetails: finalSplitDetails,
         notes,
         planId: activePlan.id,
         planName: activePlan.name,
@@ -339,6 +407,12 @@ export default function CollectFeeModal({
         isDayBased: isDayPlan,
         periodStart: startDateObj.toISOString(),
         periodEnd: endDateObj.toISOString(),
+        // Partial & Split properties
+        paidNow: actualPaidNow,
+        paidAmount: newCumulativePaid,
+        dueAmount: remainingAfterPayment,
+        status: paymentStatus,
+        previouslyPaid,
       });
 
       if (shareWhatsApp) {
@@ -372,26 +446,34 @@ export default function CollectFeeModal({
             : '';
 
           const currentTemplates = getActiveTemplates();
+          const payModeLabel = paymentMode === 'split'
+            ? `SPLIT (Cash: ₹${splitCash || 0} + UPI: ₹${splitUpi || 0})`
+            : (paymentMode || 'CASH').toUpperCase();
+
+          const dueInfo = remainingAfterPayment > 0
+            ? `\n⚠️ *Remaining Due Balance (बाकी बकाया):* ₹${remainingAfterPayment}`
+            : `\n✅ *Status:* FULLY PAID (पूर्ण भुगतान)`;
 
           let message = renderTemplate(currentTemplates.feeReceipt?.template, {
             student_name: student?.name || 'Student',
             library_name: libraryTitle.toUpperCase(),
-            amount: totalPayable,
+            amount: actualPaidNow,
             receipt_no: receiptNo,
             plan_name: activePlan.name,
             validity_period: validityText,
             seat_number: displaySeatNumber,
             shift: student?.shiftTiming || 'Full Day',
-            payment_mode: (paymentMode || 'CASH').toUpperCase(),
+            payment_mode: payModeLabel,
           });
 
           // Fallback message if template is empty or not configured
           if (!message || message.trim().length < 10) {
-            message = `🎓 *${libraryTitle.toUpperCase()}*\n\n✅ *Fee Receipt — ${student?.name || 'Student'}*\n\n📋 *Plan:* ${activePlan.name}\n💰 *Amount Paid:* ₹${totalPayable}\n🪑 *Seat:* ${displaySeatNumber}\n⏰ *Shift:* ${student?.shiftTiming || 'Full Day'}\n📅 *Validity:* ${validityText}\n💳 *Payment:* ${(paymentMode || 'CASH').toUpperCase()}\n🧾 *Receipt No:* ${receiptNo}`;
+            message = `🎓 *${libraryTitle.toUpperCase()}*\n\n✅ *Fee Payment Receipt — ${student?.name || 'Student'}*\n\n📋 *Plan:* ${activePlan.name}\n💰 *Amount Paid Today:* ₹${actualPaidNow}\n📊 *Total Plan Fee:* ₹${totalPayable}${dueInfo}\n🪑 *Seat:* ${displaySeatNumber}\n⏰ *Shift:* ${student?.shiftTiming || 'Full Day'}\n📅 *Validity:* ${validityText}\n💳 *Payment:* ${payModeLabel}\n🧾 *Receipt No:* ${receiptNo}`;
           }
 
           if (addonSummary) message += `\n${addonSummary}`;
           if (discount > 0) message += `\n🏷️ *Discount:* -₹${discount}`;
+          if (remainingAfterPayment > 0) message += `\n⚠️ *Pending Due:* ₹${remainingAfterPayment} (Due soon)`;
           message += `\n\n📜 *Terms & Conditions:*\n1. Your seat is reserved for the subscribed period.\n2. The fee is non-refundable under any circumstances.\n3. The fee is non-transferrable.`;
           if (onlineReceiptUrl) {
             message += `\n\n📄 *View Receipt Online:*\n👉 ${onlineReceiptUrl}`;
@@ -605,32 +687,182 @@ export default function CollectFeeModal({
           )}
 
           <div className="border-t border-slate-200 pt-2 flex justify-between items-center text-sm font-black">
-            <span className="text-slate-900">TOTAL RECEIVABLE</span>
+            <span className="text-slate-900">TOTAL PLAN FEE</span>
             <span className="text-lg text-indigo-700">{formatCurrency(totalPayable)}</span>
+          </div>
+        </div>
+
+        {/* Partial / Installment Payment Selector */}
+        <div className="bg-slate-50 border border-slate-200 rounded-2xl p-3.5 space-y-3">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+            <span className="text-xs font-black text-slate-700 uppercase tracking-wider">
+              Payment Type (भुगतान प्रकार)
+            </span>
+            <div className="flex items-center gap-1.5 bg-white p-1 rounded-xl border border-slate-200 shadow-2xs">
+              <button
+                type="button"
+                onClick={() => {
+                  setPaymentType('full');
+                  if (paymentMode === 'split') {
+                    const half = Math.round(totalBalanceDue / 2);
+                    setSplitCash(String(half));
+                    setSplitUpi(String(totalBalanceDue - half));
+                  }
+                }}
+                className={`px-3 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                  paymentType === 'full'
+                    ? 'bg-emerald-600 text-white shadow-2xs'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                ● Full Payment (पूरा ₹{totalBalanceDue})
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setPaymentType('partial');
+                  if (!customPayingAmount || Number(customPayingAmount) <= 0) {
+                    const suggested = Math.round(totalBalanceDue / 2) || totalBalanceDue;
+                    setCustomPayingAmount(String(suggested));
+                    if (paymentMode === 'split') {
+                      const half = Math.round(suggested / 2);
+                      setSplitCash(String(half));
+                      setSplitUpi(String(suggested - half));
+                    }
+                  }
+                }}
+                className={`px-3 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                  paymentType === 'partial'
+                    ? 'bg-amber-600 text-white shadow-2xs'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                ● Partial / Installment (किस्त)
+              </button>
+            </div>
+          </div>
+
+          {previouslyPaid > 0 && (
+            <div className="bg-blue-50 border border-blue-200 rounded-xl px-3 py-2 text-xs flex justify-between items-center text-blue-900">
+              <span className="font-medium">ℹ️ Previously Received (पहले जमा हो चुका):</span>
+              <strong className="font-extrabold text-blue-800">{formatCurrency(previouslyPaid)}</strong>
+            </div>
+          )}
+
+          {paymentType === 'partial' && (
+            <div className="pt-2 border-t border-slate-200 space-y-1.5">
+              <label className="block text-xs font-bold text-amber-900">
+                Amount Paying Now (आज कितना जमा कर रहे हैं) *
+              </label>
+              <div className="relative max-w-xs">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 font-bold text-slate-500">₹</span>
+                <input
+                  type="number"
+                  min="1"
+                  max={totalBalanceDue}
+                  value={customPayingAmount}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setCustomPayingAmount(val);
+                    const num = Number(val) || 0;
+                    if (paymentMode === 'split') {
+                      const half = Math.round(num / 2);
+                      setSplitCash(String(half));
+                      setSplitUpi(String(num - half));
+                    }
+                  }}
+                  className="w-full pl-7 pr-3 py-2 border-2 border-amber-300 rounded-xl text-sm font-black text-amber-950 bg-white focus:ring-2 focus:ring-amber-500 outline-none"
+                  placeholder={`Max ₹${totalBalanceDue}`}
+                />
+              </div>
+            </div>
+          )}
+
+          {/* Live 3-Column Summary Bar */}
+          <div className="grid grid-cols-3 gap-2 pt-1.5 border-t border-slate-200 text-center text-xs">
+            <div className="bg-white p-2 rounded-xl border border-slate-200">
+              <span className="text-[10px] text-slate-400 font-bold uppercase block">Total Plan Fee</span>
+              <span className="font-black text-slate-800 text-sm">{formatCurrency(totalPayable)}</span>
+            </div>
+            <div className="bg-emerald-50 p-2 rounded-xl border border-emerald-200">
+              <span className="text-[10px] text-emerald-600 font-bold uppercase block">Paying Now</span>
+              <span className="font-black text-emerald-800 text-sm">{formatCurrency(actualPaidNow)}</span>
+            </div>
+            <div className={`p-2 rounded-xl border ${remainingAfterPayment > 0 ? 'bg-amber-50 border-amber-300 text-amber-900' : 'bg-slate-100 border-slate-200 text-slate-600'}`}>
+              <span className="text-[10px] font-bold uppercase block">Remaining Due (बाकी)</span>
+              <span className="font-black text-sm">{formatCurrency(remainingAfterPayment)}</span>
+            </div>
           </div>
         </div>
 
         {/* Payment Mode Selector */}
         <div>
           <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">
-            Payment Mode *
+            Payment Mode (भुगतान माध्यम) *
           </label>
-          <div className="grid grid-cols-3 gap-2.5">
-            {['cash', 'upi', 'bank'].map((mode) => (
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+            {[
+              { id: 'cash', label: '💵 Cash' },
+              { id: 'upi', label: '📱 UPI / QR' },
+              { id: 'bank', label: '🏦 Bank' },
+              { id: 'split', label: '⚡ Split (Cash + UPI)' },
+            ].map((m) => (
               <button
                 type="button"
-                key={mode}
-                onClick={() => setPaymentMode(mode)}
-                className={`py-2 px-3 rounded-xl border text-xs font-black transition-all uppercase cursor-pointer ${
-                  paymentMode === mode
+                key={m.id}
+                onClick={() => handleSelectPaymentMode(m.id)}
+                className={`py-2 px-2.5 rounded-xl border text-xs font-black transition-all cursor-pointer text-center ${
+                  paymentMode === m.id
                     ? 'border-indigo-600 bg-indigo-600 text-white shadow-xs'
                     : 'border-slate-200 bg-white hover:bg-slate-50 text-slate-700'
                 }`}
               >
-                {mode === 'cash' ? '💵 Cash' : mode === 'upi' ? '📱 UPI / QR' : '🏦 Bank Transfer'}
+                {m.label}
               </button>
             ))}
           </div>
+
+          {/* Split Mode Inputs (Cash + UPI) */}
+          {paymentMode === 'split' && (
+            <div className="mt-3 p-3.5 bg-indigo-50/80 border border-indigo-200 rounded-2xl space-y-2.5">
+              <div className="flex items-center justify-between text-xs font-black text-indigo-950">
+                <span>⚡ Split Payment Breakdown</span>
+                <span className="text-[11px] text-indigo-700 font-bold">
+                  Cash + UPI = ₹{actualPaidNow}
+                </span>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                    💵 Cash Portion (₹)
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    max={actualPaidNow}
+                    value={splitCash}
+                    onChange={(e) => handleSplitCashChange(e.target.value)}
+                    className="w-full px-3 py-2 border border-indigo-300 rounded-xl text-xs font-bold bg-white text-slate-900 outline-none focus:ring-2 focus:ring-indigo-500"
+                    placeholder="Cash ₹"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                    📱 UPI Portion (₹)
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    max={actualPaidNow}
+                    value={splitUpi}
+                    onChange={(e) => handleSplitUpiChange(e.target.value)}
+                    className="w-full px-3 py-2 border border-indigo-300 rounded-xl text-xs font-bold bg-white text-slate-900 outline-none focus:ring-2 focus:ring-indigo-500"
+                    placeholder="UPI ₹"
+                  />
+                </div>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Remarks / Notes */}
@@ -643,7 +875,7 @@ export default function CollectFeeModal({
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
             className="w-full px-3.5 py-2 border border-slate-300 rounded-xl text-xs bg-white"
-            placeholder="e.g. GPay Ref #123456"
+            placeholder="e.g. GPay Ref #123456 / ₹200 cash advance"
           />
         </div>
 
@@ -659,7 +891,7 @@ export default function CollectFeeModal({
             onClick={(e) => handleSubmit(e, false)}
             className="border-indigo-200 text-indigo-700 hover:bg-indigo-50"
           >
-            Collect Only
+            Collect ₹{actualPaidNow} Only
           </Button>
           <Button 
             type="button" 
@@ -669,7 +901,7 @@ export default function CollectFeeModal({
           >
             <span className="flex items-center gap-1.5 font-bold">
               <MessageSquare className="w-4 h-4" />
-              <span>Collect {formatCurrency(totalPayable)} & WhatsApp Bill</span>
+              <span>Collect {formatCurrency(actualPaidNow)} & WhatsApp Bill</span>
             </span>
           </Button>
         </div>
