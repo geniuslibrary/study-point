@@ -209,6 +209,34 @@ export default function ExtendMembershipModal({
     }
   };
 
+  const handleSavePayLater = async () => {
+    if (!extraDays || Number(extraDays) <= 0) {
+      alert('कृपया कम से कम 1 दिन दर्ज करें (Please enter at least 1 day)');
+      return;
+    }
+
+    const payload = {
+      studentId: student.id,
+      extraDays: Number(extraDays),
+      totalFee,
+      feeAmount: totalFee,
+      paidNow: 0,
+      dueAmount: totalFee,
+      paymentType: 'pay_later',
+      paymentMode: 'due',
+      splitDetails: null,
+      newExpiryDate: newEndDate.toISOString(),
+      notes: notes.trim(),
+      paymentRemarks: paymentRemarks.trim(),
+      sendWhatsApp,
+      isFree: totalFee === 0,
+    };
+
+    if (onExtend) {
+      await onExtend(payload);
+    }
+  };
+
   return (
     <Modal
       isOpen={isOpen}
@@ -574,10 +602,20 @@ export default function ExtendMembershipModal({
         </div>
 
         {/* Actions */}
-        <div className="flex flex-col-reverse sm:flex-row justify-end gap-2.5 pt-2 border-t border-slate-100">
+        <div className="flex flex-col-reverse sm:flex-row justify-end gap-2.5 pt-2 border-t border-slate-100 flex-wrap">
           <Button type="button" variant="secondary" onClick={onClose} disabled={loading} className="w-full sm:w-auto">
             Cancel
           </Button>
+          {totalFee > 0 && (
+            <Button
+              type="button"
+              disabled={loading}
+              onClick={handleSavePayLater}
+              className="w-full sm:w-auto font-bold !bg-amber-600 hover:!bg-amber-700 !text-white shadow-xs"
+            >
+              {loading ? 'Saving...' : '💾 Save (Fee बाद में देगा)'}
+            </Button>
+          )}
           <Button
             type="submit"
             disabled={loading}
