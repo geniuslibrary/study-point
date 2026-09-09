@@ -44,6 +44,7 @@ import {
   createDocument,
   updateDocument,
   removeDocument,
+  getActiveTenantId,
 } from '../firebase/storageService';
 import { compressImageFile, formatDate, formatCurrency } from '../utils/helpers';
 import {
