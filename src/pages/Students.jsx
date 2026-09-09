@@ -16,6 +16,7 @@ import {
   getStoredAddons,
   formatDate,
   getMonthYear,
+  checkDuplicatePhoneNumber,
 } from '../utils/helpers';
 import {
   getActiveTemplates,
@@ -150,6 +151,13 @@ export default function Students() {
   };
 
   const handleAddStudent = async (formData) => {
+    // Prevent duplicate phone number across entire system (student & staff)
+    const phoneDup = await checkDuplicatePhoneNumber({ phone: formData.phone });
+    if (phoneDup) {
+      alert(`⚠️ मोबाइल नंबर अमान्य:\n\n${phoneDup.message}`);
+      return;
+    }
+
     const plan = plans.find((p) => p.id === formData.membershipPlanId);
     const joinD = formData.joinDate ? new Date(formData.joinDate) : new Date();
     const membershipEnd = formData.membershipEnd
@@ -266,6 +274,13 @@ export default function Students() {
 
   const handleEditStudent = async (formData) => {
     if (!editData) return;
+
+    // Prevent duplicate phone number across entire system (student & staff)
+    const phoneDup = await checkDuplicatePhoneNumber({ phone: formData.phone, excludeId: editData.id });
+    if (phoneDup) {
+      alert(`⚠️ मोबाइल नंबर अमान्य:\n\n${phoneDup.message}`);
+      return;
+    }
 
     // If seat changed or student marked as left, release old seat
     if (editData.seatId && (editData.seatId !== formData.seatId || formData.status === 'left')) {

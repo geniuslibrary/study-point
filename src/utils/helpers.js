@@ -1,5 +1,5 @@
-import { SHIFTS } from './constants';
-import { getActiveTenantId } from '../firebase/storageService';
+import { SHIFTS, COLLECTIONS } from './constants';
+import { getActiveTenantId, fetchCollectionData } from '../firebase/storageService';
 export { getActiveTenantId };
 
 export const formatCurrency = (amount) => {
@@ -527,4 +527,95 @@ export const getUserDisplayName = (user) => {
   }
 
   return user.displayName || 'Owner';
+};
+
+// Clean and normalize 10-digit mobile number
+export const normalizePhone = (phone) => {
+  if (!phone) return '';
+  const digits = String(phone).replace(/\D/g, '');
+  return digits.length > 10 ? digits.slice(-10) : digits;
+};
+
+// Synchronous check against passed in-memory arrays (students, staffUsers, staffMembers)
+export const checkDuplicatePhoneSync = ({
+  phone,
+  excludeId = null,
+  students = [],
+  staffUsers = [],
+  staffMembers = [],
+}) => {
+  const norm = normalizePhone(phone);
+  if (!norm || norm.length !== 10) return null;
+
+  if (Array.isArray(students)) {
+    const matched = students.find(
+      (s) => !s.isDeleted && s.id !== excludeId && normalizePhone(s.phone) === norm
+    );
+    if (matched) {
+      return {
+        exists: true,
+        type: 'student',
+        name: matched.name,
+        phone: matched.phone,
+        message: `यह मोबाइल नंबर (${norm}) पहले से छात्र "${matched.name}" के नाम पर रजिस्टर्ड है! एक नंबर से दूसरा छात्र या स्टाफ रजिस्टर नहीं हो सकता।`,
+      };
+    }
+  }
+
+  if (Array.isArray(staffUsers)) {
+    const matched = staffUsers.find(
+      (u) => u.id !== excludeId && normalizePhone(u.phone) === norm
+    );
+    if (matched) {
+      return {
+        exists: true,
+        type: 'staff',
+        name: matched.name,
+        phone: matched.phone,
+        message: `यह मोबाइल नंबर (${norm}) पहले से स्टाफ "${matched.name}" के पास रजिस्टर्ड है! एक नंबर से दूसरा छात्र या स्टाफ रजिस्टर नहीं हो सकता।`,
+      };
+    }
+  }
+
+  if (Array.isArray(staffMembers)) {
+    const matched = staffMembers.find(
+      (m) => m.id !== excludeId && m.status !== 'deleted' && normalizePhone(m.phone) === norm
+    );
+    if (matched) {
+      return {
+        exists: true,
+        type: 'staff',
+        name: matched.name,
+        phone: matched.phone,
+        message: `यह मोबाइल नंबर (${norm}) पहले से स्टाफ सदस्य "${matched.name}" के पास रजिस्टर्ड है! एक नंबर से दूसरा छात्र या स्टाफ रजिस्टर नहीं हो सकता।`,
+      };
+    }
+  }
+
+  return null;
+};
+
+// Comprehensive Asynchronous check against database collections
+export const checkDuplicatePhoneNumber = async ({ phone, excludeId = null }) => {
+  const norm = normalizePhone(phone);
+  if (!norm || norm.length !== 10) return null;
+
+  try {
+    const [students, staffUsers, staffMembers] = await Promise.all([
+      fetchCollectionData(COLLECTIONS.STUDENTS).catch(() => []),
+      fetchCollectionData(COLLECTIONS.STAFF_USERS).catch(() => []),
+      fetchCollectionData(COLLECTIONS.STAFF_MEMBERS).catch(() => []),
+    ]);
+
+    return checkDuplicatePhoneSync({
+      phone: norm,
+      excludeId,
+      students: students || [],
+      staffUsers: staffUsers || [],
+      staffMembers: staffMembers || [],
+    });
+  } catch (err) {
+    console.warn('Error checking duplicate phone number:', err);
+    return null;
+  }
 };

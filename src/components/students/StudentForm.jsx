@@ -3,7 +3,9 @@ import Modal from '../common/Modal';
 import Button from '../common/Button';
 import CameraCaptureModal from '../common/CameraCaptureModal';
 import { Sun, Sunrise, Sunset, Clock, Armchair, AlertCircle, Calendar, UserX, CheckCircle, Tag, IndianRupee, Lock, Camera, Upload, X, Trash2, User, Image, Check, Sparkles, Mail, CreditCard } from 'lucide-react';
-import { formatDate, formatCurrency, getStoredShifts, calculateSeatAddonCharges, getStoredAddons, compressImageFile, calculateMembershipEndDate } from '../../utils/helpers';
+import { formatDate, formatCurrency, getStoredShifts, calculateSeatAddonCharges, getStoredAddons, compressImageFile, calculateMembershipEndDate, checkDuplicatePhoneSync, checkDuplicatePhoneNumber } from '../../utils/helpers';
+import { COLLECTIONS } from '../../utils/constants';
+import { fetchCollectionData } from '../../firebase/storageService';
 
 export default function StudentForm({
   isOpen,
@@ -50,6 +52,28 @@ export default function StudentForm({
   const [isCameraModalOpen, setIsCameraModalOpen] = useState(false);
   const [isCompressing, setIsCompressing] = useState(false);
   const galleryInputRef = useRef(null);
+  const [staffUsers, setStaffUsers] = useState([]);
+  const [staffMembers, setStaffMembers] = useState([]);
+
+  useEffect(() => {
+    if (isOpen) {
+      Promise.all([
+        fetchCollectionData(COLLECTIONS.STAFF_USERS).catch(() => []),
+        fetchCollectionData(COLLECTIONS.STAFF_MEMBERS).catch(() => []),
+      ]).then(([users, members]) => {
+        setStaffUsers(users || []);
+        setStaffMembers(members || []);
+      });
+    }
+  }, [isOpen]);
+
+  const phoneDuplicateWarning = checkDuplicatePhoneSync({
+    phone: formData.phone,
+    excludeId: editData?.id,
+    students,
+    staffUsers,
+    staffMembers,
+  });
 
   useEffect(() => {
     if (editData) {
@@ -319,6 +343,20 @@ export default function StudentForm({
     e.preventDefault();
     if (!formData.name.trim() || !formData.phone.trim()) return;
 
+    if (phoneDuplicateWarning) {
+      alert(`⚠️ मोबाइल नंबर अमान्य:\n\n${phoneDuplicateWarning.message}`);
+      return;
+    }
+
+    const dupCheck = await checkDuplicatePhoneNumber({
+      phone: formData.phone,
+      excludeId: editData?.id,
+    });
+    if (dupCheck) {
+      alert(`⚠️ मोबाइल नंबर अमान्य:\n\n${dupCheck.message}`);
+      return;
+    }
+
     if (formData.seatId && formData.status !== 'left') {
       const chosenSeat = seatOptions.find((s) => s.id === formData.seatId);
       if (chosenSeat && !chosenSeat.isAvailable) {
@@ -522,10 +560,23 @@ export default function StudentForm({
               type="tel"
               required
               value={formData.phone}
-              onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-              className="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500 text-sm"
+              onChange={(e) => {
+                const val = e.target.value.replace(/[^0-9+ ]/g, '').slice(0, 15);
+                setFormData({ ...formData, phone: val });
+              }}
+              className={`w-full px-3.5 py-2.5 border rounded-xl focus:ring-2 text-sm transition-colors ${
+                phoneDuplicateWarning
+                  ? 'border-rose-400 focus:ring-rose-400 bg-rose-50/30'
+                  : 'border-slate-300 focus:ring-indigo-500'
+              }`}
               placeholder="e.g. 9876543210"
             />
+            {phoneDuplicateWarning && (
+              <div className="mt-1.5 p-2.5 bg-rose-50 border border-rose-200 rounded-xl flex items-start gap-2 text-xs text-rose-700 font-medium">
+                <AlertCircle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
+                <span>{phoneDuplicateWarning.message}</span>
+              </div>
+            )}
           </div>
         </div>
 

@@ -14,6 +14,7 @@ import {
   Mail,
   Phone,
   User,
+  AlertCircle,
   CheckCircle2,
   XCircle,
   Key,
@@ -55,7 +56,7 @@ import {
   setTenantItem,
   removeTenantItem,
 } from '../firebase/storageService';
-import { compressImageFile, formatDate, formatCurrency } from '../utils/helpers';
+import { compressImageFile, formatDate, formatCurrency, checkDuplicatePhoneNumber, checkDuplicatePhoneSync, normalizePhone } from '../utils/helpers';
 import {
   DEFAULT_STAFF_DASHBOARD_WIDGETS,
   DASHBOARD_WIDGET_OPTIONS,
@@ -237,6 +238,7 @@ export default function StaffRoles() {
   const [toastMessage, setToastMessage] = useState('');
   const [visiblePasswords, setVisiblePasswords] = useState({});
   const [copiedId, setCopiedId] = useState(null);
+  const [studentsList, setStudentsList] = useState([]);
 
   // Staff Form states
   const [formData, setFormData] = useState({
@@ -251,14 +253,31 @@ export default function StaffRoles() {
     dashboardWidgets: { ...DEFAULT_STAFF_DASHBOARD_WIDGETS },
   });
 
+  const staffMemberPhoneWarning = checkDuplicatePhoneSync({
+    phone: staffMemberFormData.phone,
+    excludeId: editStaffMember?.id,
+    students: studentsList,
+    staffUsers: staffList,
+    staffMembers: staffMembers,
+  });
+
+  const staffUserPhoneWarning = checkDuplicatePhoneSync({
+    phone: formData.phone,
+    excludeId: editStaff?.id,
+    students: studentsList,
+    staffUsers: staffList,
+    staffMembers: staffMembers,
+  });
+
   const fetchData = async (showFullLoader = true) => {
     if (showFullLoader) setLoading(true);
     try {
-      const [staffData, rolesData, staffMembersData, expensesData] = await Promise.all([
+      const [staffData, rolesData, staffMembersData, expensesData, studentsData] = await Promise.all([
         fetchCollectionData(COLLECTIONS.STAFF_USERS),
         fetchCollectionData(COLLECTIONS.ROLE_PRESETS),
         fetchCollectionData(COLLECTIONS.STAFF_MEMBERS),
         fetchCollectionData(COLLECTIONS.EXPENSES),
+        fetchCollectionData(COLLECTIONS.STUDENTS),
       ]);
 
       const ownerDoc = (rolesData || []).find((r) => r.id === 'role_owner' || r.isOwner);
@@ -321,6 +340,7 @@ export default function StaffRoles() {
       setRolesList(finalRolesList);
       setStaffMembers(staffMembersData || []);
       setSalaryExpenses(staffSalaryList);
+      setStudentsList(studentsData || []);
     } catch (e) {
       console.error('Error fetching staff data:', e);
     } finally {
@@ -424,6 +444,17 @@ export default function StaffRoles() {
     if (!staffMemberFormData.name.trim()) {
       showToast('Please enter staff name');
       return;
+    }
+
+    if (staffMemberFormData.phone && staffMemberFormData.phone.trim()) {
+      const dupCheck = await checkDuplicatePhoneNumber({
+        phone: staffMemberFormData.phone,
+        excludeId: editStaffMember?.id,
+      });
+      if (dupCheck) {
+        alert(`⚠️ मोबाइल नंबर अमान्य:\n\n${dupCheck.message}`);
+        return;
+      }
     }
 
     const payload = {
@@ -895,6 +926,17 @@ export default function StaffRoles() {
     if (!formData.name.trim() || !formData.email.trim() || !formData.password.trim()) {
       showToast('Please fill Staff Name, Email/ID and Password');
       return;
+    }
+
+    if (formData.phone && formData.phone.trim()) {
+      const dupCheck = await checkDuplicatePhoneNumber({
+        phone: formData.phone,
+        excludeId: editStaff?.id,
+      });
+      if (dupCheck) {
+        alert(`⚠️ मोबाइल नंबर अमान्य:\n\n${dupCheck.message}`);
+        return;
+      }
     }
 
     try {
@@ -1985,10 +2027,23 @@ export default function StaffRoles() {
               <input
                 type="tel"
                 value={formData.phone}
-                onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                onChange={(e) => {
+                  const val = e.target.value.replace(/[^0-9+ ]/g, '').slice(0, 15);
+                  setFormData({ ...formData, phone: val });
+                }}
                 placeholder="e.g. 9876543210"
-                className="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500"
+                className={`w-full px-3.5 py-2.5 border rounded-xl text-sm transition-colors ${
+                  staffUserPhoneWarning
+                    ? 'border-rose-400 focus:ring-2 focus:ring-rose-400 bg-rose-50/30'
+                    : 'border-slate-300 focus:ring-2 focus:ring-indigo-500'
+                }`}
               />
+              {staffUserPhoneWarning && (
+                <div className="mt-1.5 p-2 bg-rose-50 border border-rose-200 rounded-xl flex items-start gap-1.5 text-xs text-rose-700 font-medium">
+                  <AlertCircle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
+                  <span>{staffUserPhoneWarning.message}</span>
+                </div>
+              )}
             </div>
           </div>
 
@@ -2514,10 +2569,23 @@ export default function StaffRoles() {
               <input
                 type="tel"
                 value={staffMemberFormData.phone}
-                onChange={(e) => setStaffMemberFormData({ ...staffMemberFormData, phone: e.target.value })}
+                onChange={(e) => {
+                  const val = e.target.value.replace(/[^0-9+ ]/g, '').slice(0, 15);
+                  setStaffMemberFormData({ ...staffMemberFormData, phone: val });
+                }}
                 placeholder="e.g. 9876543210"
-                className="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 font-medium"
+                className={`w-full px-3.5 py-2.5 border rounded-xl text-sm font-medium transition-colors ${
+                  staffMemberPhoneWarning
+                    ? 'border-rose-400 focus:ring-2 focus:ring-rose-400 bg-rose-50/30'
+                    : 'border-slate-300 focus:ring-2 focus:ring-indigo-500'
+                }`}
               />
+              {staffMemberPhoneWarning && (
+                <div className="mt-1.5 p-2 bg-rose-50 border border-rose-200 rounded-xl flex items-start gap-1.5 text-xs text-rose-700 font-medium">
+                  <AlertCircle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
+                  <span>{staffMemberPhoneWarning.message}</span>
+                </div>
+              )}
             </div>
           </div>
 
