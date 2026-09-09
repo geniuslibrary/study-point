@@ -176,6 +176,7 @@ export const NAV_ITEMS = [
   { path: '/reports', label: 'Reports', icon: 'BarChart3', module: 'reports' },
   { path: '/memberships', label: 'Memberships', icon: 'CreditCard', module: 'memberships' },
   { path: '/expenses', label: 'Expenses', icon: 'Receipt', module: 'expenses' },
-  { path: '/staff', label: 'Staff & Roles', icon: 'ShieldCheck', module: 'staff' },
+  { path: '/staff', label: 'Staff', icon: 'UserCog', module: 'staff' },
+  { path: '/roles', label: 'Role & Permission', icon: 'ShieldCheck', module: 'staff' },
   { path: '/settings', label: 'Settings', icon: 'Settings', module: 'settings' },
 ];

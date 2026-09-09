@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import Layout from '../components/layout/Layout';
 import Button from '../components/common/Button';
 import Card from '../components/common/Card';
@@ -133,11 +134,33 @@ const DEFAULT_SYSTEM_ROLES = [
 ];
 
 export default function StaffRoles() {
+  const location = useLocation();
+  const navigate = useNavigate();
+
+  const isStaffPath = location.pathname.startsWith('/staff');
+  const [activeTab, setActiveTab] = useState(isStaffPath ? 'staff' : 'roles');
+
+  useEffect(() => {
+    if (location.pathname.startsWith('/staff')) {
+      setActiveTab('staff');
+    } else if (location.pathname.startsWith('/roles')) {
+      setActiveTab('roles');
+    }
+  }, [location.pathname]);
+
+  const handleTabChange = (tab) => {
+    setActiveTab(tab);
+    if (tab === 'staff') {
+      navigate('/staff');
+    } else {
+      navigate('/roles');
+    }
+  };
+
   const [staffList, setStaffList] = useState([]);
   const [rolesList, setRolesList] = useState(DEFAULT_SYSTEM_ROLES);
   const [ownerRole, setOwnerRole] = useState(DEFAULT_OWNER_ROLE);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState('roles'); // 'roles' (Tab 1: Role & Permission) | 'staff' (Tab 2: Staff)
 
   // Tab 2: Staff Members State
   const [staffMembers, setStaffMembers] = useState([]);
@@ -741,7 +764,7 @@ export default function StaffRoles() {
 
   if (loading) {
     return (
-      <Layout title="Staff & Roles">
+      <Layout title={activeTab === 'staff' ? 'Staff Members' : 'Role & Permission'}>
         <div className="flex items-center justify-center h-64">
           <Loader2 className="w-8 h-8 animate-spin text-indigo-600" />
         </div>
@@ -750,13 +773,13 @@ export default function StaffRoles() {
   }
 
   return (
-    <Layout title="Staff & Role Permissions">
+    <Layout title={activeTab === 'staff' ? 'Staff Members' : 'Role & Permission'}>
       <div className="space-y-6">
         {/* Navigation Tabs Bar */}
         <div className="flex border-b border-gray-200 gap-2">
           <button
             type="button"
-            onClick={() => setActiveTab('roles')}
+            onClick={() => handleTabChange('roles')}
             className={`flex items-center gap-2 py-3 px-5 text-sm font-bold border-b-2 transition-all cursor-pointer ${
               activeTab === 'roles'
                 ? 'border-indigo-600 text-indigo-600 bg-indigo-50/50 rounded-t-xl'
@@ -769,7 +792,7 @@ export default function StaffRoles() {
 
           <button
             type="button"
-            onClick={() => setActiveTab('staff')}
+            onClick={() => handleTabChange('staff')}
             className={`flex items-center gap-2 py-3 px-5 text-sm font-bold border-b-2 transition-all cursor-pointer ${
               activeTab === 'staff'
                 ? 'border-indigo-600 text-indigo-600 bg-indigo-50/50 rounded-t-xl'
@@ -777,7 +800,7 @@ export default function StaffRoles() {
             }`}
           >
             <Users className="w-4 h-4" />
-            <span>Staff</span>
+            <span>Staff Members</span>
             <span
               className={`text-xs px-2 py-0.5 rounded-full font-extrabold ${
                 activeTab === 'staff' ? 'bg-indigo-100 text-indigo-700' : 'bg-gray-100 text-gray-600'

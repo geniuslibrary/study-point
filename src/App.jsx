@@ -161,6 +161,15 @@ function AppRoutes() {
         }
       />
       <Route
+        path="/roles"
+        element={
+          <ProtectedRoute requiredModule="staff">
+            <StaffRoles />
+          </ProtectedRoute>
+        }
+      />
+      <Route path="/roles-permissions" element={<Navigate to="/roles" replace />} />
+      <Route
         path="/settings"
         element={
           <ProtectedRoute requiredModule="settings">
