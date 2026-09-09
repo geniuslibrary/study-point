@@ -50,17 +50,24 @@ export default function TransactionStatement({
                 dStr = f.month ? f.month + "-01" : "2026-01-01";
             }
             
-            const collectedAmt = Number(f.paidAmount !== undefined && f.paidAmount !== null ? f.paidAmount : f.amount) || 0;
+            const collectedAmt = Number(f.amount !== undefined && f.amount !== null ? f.amount : f.paidAmount) || 0;
+            if (collectedAmt <= 0) return;
+
             const modeText = f.paymentMode === 'split'
                 ? `Split (Cash: ₹${f.splitDetails?.cash || 0} + UPI: ₹${f.splitDetails?.upi || 0})`
                 : (f.paymentMode || "CASH").toUpperCase();
+
+            const partialTag = f.isPartial ? ' [Partial/किस्त]' : '';
+            const descriptionText = f.studentName 
+                ? `Fee from ${f.studentName}${partialTag} (${modeText})` 
+                : `Student Fee${partialTag} (${modeText})`;
 
             transactions.push({
                 id: "f_" + f.id,
                 date: dStr,
                 type: "IN",
-                category: "Fee Collection",
-                description: f.studentName ? `Fee from ${f.studentName} (${modeText})` : `Student Fee (${modeText})`,
+                category: f.isPartial ? "Fee Collection (Partial)" : "Fee Collection",
+                description: descriptionText,
                 amount: collectedAmt,
                 mode: modeText,
                 rawDate: new Date(dStr || 0)

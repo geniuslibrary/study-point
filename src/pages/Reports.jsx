@@ -24,7 +24,7 @@ import {
   AlertCircle,
 } from 'lucide-react';
 import { COLLECTIONS } from '../utils/constants';
-import { formatCurrency, formatDate, getMonthName } from '../utils/helpers';
+import { formatCurrency, formatDate, getMonthName, extractAllFeePayments } from '../utils/helpers';
 import { fetchCollectionData, getFirestoreDocRef, getTenantItem } from '../firebase/storageService';
 import { getDoc } from 'firebase/firestore';
 import { createPortal } from 'react-dom';
@@ -189,22 +189,43 @@ export default function Reports() {
   
 
   // ----------------------------------------------------
+  // EXTRACT ALL DISCRETE FEE PAYMENTS (FULL, PARTIAL, DUES, SPLIT)
+  // ----------------------------------------------------
+  const allFeePayments = extractAllFeePayments(fees);
+
+  const computeModeCollections = (paymentItems) => {
+    let cash = 0;
+    let upi = 0;
+    let bank = 0;
+
+    paymentItems.forEach((item) => {
+      const amt = Number(item.amount) || 0;
+      const mode = (item.paymentMode || 'cash').toLowerCase();
+
+      if (mode === 'split' && item.splitDetails) {
+        cash += Number(item.splitDetails.cash) || 0;
+        upi += Number(item.splitDetails.upi) || 0;
+      } else if (mode === 'upi') {
+        upi += amt;
+      } else if (mode === 'bank' || mode === 'online' || mode === 'card') {
+        bank += amt;
+      } else {
+        cash += amt;
+      }
+    });
+
+    return { cash, upi, bank };
+  };
+
+  // ----------------------------------------------------
   // DAILY REPORT CALCULATIONS
   // ----------------------------------------------------
-  const dailyFees = fees.filter((f) => f.status === 'paid' && matchesDate(f.paidDate, selectedDate));
+  const dailyFees = allFeePayments.filter((p) => matchesDate(p.paidDate, selectedDate));
   const dailyExpenses = expenses.filter((e) => matchesDate(e.date, selectedDate));
   const dailyAdmissions = students.filter((s) => matchesDate(s.joinDate || s.createdAt, selectedDate));
 
   const dailyTotalCollection = dailyFees.reduce((sum, f) => sum + (Number(f.amount) || 0), 0);
-  const dailyCashCollection = dailyFees
-    .filter((f) => !f.paymentMode || f.paymentMode === 'cash')
-    .reduce((sum, f) => sum + (Number(f.amount) || 0), 0);
-  const dailyUpiCollection = dailyFees
-    .filter((f) => f.paymentMode === 'upi')
-    .reduce((sum, f) => sum + (Number(f.amount) || 0), 0);
-  const dailyBankCollection = dailyFees
-    .filter((f) => f.paymentMode === 'bank')
-    .reduce((sum, f) => sum + (Number(f.amount) || 0), 0);
+  const { cash: dailyCashCollection, upi: dailyUpiCollection, bank: dailyBankCollection } = computeModeCollections(dailyFees);
 
   const dailyTotalExpense = dailyExpenses.reduce((sum, e) => sum + (Number(e.amount) || 0), 0);
   const dailyNetCashFlow = dailyTotalCollection - dailyTotalExpense;
@@ -212,30 +233,26 @@ export default function Reports() {
   // ----------------------------------------------------
   // MONTHLY REPORT CALCULATIONS
   // ----------------------------------------------------
-  const monthlyPaidFees = fees.filter(
-    (f) => (f.paidDate ? matchesMonth(f.paidDate, selectedMonth) : f.month === selectedMonth) && f.status === 'paid'
+  const monthlyPaidFees = allFeePayments.filter(
+    (p) => (p.paidDate ? matchesMonth(p.paidDate, selectedMonth) : matchesMonth(p.month, selectedMonth))
   );
   const monthlyPendingFees = fees.filter(
-    (f) => f.month === selectedMonth && f.status !== 'paid'
+    (f) => f.month === selectedMonth && (f.status === 'pending' || f.status === 'partial' || Number(f.dueAmount) > 0)
   );
   const monthlyExpenses = expenses.filter((e) => matchesMonth(e.date, selectedMonth));
 
   const monthlyTotalRevenue = monthlyPaidFees.reduce((sum, f) => sum + (Number(f.amount) || 0), 0);
-  const monthlyTotalPending = monthlyPendingFees.reduce((sum, f) => sum + (Number(f.amount) || 0), 0);
+  const monthlyTotalPending = monthlyPendingFees.reduce((sum, f) => {
+    if (f.dueAmount !== undefined && f.dueAmount !== null) {
+      return sum + (Number(f.dueAmount) || 0);
+    }
+    return sum + (Number(f.amount) || 0);
+  }, 0);
   const monthlyTotalExpense = monthlyExpenses.reduce((sum, e) => sum + (Number(e.amount) || 0), 0);
   const monthlyNetProfit = monthlyTotalRevenue - monthlyTotalExpense;
 
-
   // Monthly payment mode breakdown
-  const monthlyCashCollection = monthlyPaidFees
-    .filter((f) => !f.paymentMode || f.paymentMode === "cash")
-    .reduce((sum, f) => sum + (Number(f.amount) || 0), 0);
-  const monthlyUpiCollection = monthlyPaidFees
-    .filter((f) => f.paymentMode === "upi")
-    .reduce((sum, f) => sum + (Number(f.amount) || 0), 0);
-  const monthlyBankCollection = monthlyPaidFees
-    .filter((f) => f.paymentMode === "bank")
-    .reduce((sum, f) => sum + (Number(f.amount) || 0), 0);
+  const { cash: monthlyCashCollection, upi: monthlyUpiCollection, bank: monthlyBankCollection } = computeModeCollections(monthlyPaidFees);
   // Shift-wise revenue breakdown in selected month
   const getShiftRevenue = (shiftId) => {
     return monthlyPaidFees
@@ -285,8 +302,8 @@ export default function Reports() {
   // ----------------------------------------------------
   // CUSTOM / LIFETIME REPORT CALCULATIONS
   // ----------------------------------------------------
-  const customFees = fees.filter((f) => 
-    (f.status === "paid") && (matchesDateRange(f.paidDate || f.month + "-01", customStartDate, customEndDate))
+  const customFees = allFeePayments.filter((p) => 
+    matchesDateRange(p.paidDate || p.month + "-01", customStartDate, customEndDate)
   );
   const customExpenses = expenses.filter((e) => 
     matchesDateRange(e.date, customStartDate, customEndDate)
@@ -296,15 +313,7 @@ export default function Reports() {
   const customTotalExpense = customExpenses.reduce((sum, e) => sum + (Number(e.amount) || 0), 0);
   const customNetProfit = customTotalRevenue - customTotalExpense;
 
-  const customCashCollection = customFees
-    .filter((f) => !f.paymentMode || f.paymentMode === 'cash')
-    .reduce((sum, f) => sum + (Number(f.amount) || 0), 0);
-  const customUpiCollection = customFees
-    .filter((f) => f.paymentMode === 'upi')
-    .reduce((sum, f) => sum + (Number(f.amount) || 0), 0);
-  const customBankCollection = customFees
-    .filter((f) => f.paymentMode === 'bank')
-    .reduce((sum, f) => sum + (Number(f.amount) || 0), 0);
+  const { cash: customCashCollection, upi: customUpiCollection, bank: customBankCollection } = computeModeCollections(customFees);
   const customCategoryExpenseMap = {};
   customExpenses.forEach((exp) => {
     const cat = exp.category || 'Other';
@@ -538,18 +547,35 @@ export default function Reports() {
                     <tbody className="divide-y divide-gray-100">
                       {dailyFees.map((fee) => {
                         const student = getStudentInfo(fee.studentId);
+                        const displayName = student.name && student.name !== 'Unknown Student' ? student.name : (fee.studentName || 'Student');
                         return (
                           <tr key={fee.id} className="hover:bg-gray-50/80">
-                            <td className="px-4 py-3 font-semibold text-gray-900">{student.name}</td>
+                            <td className="px-4 py-3 font-semibold text-gray-900">
+                              <div className="flex items-center gap-2">
+                                <span>{displayName}</span>
+                                {fee.isPartial && (
+                                  <span className="text-[10px] bg-amber-100 text-amber-800 border border-amber-200 px-1.5 py-0.5 rounded-md font-bold shrink-0">
+                                    Partial (किस्त)
+                                  </span>
+                                )}
+                              </div>
+                            </td>
                             <td className="px-4 py-3 text-xs text-gray-600">{student.shiftTiming || 'Full Day'}</td>
-                            <td className="px-4 py-3 text-xs text-gray-500">{fee.month}</td>
+                            <td className="px-4 py-3 text-xs text-gray-500">{fee.month || fee.planName || '—'}</td>
                             <td className="px-4 py-3">
                               <span className="uppercase text-xs font-bold px-2 py-0.5 rounded bg-gray-100 text-gray-700">
-                                {fee.paymentMode || 'CASH'}
+                                {fee.paymentMode === 'split' ? 'SPLIT' : (fee.paymentMode || 'CASH')}
                               </span>
                             </td>
-                            <td className="px-4 py-3 font-bold text-green-700">{formatCurrency(fee.amount)}</td>
-                            <td className="px-4 py-3 text-xs text-gray-400">{fee.notes || '—'}</td>
+                            <td className="px-4 py-3">
+                              <span className="font-bold text-green-700">{formatCurrency(fee.amount)}</span>
+                              {fee.isPartial && fee.dueAmount > 0 && (
+                                <span className="block text-[10px] text-amber-600 font-semibold">
+                                  Due: {formatCurrency(fee.dueAmount)}
+                                </span>
+                              )}
+                            </td>
+                            <td className="px-4 py-3 text-xs text-gray-400">{fee.notes || fee.receiptNumber || '—'}</td>
                           </tr>
                         );
                       })}
@@ -1105,16 +1131,33 @@ export default function Reports() {
                     <tbody className="divide-y divide-gray-100">
                       {customFees.map((fee) => {
                         const student = getStudentInfo(fee.studentId);
+                        const displayName = student.name && student.name !== 'Unknown Student' ? student.name : (fee.studentName || 'Student');
                         return (
                           <tr key={fee.id} className="hover:bg-gray-50/80">
-                            <td className="px-4 py-3 font-semibold text-gray-900">{student.name}</td>
+                            <td className="px-4 py-3 font-semibold text-gray-900">
+                              <div className="flex items-center gap-2">
+                                <span>{displayName}</span>
+                                {fee.isPartial && (
+                                  <span className="text-[10px] bg-amber-100 text-amber-800 border border-amber-200 px-1.5 py-0.5 rounded-md font-bold shrink-0">
+                                    Partial (किस्त)
+                                  </span>
+                                )}
+                              </div>
+                            </td>
                             <td className="px-4 py-3 text-xs text-gray-600">{formatDate(fee.paidDate || fee.month)}</td>
                             <td className="px-4 py-3">
-                              <span className="text-xs px-2 py-0.5 rounded-full font-bold bg-indigo-100 text-indigo-800 capitalize">
-                                {fee.paymentMode || "Cash"}
+                              <span className="text-xs px-2 py-0.5 rounded-full font-bold bg-indigo-100 text-indigo-800 uppercase">
+                                {fee.paymentMode === 'split' ? 'SPLIT' : (fee.paymentMode || "Cash")}
                               </span>
                             </td>
-                            <td className="px-4 py-3 font-bold text-green-700 text-right">{formatCurrency(Number(fee.amount) || 0)}</td>
+                            <td className="px-4 py-3 font-bold text-green-700 text-right">
+                              <span>{formatCurrency(Number(fee.amount) || 0)}</span>
+                              {fee.isPartial && fee.dueAmount > 0 && (
+                                <span className="block text-[10px] text-amber-600 font-semibold">
+                                  Due: {formatCurrency(fee.dueAmount)}
+                                </span>
+                              )}
+                            </td>
                           </tr>
                         );
                       })}

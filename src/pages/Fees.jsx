@@ -17,7 +17,7 @@ import {
   Sparkles,
 } from 'lucide-react';
 import { COLLECTIONS, SEAT_STATUS } from '../utils/constants';
-import { formatCurrency, getMonthYear, calculateSeatAddonCharges, getStoredAddons } from '../utils/helpers';
+import { formatCurrency, getMonthYear, calculateSeatAddonCharges, getStoredAddons, extractAllFeePayments } from '../utils/helpers';
 import {
   fetchCollectionData,
   createDocument,
@@ -502,19 +502,29 @@ export default function Fees() {
   const todayStr = new Date().toISOString().split('T')[0];
 
   // Daily & Monthly Operational Calculations
-  const todayPaidFees = fees.filter(
-    (f) => f.status === 'paid' && f.paidDate && f.paidDate.startsWith(todayStr)
+  const allFeePayments = extractAllFeePayments(fees);
+
+  const todayPayments = allFeePayments.filter(
+    (p) => p.paidDate && p.paidDate.startsWith(todayStr)
   );
-  const todayCollected = todayPaidFees.reduce((s, f) => s + (Number(f.amount) || 0), 0);
-  const todayCount = todayPaidFees.length;
+  const todayCollected = todayPayments.reduce((s, p) => s + (Number(p.amount) || 0), 0);
+  const todayCount = todayPayments.length;
 
-  const monthFees = fees.filter((f) => f.month === (selectedMonth || currentMonth));
-  const monthPaidFees = monthFees.filter((f) => f.status === 'paid');
-  const monthCollected = monthPaidFees.reduce((s, f) => s + (Number(f.amount) || 0), 0);
-  const monthPaidCount = monthPaidFees.length;
+  const targetMonth = selectedMonth || currentMonth;
+  const monthPayments = allFeePayments.filter(
+    (p) => (p.paidDate ? p.paidDate.startsWith(targetMonth) : p.month === targetMonth)
+  );
+  const monthCollected = monthPayments.reduce((s, p) => s + (Number(p.amount) || 0), 0);
+  const monthPaidCount = monthPayments.length;
 
-  const monthPendingFees = monthFees.filter((f) => f.status !== 'paid');
-  const monthPendingAmount = monthPendingFees.reduce((s, f) => s + (Number(f.amount) || 0), 0);
+  const monthFees = fees.filter((f) => f.month === targetMonth);
+  const monthPendingFees = monthFees.filter((f) => f.status === 'pending' || f.status === 'partial' || Number(f.dueAmount) > 0);
+  const monthPendingAmount = monthPendingFees.reduce((s, f) => {
+    if (f.dueAmount !== undefined && f.dueAmount !== null) {
+      return s + (Number(f.dueAmount) || 0);
+    }
+    return s + (Number(f.amount) || 0);
+  }, 0);
   const monthPendingCount = monthPendingFees.length;
 
   const totalActiveStudents = students.filter((s) => s.status === 'active').length;

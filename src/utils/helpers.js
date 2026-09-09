@@ -652,3 +652,86 @@ export const checkDuplicatePhoneNumber = async ({ phone, excludeId = null, scope
     return null;
   }
 };
+
+/**
+ * Extract all individual payment transactions from fee records
+ * Handles full payments, partial payments, installment arrays, and split modes.
+ */
+export const extractAllFeePayments = (fees) => {
+  const result = [];
+  if (!Array.isArray(fees)) return result;
+
+  fees.forEach((fee) => {
+    // 1. If fee has an explicit payments array (installments / multiple dues / extension payments)
+    if (Array.isArray(fee.payments) && fee.payments.length > 0) {
+      fee.payments.forEach((p, idx) => {
+        const amt = Number(p.amount) || 0;
+        if (amt <= 0) return;
+        const pDate = p.paidDate || fee.paidDate || (fee.month ? `${fee.month}-01` : null);
+        result.push({
+          id: p.id || `${fee.id}_pay_${idx}`,
+          feeId: fee.id,
+          studentId: fee.studentId,
+          studentName: fee.studentName || '',
+          studentPhone: fee.studentPhone || '',
+          amount: amt,
+          totalFeeAmount: Number(fee.amount) || amt,
+          dueAmount: Number(fee.dueAmount) || 0,
+          paidDate: pDate,
+          month: fee.month || '',
+          paymentMode: p.paymentMode || fee.paymentMode || 'cash',
+          splitDetails: p.splitDetails || fee.splitDetails || null,
+          notes: p.notes || fee.notes || '',
+          receiptNumber: p.receiptNumber || fee.receiptNumber || '',
+          planName: fee.planName || '',
+          status: fee.status || 'paid',
+          isPartial: fee.status === 'partial' || (Number(fee.dueAmount) > 0),
+        });
+      });
+    } else {
+      // 2. Single fee record payment (paid or partial)
+      const isEligible =
+        fee.status === 'paid' ||
+        fee.status === 'partial' ||
+        Number(fee.paidAmount) > 0 ||
+        Number(fee.paidNow) > 0;
+      if (!isEligible) return;
+
+      let amt = 0;
+      if (fee.paidAmount !== undefined && fee.paidAmount !== null && Number(fee.paidAmount) > 0) {
+        amt = Number(fee.paidAmount);
+      } else if (fee.paidNow !== undefined && fee.paidNow !== null && Number(fee.paidNow) > 0) {
+        amt = Number(fee.paidNow);
+      } else if (fee.status === 'paid') {
+        amt = Number(fee.amount) || 0;
+      } else if (fee.status === 'partial' && fee.amount !== undefined && fee.dueAmount !== undefined) {
+        amt = Math.max(0, (Number(fee.amount) || 0) - (Number(fee.dueAmount) || 0));
+      }
+
+      if (amt <= 0) return;
+      const pDate = fee.paidDate || (fee.month ? `${fee.month}-01` : null);
+
+      result.push({
+        id: fee.id,
+        feeId: fee.id,
+        studentId: fee.studentId,
+        studentName: fee.studentName || '',
+        studentPhone: fee.studentPhone || '',
+        amount: amt,
+        totalFeeAmount: Number(fee.amount) || amt,
+        dueAmount: Number(fee.dueAmount) || 0,
+        paidDate: pDate,
+        month: fee.month || '',
+        paymentMode: fee.paymentMode || 'cash',
+        splitDetails: fee.splitDetails || null,
+        notes: fee.notes || '',
+        receiptNumber: fee.receiptNumber || '',
+        planName: fee.planName || '',
+        status: fee.status || (Number(fee.dueAmount) > 0 ? 'partial' : 'paid'),
+        isPartial: fee.status === 'partial' || (Number(fee.dueAmount) > 0),
+      });
+    }
+  });
+
+  return result;
+};
