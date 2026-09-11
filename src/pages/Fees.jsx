@@ -90,9 +90,10 @@ export default function Fees() {
           fee.notes?.toLowerCase().includes('extended');
 
         if (isExtensionFee) {
-          const effDue = Number(fee.dueAmount) > 0
-            ? Number(fee.dueAmount)
-            : (student ? (Number(student.dueFeeAmount) || Number(fee.amount)) : Number(fee.amount));
+          // If partial payment was made (paidAmount > 0), dueAmount is the balance.
+          // If no payment was made yet (paidAmount === 0), it's a pending bill (dueAmount: 0).
+          const isPartial = fee.status === 'partial' && Number(fee.paidAmount) > 0 && Number(fee.dueAmount) > 0;
+          const effDue = isPartial ? Number(fee.dueAmount) : 0;
           return { ...fee, dueAmount: effDue };
         }
 

@@ -265,7 +265,7 @@ export default function ExtendMembershipModal({
           <p className="text-[11px] text-slate-400 mt-1">
             {totalFee === 0
               ? '✨ निःशुल्क एक्सटेंशन (Free Extension) - कोई शुल्क नहीं कटेगा।'
-              : `यह ₹${totalFee} शुल्क स्टूडेंट के Due (बाकी) में सुरक्षित रहेगा। फीस आप बाद में "Collect Fee" से जमा करके WhatsApp रसीद भेज सकते हैं।`}
+              : `यह ₹${totalFee} का नया बिल (Pending Bill) बनेगा। फीस आप बाद में "₹ Fee" / "Collect Fee" से जमा कर सकते हैं (या पार्शियल/किस्त में ले सकते हैं)।`}
           </p>
         </div>
 

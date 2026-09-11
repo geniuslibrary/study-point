@@ -345,7 +345,7 @@ export default function StudentProfile({
                           ? fee.amount
                           : 0
                       );
-                      const isPartial = fee.status === 'partial' || Number(fee.dueAmount) > 0;
+                      const isPartial = fee.status === 'partial' && Number(fee.paidAmount) > 0 && Number(fee.dueAmount) > 0;
 
                       return (
                         <Fragment key={fee.id}>

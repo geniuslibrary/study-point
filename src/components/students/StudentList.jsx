@@ -120,13 +120,15 @@ export default function StudentList({
 
   const getStudentDueAmount = (student) => {
     if (!student) return 0;
-    const studentFees = (fees || []).filter(
-      (f) => f.studentId === student.id && (f.status === 'partial' || f.status === 'pending' || Number(f.dueAmount) > 0)
+    const studentFees = (fees || []).filter((f) => f.studentId === student.id);
+    // ONLY fees that are actual partial payments (status === 'partial' AND paidAmount > 0 AND dueAmount > 0)
+    const partialFees = studentFees.filter(
+      (f) => f.status === 'partial' && Number(f.paidAmount) > 0 && Number(f.dueAmount) > 0
     );
-    if (studentFees.length > 0) {
-      return studentFees.reduce((sum, f) => sum + (Number(f.dueAmount) || 0), 0);
+    if (partialFees.length > 0) {
+      return partialFees.reduce((sum, f) => sum + (Number(f.dueAmount) || 0), 0);
     }
-    return Number(student.dueFeeAmount) || 0;
+    return 0;
   };
 
   const isStudentFeePaid = (student) => {

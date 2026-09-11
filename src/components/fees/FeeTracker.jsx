@@ -95,9 +95,10 @@ export default function FeeTracker({
       if (sectionFilter !== 'all' && st?.sectionId !== sectionFilter) return;
 
       const diff = getFeeDiffDays(f);
-      const studentDue = Number(st?.dueFeeAmount) || 0;
-      const dueVal = Number(f.dueAmount) > 0 ? Number(f.dueAmount) : (f.status === 'pending' ? (Number(f.amount) || studentDue) : studentDue);
-      const hasDue = dueVal > 0 || f.status === 'partial' || (f.status === 'pending' && Number(f.amount) > 0);
+      // ONLY true partial payment balance is treated as "hasDue" (किस्त / बचा हुआ Due)
+      const isPartial = f.status === 'partial' && Number(f.paidAmount) > 0 && Number(f.dueAmount) > 0;
+      const dueVal = isPartial ? Number(f.dueAmount) : 0;
+      const hasDue = isPartial;
       const isP = f.status === 'paid' && !hasDue;
       const isO = !isP && !hasDue && diff !== null && diff < -2 && st?.status !== 'left';
       const isExp = !isP && !hasDue && diff !== null && diff < 0 && diff >= -2 && st?.status !== 'left';
@@ -128,9 +129,10 @@ export default function FeeTracker({
 
       // 2. Status Filter
       const diffDays = getFeeDiffDays(fee);
-      const studentDue = Number(student?.dueFeeAmount) || 0;
-      const dueVal = Number(fee.dueAmount) > 0 ? Number(fee.dueAmount) : (fee.status === 'pending' ? (Number(fee.amount) || studentDue) : studentDue);
-      const hasDue = dueVal > 0 || fee.status === 'partial' || (fee.status === 'pending' && Number(fee.amount) > 0);
+      // ONLY true partial payment balance is treated as "hasDue"
+      const isPartial = fee.status === 'partial' && Number(fee.paidAmount) > 0 && Number(fee.dueAmount) > 0;
+      const dueVal = isPartial ? Number(fee.dueAmount) : 0;
+      const hasDue = isPartial;
       const isPaid = fee.status === 'paid' && !hasDue;
       const isOverdue = !isPaid && !hasDue && diffDays !== null && diffDays < -2 && student?.status !== 'left';
       const isExpired = !isPaid && !hasDue && diffDays !== null && diffDays < 0 && diffDays >= -2 && student?.status !== 'left';
@@ -314,9 +316,9 @@ export default function FeeTracker({
               const addonTotal = fee.addonCharges ? Object.values(fee.addonCharges).reduce((s, v) => s + (Number(v) || 0), 0) : 0;
               const baseRate = Number(fee.baseFee) || (Number(fee.amount) + discount - addonTotal);
               const diffDays = getFeeDiffDays(fee);
-              const studentDue = Number(student?.dueFeeAmount) || 0;
-              const dueVal = Number(fee.dueAmount) > 0 ? Number(fee.dueAmount) : (fee.status === 'pending' ? (Number(fee.amount) || studentDue) : studentDue);
-              const hasDue = dueVal > 0 || fee.status === 'partial' || (fee.status === 'pending' && Number(fee.amount) > 0);
+              const isPartial = fee.status === 'partial' && Number(fee.paidAmount) > 0 && Number(fee.dueAmount) > 0;
+              const dueVal = isPartial ? Number(fee.dueAmount) : 0;
+              const hasDue = isPartial;
               const isPaid = fee.status === 'paid' && !hasDue;
               const isOverdue = !isPaid && !hasDue && diffDays !== null && diffDays < -2;
               const isExpired = !isPaid && !hasDue && diffDays !== null && diffDays < 0 && diffDays >= -2;
@@ -568,9 +570,9 @@ export default function FeeTracker({
           const discount = Number(fee.discountAmount) || Number(student?.discountAmount) || 0;
           const addonTotal = fee.addonCharges ? Object.values(fee.addonCharges).reduce((s, v) => s + (Number(v) || 0), 0) : 0;
           const diffDays = getFeeDiffDays(fee);
-          const studentDue = Number(student?.dueFeeAmount) || 0;
-          const dueVal = Number(fee.dueAmount) > 0 ? Number(fee.dueAmount) : (fee.status === 'pending' ? (Number(fee.amount) || studentDue) : studentDue);
-          const hasDue = dueVal > 0 || fee.status === 'partial' || (fee.status === 'pending' && Number(fee.amount) > 0);
+          const isPartial = fee.status === 'partial' && Number(fee.paidAmount) > 0 && Number(fee.dueAmount) > 0;
+          const dueVal = isPartial ? Number(fee.dueAmount) : 0;
+          const hasDue = isPartial;
           const isPaid = fee.status === 'paid' && !hasDue;
           const isOverdue = !isPaid && !hasDue && diffDays !== null && diffDays < -2;
           const isExpired = !isPaid && !hasDue && diffDays !== null && diffDays < 0 && diffDays >= -2;

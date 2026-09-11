@@ -74,7 +74,25 @@ export default function Students() {
         fetchCollectionData(COLLECTIONS.ADDON_PRICING),
       ]);
 
-      setStudents((stuDocs || []).filter((s) => !s.isDeleted));
+      const nonDeletedStudents = (stuDocs || []).filter((s) => !s.isDeleted);
+
+      // Auto-cleanup: If a student has dueFeeAmount > 0 in database, but does NOT have any
+      // partial payment fee (status === 'partial' && paidAmount > 0 && dueAmount > 0),
+      // reset dueFeeAmount to 0 so "Due ₹..." doesn't incorrectly appear for unpaid extensions/admissions.
+      const sanitizedStudents = nonDeletedStudents.map((st) => {
+        if (Number(st.dueFeeAmount) > 0) {
+          const hasRealPartial = (feeDocs || []).some(
+            (f) => f.studentId === st.id && f.status === 'partial' && Number(f.paidAmount) > 0 && Number(f.dueAmount) > 0
+          );
+          if (!hasRealPartial) {
+            updateDocument(COLLECTIONS.STUDENTS, st.id, { dueFeeAmount: 0 }).catch(console.warn);
+            return { ...st, dueFeeAmount: 0 };
+          }
+        }
+        return st;
+      });
+
+      setStudents(sanitizedStudents);
       setSections(secDocs);
       setSeats(seatDocs);
       setPlans(planDocs);
@@ -443,7 +461,10 @@ export default function Students() {
       const finalPaidNow = Number(paidNow !== undefined ? paidNow : finalTotalFee) || 0;
       const finalDueAmount = Number(dueAmount !== undefined ? dueAmount : Math.max(0, finalTotalFee - finalPaidNow)) || 0;
       const existingDue = Number(st.dueFeeAmount) || 0;
-      const updatedDueFeeAmount = existingDue + finalDueAmount;
+      // "Due" ONLY applies when partial payment is made (paidNow > 0 and remaining > 0).
+      // If paidNow === 0 (unpaid new bill/extension), it's a pending bill, NOT a partial due!
+      const isPartialPayment = finalPaidNow > 0 && finalDueAmount > 0;
+      const updatedDueFeeAmount = isPartialPayment ? (existingDue + finalDueAmount) : existingDue;
 
       // 1. Update student
       await updateDocument(COLLECTIONS.STUDENTS, studentId, {
@@ -505,7 +526,7 @@ export default function Students() {
           baseFee: finalTotalFee,
           paidAmount: finalPaidNow,
           paidNow: finalPaidNow,
-          dueAmount: finalDueAmount,
+          dueAmount: isPartialPayment ? finalDueAmount : 0,
           discountAmount: 0,
           addonCharges: {},
           status: feeStatus,
