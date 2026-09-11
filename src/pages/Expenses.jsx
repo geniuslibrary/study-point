@@ -104,26 +104,55 @@ export default function Expenses() {
         }
       }
 
-      // 1.5 Clean up any premature auto-scheduled salary expenses:
-      // (Kharcha joining month me add nahi hota, 1 month poora hone ke baad add hota hai)
+      // 1.5 Clean up or shift stale / premature staff salary expenses:
+      // (Kharcha joining date / joining month me add nahi hota, 1 month poora hone ke baad add hota hai)
       const toRemoveIds = [];
       for (const exp of expensesData) {
-        if (!exp.isStaffSalaryAuto) continue;
+        const isSalary = exp.isStaffSalaryAuto || exp.category === 'Staff Salary' || exp.type === 'salary' || exp.salaryDetails;
+        if (!isSalary) continue;
         const matchingStaff = combinedStaff.find(
-          (s) => s.id === exp.staffId || s.id === exp.salaryDetails?.staffId
+          (s) =>
+            s.id === exp.staffId ||
+            s.id === exp.salaryDetails?.staffId ||
+            (s.name && exp.title && exp.title.toLowerCase().includes(s.name.toLowerCase())) ||
+            (s.name && exp.description && exp.description.toLowerCase().includes(s.name.toLowerCase())) ||
+            (s.name && exp.salaryDetails?.staffName && exp.salaryDetails.staffName.toLowerCase() === s.name.toLowerCase())
         );
         if (!matchingStaff) continue;
         const staffJoinDate = matchingStaff.joinDate || matchingStaff.startDate;
         if (!staffJoinDate) continue;
 
-        const { firstMonth } = getFirstSalaryInfo(staffJoinDate);
-        const expMonth = exp.month || (exp.date ? exp.date.slice(0, 7) : '');
-        const expDate = exp.date ? exp.date.slice(0, 10) : '';
+        const { firstDate, firstMonth } = getFirstSalaryInfo(staffJoinDate);
+        if (!firstDate) continue;
 
-        // If expense was created in a month before 1 full month of service (e.g. in August for 26/08 joiner)
-        // OR if expense date has not yet arrived (expDate > today)
-        if ((firstMonth && expMonth < firstMonth) || (expDate && expDate > today)) {
-          toRemoveIds.push(exp.id);
+        const expMonth = exp.month || (exp.date ? exp.date.slice(0, 7) : '');
+        const expDate = exp.date ? (typeof exp.date === 'string' ? exp.date.slice(0, 10) : '') : '';
+
+        const isStaleJoiningRecord =
+          expDate === staffJoinDate ||
+          (exp.description && exp.description.includes('[Joining Month]')) ||
+          (firstMonth && expMonth < firstMonth) ||
+          (expDate && expDate < firstDate && exp.isStaffSalaryAuto);
+
+        if (isStaleJoiningRecord) {
+          if (firstDate > today) {
+            // Premature (e.g. Payal whose 1 month completes on 21/09/2026 > today 11/09/2026)
+            toRemoveIds.push(exp.id);
+          } else {
+            // Eligible (e.g. Vasu whose 1 month completed on 01/09/2026 <= today)
+            // Shift expense to firstDate / firstMonth
+            const updatedDesc = `Staff Salary: ${matchingStaff.name} [Month 1]`;
+            updateDocument(COLLECTIONS.EXPENSES, exp.id, {
+              date: firstDate,
+              month: firstMonth,
+              description: updatedDesc,
+              title: updatedDesc,
+            }).catch(console.warn);
+            exp.date = firstDate;
+            exp.month = firstMonth;
+            exp.description = updatedDesc;
+            exp.title = updatedDesc;
+          }
         }
       }
 

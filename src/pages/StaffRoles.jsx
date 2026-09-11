@@ -56,7 +56,7 @@ import {
   setTenantItem,
   removeTenantItem,
 } from '../firebase/storageService';
-import { compressImageFile, formatDate, formatCurrency, checkDuplicatePhoneNumber, checkDuplicatePhoneSync, normalizePhone, getDaysInMonth } from '../utils/helpers';
+import { compressImageFile, formatDate, formatCurrency, checkDuplicatePhoneNumber, checkDuplicatePhoneSync, normalizePhone, getDaysInMonth, getFirstSalaryInfo } from '../utils/helpers';
 import {
   DEFAULT_STAFF_DASHBOARD_WIDGETS,
   DASHBOARD_WIDGET_OPTIONS,
@@ -321,6 +321,62 @@ export default function StaffRoles() {
         });
       }
 
+      // Self-heal stale / premature salary expenses in Firestore:
+      // (1 month poora hone ke baad hi pehla kharcha banta hai. Payal 21/08 ko aayi toh 21/09 se pehle kharcha nahi aayega;
+      // Vasu 01/08 ko aayi toh uska kharcha 01/09/2026 (September) me shift hoga.)
+      const todayStr = new Date().toISOString().split('T')[0];
+      const allMembers = staffMembersData || [];
+      if (expensesData && expensesData.length > 0 && allMembers.length > 0) {
+        for (let i = expensesData.length - 1; i >= 0; i--) {
+          const exp = expensesData[i];
+          const isSal = exp.type === 'salary' || exp.category === 'Staff Salary' || exp.isStaffSalaryAuto || exp.salaryDetails;
+          if (!isSal) continue;
+
+          const matchedStaff = allMembers.find(
+            (s) =>
+              s.id === exp.staffId ||
+              s.id === exp.salaryDetails?.staffId ||
+              (s.name && exp.title && exp.title.toLowerCase().includes(s.name.toLowerCase())) ||
+              (s.name && exp.description && exp.description.toLowerCase().includes(s.name.toLowerCase())) ||
+              (s.name && exp.salaryDetails?.staffName && exp.salaryDetails.staffName.toLowerCase() === s.name.toLowerCase())
+          );
+          if (!matchedStaff || !matchedStaff.joinDate) continue;
+
+          const { firstDate, firstMonth } = getFirstSalaryInfo(matchedStaff.joinDate);
+          if (!firstDate) continue;
+
+          const expDate = exp.date ? (typeof exp.date === 'string' ? exp.date.slice(0, 10) : '') : '';
+          const isStaleJoiningRecord =
+            expDate === matchedStaff.joinDate ||
+            (exp.description && exp.description.includes('[Joining Month]')) ||
+            (exp.date && exp.date < firstDate && exp.isStaffSalaryAuto);
+
+          if (isStaleJoiningRecord) {
+            if (firstDate > todayStr) {
+              // Premature: delete from database (e.g. Payal whose 1 month ends 21/09)
+              removeDocument(COLLECTIONS.EXPENSES, exp.id).catch(console.warn);
+              expensesData.splice(i, 1);
+            } else {
+              // Completed 1 month: move voucher to firstDate / firstMonth (e.g. Vasu 01/08 -> 01/09)
+              const updatedDesc = `Staff Salary: ${matchedStaff.name} [Month 1]`;
+              updateDocument(COLLECTIONS.EXPENSES, exp.id, {
+                date: firstDate,
+                month: firstMonth,
+                description: updatedDesc,
+                title: updatedDesc,
+              }).catch(console.warn);
+              exp.date = firstDate;
+              exp.month = firstMonth;
+              exp.description = updatedDesc;
+              exp.title = updatedDesc;
+              if (exp.salaryDetails) {
+                exp.salaryDetails.month = firstMonth;
+              }
+            }
+          }
+        }
+      }
+
       // Filter and sort staff salary expense records
       const staffSalaryList = (expensesData || [])
         .filter(
@@ -353,23 +409,75 @@ export default function StaffRoles() {
         fetchCollectionData(COLLECTIONS.STAFF_MEMBERS),
         fetchCollectionData(COLLECTIONS.EXPENSES),
       ]);
-      setStaffMembers(members || []);
-      if (expenses) {
-        const staffSalaryList = expenses
-          .filter(
-            (e) =>
-              e.type === 'salary' ||
-              e.category === 'Staff Salary' ||
-              e.isStaffSalaryAuto ||
-              e.salaryDetails
-          )
-          .sort((a, b) => {
-            const dateA = a.date?.seconds ? a.date.seconds * 1000 : new Date(a.date || a.createdAt || 0).getTime();
-            const dateB = b.date?.seconds ? b.date.seconds * 1000 : new Date(b.date || b.createdAt || 0).getTime();
-            return dateB - dateA;
-          });
-        setSalaryExpenses(staffSalaryList);
+      const membersList = members || [];
+      const expensesList = expenses || [];
+
+      // Heal stale joining records
+      const todayStr = new Date().toISOString().split('T')[0];
+      if (expensesList.length > 0 && membersList.length > 0) {
+        for (let i = expensesList.length - 1; i >= 0; i--) {
+          const exp = expensesList[i];
+          const isSal = exp.type === 'salary' || exp.category === 'Staff Salary' || exp.isStaffSalaryAuto || exp.salaryDetails;
+          if (!isSal) continue;
+
+          const matchedStaff = membersList.find(
+            (s) =>
+              s.id === exp.staffId ||
+              s.id === exp.salaryDetails?.staffId ||
+              (s.name && exp.title && exp.title.toLowerCase().includes(s.name.toLowerCase())) ||
+              (s.name && exp.description && exp.description.toLowerCase().includes(s.name.toLowerCase())) ||
+              (s.name && exp.salaryDetails?.staffName && exp.salaryDetails.staffName.toLowerCase() === s.name.toLowerCase())
+          );
+          if (!matchedStaff || !matchedStaff.joinDate) continue;
+
+          const { firstDate, firstMonth } = getFirstSalaryInfo(matchedStaff.joinDate);
+          if (!firstDate) continue;
+
+          const expDate = exp.date ? (typeof exp.date === 'string' ? exp.date.slice(0, 10) : '') : '';
+          const isStaleJoiningRecord =
+            expDate === matchedStaff.joinDate ||
+            (exp.description && exp.description.includes('[Joining Month]')) ||
+            (exp.date && exp.date < firstDate && exp.isStaffSalaryAuto);
+
+          if (isStaleJoiningRecord) {
+            if (firstDate > todayStr) {
+              removeDocument(COLLECTIONS.EXPENSES, exp.id).catch(console.warn);
+              expensesList.splice(i, 1);
+            } else {
+              const updatedDesc = `Staff Salary: ${matchedStaff.name} [Month 1]`;
+              updateDocument(COLLECTIONS.EXPENSES, exp.id, {
+                date: firstDate,
+                month: firstMonth,
+                description: updatedDesc,
+                title: updatedDesc,
+              }).catch(console.warn);
+              exp.date = firstDate;
+              exp.month = firstMonth;
+              exp.description = updatedDesc;
+              exp.title = updatedDesc;
+              if (exp.salaryDetails) {
+                exp.salaryDetails.month = firstMonth;
+              }
+            }
+          }
+        }
       }
+
+      setStaffMembers(membersList);
+      const staffSalaryList = expensesList
+        .filter(
+          (e) =>
+            e.type === 'salary' ||
+            e.category === 'Staff Salary' ||
+            e.isStaffSalaryAuto ||
+            e.salaryDetails
+        )
+        .sort((a, b) => {
+          const dateA = a.date?.seconds ? a.date.seconds * 1000 : new Date(a.date || a.createdAt || 0).getTime();
+          const dateB = b.date?.seconds ? b.date.seconds * 1000 : new Date(b.date || b.createdAt || 0).getTime();
+          return dateB - dateA;
+        });
+      setSalaryExpenses(staffSalaryList);
     } catch (err) {
       console.error('Error fetching staff members:', err);
     }
