@@ -467,16 +467,18 @@ export default function Students() {
       const updatedDueFeeAmount = isPartialPayment ? (existingDue + finalDueAmount) : existingDue;
 
       // 1. Update student
-      await updateDocument(COLLECTIONS.STUDENTS, studentId, {
+      const studentUpdatePayload = {
         membershipEnd: newExpiryDate,
         status: 'active',
-        durationDays: updatedDurationDays,
-        durationLabel: `${updatedDurationDays} Days Plan`,
-        isDayBased: true,
         lastExtendedAt: new Date().toISOString(),
         lastExtendedDays: extraDays,
         dueFeeAmount: updatedDueFeeAmount,
-      });
+      };
+      if (st.isDayBased) {
+        studentUpdatePayload.durationDays = updatedDurationDays;
+        studentUpdatePayload.durationLabel = `${updatedDurationDays} Days Plan`;
+      }
+      await updateDocument(COLLECTIONS.STUDENTS, studentId, studentUpdatePayload);
 
       // 2. If student has an assigned seat and was marked expired, reactivate seat occupancy
       if (st.seatId) {
@@ -726,6 +728,14 @@ export default function Students() {
       const todayIso = new Date().toISOString();
       const todayDate = todayIso.split('T')[0];
 
+      const isExtension = Boolean(
+        existingFee?.isExtension ||
+        collectFeeRecord?.isExtension ||
+        paymentData?.isExtension ||
+        existingFee?.planName?.toLowerCase().includes('extension') ||
+        existingFee?.receiptNumber?.startsWith('EXT-')
+      );
+
       const updatedFeePayload = {
         studentId: collectFeeStudent.id,
         studentName: collectFeeStudent.name || '',
@@ -755,6 +765,7 @@ export default function Students() {
         durationDays: paymentData.durationDays || null,
         durationMonths: paymentData.durationMonths || null,
         isDayBased: !!paymentData.isDayBased,
+        isExtension: isExtension,
         periodStart: paymentData.periodStart,
         periodEnd: paymentData.periodEnd,
         receiptNumber: receiptNum,
@@ -768,20 +779,30 @@ export default function Students() {
       }
 
       if (paymentData.periodEnd) {
-        await updateDocument(COLLECTIONS.STUDENTS, collectFeeStudent.id, {
-          membershipPlanId: paymentData.planId,
-          membershipStart: paymentData.periodStart,
-          membershipEnd: paymentData.periodEnd,
-          hasPaidBefore: true,
-          status: 'active',
-          planPrice: paymentData.baseFee,
-          discountAmount: paymentData.discountAmount || 0,
-          planName: paymentData.planName,
-          isDayBased: !!paymentData.isDayBased,
-          durationDays: paymentData.durationDays || null,
-          durationMonths: paymentData.durationMonths || null,
-          dueFeeAmount: paymentData.dueAmount || 0,
-        });
+        if (isExtension) {
+          // If collecting for an extension, do NOT overwrite the student's base admission plan!
+          await updateDocument(COLLECTIONS.STUDENTS, collectFeeStudent.id, {
+            membershipEnd: paymentData.periodEnd,
+            hasPaidBefore: true,
+            status: 'active',
+            dueFeeAmount: paymentData.dueAmount || 0,
+          });
+        } else {
+          await updateDocument(COLLECTIONS.STUDENTS, collectFeeStudent.id, {
+            membershipPlanId: paymentData.planId,
+            membershipStart: paymentData.periodStart,
+            membershipEnd: paymentData.periodEnd,
+            hasPaidBefore: true,
+            status: 'active',
+            planPrice: paymentData.baseFee,
+            discountAmount: paymentData.discountAmount || 0,
+            planName: paymentData.planName,
+            isDayBased: !!paymentData.isDayBased,
+            durationDays: paymentData.durationDays || null,
+            durationMonths: paymentData.durationMonths || null,
+            dueFeeAmount: paymentData.dueAmount || 0,
+          });
+        }
       }
 
       const recordedFee = { id: feeId, ...updatedFeePayload };

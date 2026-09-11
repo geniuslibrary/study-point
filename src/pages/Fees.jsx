@@ -165,12 +165,14 @@ export default function Fees() {
               periodStart: newPeriodStart || fee.periodStart,
               periodEnd: newPeriodEnd || fee.periodEnd,
             };
+            const isPartial = fee.status === 'partial' && Number(fee.paidAmount) > 0 && Number(fee.dueAmount) > 0;
             updateDocument(COLLECTIONS.FEES, fee.id, updatedPayload).catch(console.warn);
-            return { ...fee, ...updatedPayload };
+            return { ...fee, ...updatedPayload, dueAmount: isPartial ? Number(fee.dueAmount) : 0 };
           }
         }
 
-        return fee;
+        const isPartial = fee.status === 'partial' && Number(fee.paidAmount) > 0 && Number(fee.dueAmount) > 0;
+        return { ...fee, dueAmount: isPartial ? Number(fee.dueAmount) : 0 };
       })
     );
 
@@ -467,6 +469,14 @@ export default function Fees() {
       const todayIso = new Date().toISOString();
       const todayDate = todayIso.split('T')[0];
 
+      const isExtension = Boolean(
+        existingFee?.isExtension ||
+        collectFee?.isExtension ||
+        paymentData?.isExtension ||
+        existingFee?.planName?.toLowerCase().includes('extension') ||
+        existingFee?.receiptNumber?.startsWith('EXT-')
+      );
+
       const feePayload = {
         studentId: collectFee.studentId,
         studentName: studentObj?.name || collectFee.studentName || '',
@@ -496,6 +506,7 @@ export default function Fees() {
         durationDays: paymentData.durationDays || null,
         durationMonths: paymentData.durationMonths || null,
         isDayBased: !!paymentData.isDayBased,
+        isExtension: isExtension,
         periodStart: paymentData.periodStart,
         periodEnd: paymentData.periodEnd,
         receiptNumber: receiptNum,
@@ -510,20 +521,30 @@ export default function Fees() {
 
       // 2. Automatically Renew Student's Membership Validity Cycle
       if (collectFee.studentId && paymentData.periodEnd) {
-        await updateDocument(COLLECTIONS.STUDENTS, collectFee.studentId, {
-          membershipPlanId: paymentData.planId,
-          membershipStart: paymentData.periodStart,
-          membershipEnd: paymentData.periodEnd,
-          hasPaidBefore: true,
-          status: 'active',
-          planPrice: paymentData.baseFee,
-          discountAmount: paymentData.discountAmount || 0,
-          planName: paymentData.planName,
-          isDayBased: !!paymentData.isDayBased,
-          durationDays: paymentData.durationDays || null,
-          durationMonths: paymentData.durationMonths || null,
-          dueFeeAmount: paymentData.dueAmount || 0,
-        });
+        if (isExtension) {
+          // If collecting for an extension, do NOT overwrite the student's base admission plan!
+          await updateDocument(COLLECTIONS.STUDENTS, collectFee.studentId, {
+            membershipEnd: paymentData.periodEnd,
+            hasPaidBefore: true,
+            status: 'active',
+            dueFeeAmount: paymentData.dueAmount || 0,
+          });
+        } else {
+          await updateDocument(COLLECTIONS.STUDENTS, collectFee.studentId, {
+            membershipPlanId: paymentData.planId,
+            membershipStart: paymentData.periodStart,
+            membershipEnd: paymentData.periodEnd,
+            hasPaidBefore: true,
+            status: 'active',
+            planPrice: paymentData.baseFee,
+            discountAmount: paymentData.discountAmount || 0,
+            planName: paymentData.planName,
+            isDayBased: !!paymentData.isDayBased,
+            durationDays: paymentData.durationDays || null,
+            durationMonths: paymentData.durationMonths || null,
+            dueFeeAmount: paymentData.dueAmount || 0,
+          });
+        }
       }
 
       const recordedFee = { id: collectFee.id, ...feePayload };

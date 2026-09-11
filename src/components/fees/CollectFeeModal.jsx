@@ -69,6 +69,13 @@ export default function CollectFeeModal({
 
   useEffect(() => {
     if (student || fee) {
+      const isFeeExtension = Boolean(
+        fee?.isExtension ||
+        fee?.planName?.toLowerCase().includes('extension') ||
+        fee?.receiptNumber?.startsWith('EXT-') ||
+        fee?.notes?.toLowerCase().includes('extended')
+      );
+
       const isCustom = Boolean(
         student?.membershipPlanId === 'custom_days' ||
         student?.isCustomDays ||
@@ -77,6 +84,7 @@ export default function CollectFeeModal({
       );
 
       const isDay = Boolean(
+        isFeeExtension ||
         isCustom ||
         student?.isDayBased ||
         fee?.isDayBased ||
@@ -84,23 +92,29 @@ export default function CollectFeeModal({
         fee?.durationUnit === 'days'
       );
 
-      const defaultDays = String(student?.customDays || student?.durationDays || fee?.durationDays || '10');
+      const defaultDays = String(
+        (isFeeExtension && fee?.durationDays) ? fee.durationDays :
+        (student?.customDays || student?.durationDays || fee?.durationDays || '10')
+      );
       const defaultFee = String(
-        student?.customFeeAmount ||
+        (isFeeExtension && (fee?.baseFee || fee?.amount)) ? (fee.baseFee || fee.amount) :
+        (student?.customFeeAmount ||
         student?.planPrice ||
         (isDay && (!fee?.baseFee || Number(fee.baseFee) >= 800) ? '400' : fee?.baseFee) ||
-        (isDay ? '400' : '800')
+        (isDay ? '400' : '800'))
       );
 
-      setIsCustomDays(isCustom);
+      setIsCustomDays(isCustom && !isFeeExtension);
       setCustomDays(defaultDays);
       setCustomFeeAmount(defaultFee);
 
       let currentPlanId = '';
-      if (isCustom) {
+      if (isFeeExtension) {
+        currentPlanId = 'extension';
+      } else if (isCustom) {
         currentPlanId = 'custom_days';
       } else {
-        currentPlanId = student?.membershipPlanId || fee?.planId || (plans[0]?.id || '');
+        currentPlanId = fee?.planId || student?.membershipPlanId || (plans[0]?.id || '');
       }
       setSelectedPlanId(currentPlanId);
 
@@ -126,7 +140,17 @@ export default function CollectFeeModal({
 
       // Build temp active plan to calculate correct initial end date
       let tempActivePlan;
-      if (isCustom || currentPlanId === 'custom_days') {
+      if (isFeeExtension) {
+        tempActivePlan = {
+          id: 'extension',
+          name: fee?.planName || `Extension (+${defaultDays} Days)`,
+          price: Number(defaultFee) || 0,
+          durationDays: Number(defaultDays) || 10,
+          durationUnit: 'days',
+          isDayBased: true,
+          isExtension: true,
+        };
+      } else if (isCustom || currentPlanId === 'custom_days') {
         tempActivePlan = {
           id: 'custom_days',
           name: `${defaultDays} Days Custom Plan`,
@@ -223,9 +247,29 @@ export default function CollectFeeModal({
     }
   }, [student, fee, plans, isOpen]);
 
+  const isFeeExtension = Boolean(
+    fee?.isExtension ||
+    fee?.planName?.toLowerCase().includes('extension') ||
+    fee?.receiptNumber?.startsWith('EXT-') ||
+    fee?.notes?.toLowerCase().includes('extended')
+  );
+
   // Active Plan determination
   let activePlan;
-  if (selectedPlanId === 'custom_days' || isCustomDays) {
+  if (isFeeExtension && (selectedPlanId === 'extension' || selectedPlanId === fee?.planId)) {
+    const extDays = Number(fee?.durationDays) || Number(customDays) || 10;
+    const extFee = Number(fee?.baseFee !== undefined ? fee.baseFee : fee?.amount) || Number(customFeeAmount) || 0;
+    activePlan = {
+      id: 'extension',
+      name: fee?.planName || `Extension (+${extDays} Days)`,
+      price: extFee,
+      durationDays: extDays,
+      durationMonths: null,
+      durationUnit: 'days',
+      isDayBased: true,
+      isExtension: true,
+    };
+  } else if (selectedPlanId === 'custom_days' || isCustomDays) {
     const cDays = Number(customDays) || 10;
     const cFee = Number(customFeeAmount) || 0;
     activePlan = {
@@ -278,7 +322,12 @@ export default function CollectFeeModal({
   // When plan changes, re-calculate validityEnd based on current validityStart
   const handlePlanChange = (newPlanId) => {
     setSelectedPlanId(newPlanId);
-    if (newPlanId === 'custom_days') {
+    if (newPlanId === 'extension') {
+      setIsCustomDays(false);
+      if (validityStart && fee?.periodEnd) {
+        setValidityEnd(formatDateInput(fee.periodEnd));
+      }
+    } else if (newPlanId === 'custom_days') {
       setIsCustomDays(true);
       const cDays = Number(customDays) || 10;
       const cFee = Number(customFeeAmount) || 400;
@@ -339,10 +388,17 @@ export default function CollectFeeModal({
   const discount = discountAmount === '' ? 0 : Number(discountAmount) || 0;
 
   // Determine if we are collecting dues for an existing partial/unpaid fee record
-  const isCollectingExistingDue = Boolean(
+  const isExistingPartial = Boolean(
+    fee &&
+    fee.status === 'partial' &&
+    Number(fee.paidAmount) > 0 &&
+    Number(fee.dueAmount) > 0
+  );
+
+  const isExistingPending = Boolean(
     fee && (
-      fee.status === 'partial' ||
-      (fee.dueAmount !== undefined && Number(fee.dueAmount) > 0)
+      fee.status === 'pending' ||
+      (Number(fee.amount) > 0 && (!fee.paidAmount || Number(fee.paidAmount) === 0))
     )
   );
 
@@ -350,12 +406,22 @@ export default function CollectFeeModal({
   let totalBalanceDue = 0;
   let totalPayable = 0;
 
-  if (isCollectingExistingDue) {
-    previouslyPaid =
-      Number(fee.paidAmount) ||
-      (Number(fee.amount) > 0 && fee.dueAmount !== undefined ? Math.max(0, Number(fee.amount) - Number(fee.dueAmount)) : 0);
+  if (isExistingPartial) {
+    previouslyPaid = Number(fee.paidAmount) || 0;
     totalBalanceDue = Number(fee.dueAmount) > 0 ? Number(fee.dueAmount) : Math.max(0, (Number(fee.amount) || 0) - previouslyPaid);
     totalPayable = previouslyPaid + totalBalanceDue;
+  } else if (isExistingPending) {
+    previouslyPaid = 0;
+    const isSamePlan = isFeeExtension
+      ? (selectedPlanId === 'extension' || selectedPlanId === fee?.planId)
+      : (selectedPlanId === fee?.planId);
+
+    if (isSamePlan && Number(fee.amount) > 0) {
+      totalPayable = Number(fee.amount);
+    } else {
+      totalPayable = Math.max(0, planPrice + addonTotal - discount);
+    }
+    totalBalanceDue = totalPayable;
   } else {
     previouslyPaid = 0;
     totalPayable = Math.max(0, planPrice + addonTotal - discount);
@@ -446,6 +512,7 @@ export default function CollectFeeModal({
         durationDays: isDayPlan ? durationDays : null,
         durationMonths: isDayPlan ? null : durationMonths,
         isDayBased: isDayPlan,
+        isExtension: Boolean(fee?.isExtension || activePlan?.isExtension || isFeeExtension),
         periodStart: startDateObj.toISOString(),
         periodEnd: endDateObj.toISOString(),
         // Partial & Split properties
@@ -586,6 +653,13 @@ export default function CollectFeeModal({
               onChange={(e) => handlePlanChange(e.target.value)}
               className="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl text-sm font-semibold bg-white focus:ring-2 focus:ring-indigo-500"
             >
+              {isFeeExtension && (
+                <optgroup label="⚡ Extension Plan (एक्सटेंशन प्लान)">
+                  <option value="extension">
+                    ⚡ {fee?.planName || `Extension (+${fee?.durationDays || 10} Days)`} — ₹{fee?.baseFee || fee?.amount}
+                  </option>
+                </optgroup>
+              )}
               <optgroup label="📋 Standard / Pre-configured Plans">
                 {plans.map((p) => {
                   return (
