@@ -104,6 +104,38 @@ export default function Expenses() {
         }
       }
 
+      // 1.5 Auto-relocate any salary expense that was prematurely placed in a future date instead of joining month
+      for (const exp of expensesData) {
+        if (!exp.isStaffSalaryAuto) continue;
+        const matchingStaff = combinedStaff.find(
+          (s) => s.id === exp.staffId || s.id === exp.salaryDetails?.staffId
+        );
+        if (!matchingStaff) continue;
+        const staffJoinDate = matchingStaff.joinDate || matchingStaff.startDate;
+        if (!staffJoinDate) continue;
+        const joinMonth = staffJoinDate.slice(0, 7);
+
+        const expDateStr = exp.date ? (exp.date.split('T')[0]) : '';
+        if (expDateStr > today && exp.month > joinMonth) {
+          const hasJoinMonthSalary = expensesData.some(
+            (e) => e.id !== exp.id &&
+                   (e.month === joinMonth || (e.date && e.date.startsWith(joinMonth))) &&
+                   (e.staffId === matchingStaff.id || e.salaryDetails?.staffId === matchingStaff.id)
+          );
+          if (!hasJoinMonthSalary) {
+            const correctedDate = staffJoinDate;
+            const correctedMonth = joinMonth;
+            await updateDocument(COLLECTIONS.EXPENSES, exp.id, {
+              date: correctedDate,
+              month: correctedMonth,
+              description: `Staff Salary: ${matchingStaff.name} [Joining Month]`,
+            });
+            exp.date = correctedDate;
+            exp.month = correctedMonth;
+          }
+        }
+      }
+
       // 2. Auto-Sync Staff Monthly Salaries based on Join Date & Day
       let hasNewStaffSalary = false;
       for (const staff of combinedStaff) {
@@ -148,6 +180,14 @@ export default function Expenses() {
         const maxDaysInMonth = new Date(selYear, selMonthNum, 0).getDate();
         const actualDay = Math.min(joinDay, maxDaysInMonth);
         const expenseDateStr = `${selectedMonth}-${String(actualDay).padStart(2, '0')}`;
+
+        // Do not auto-generate if the salary date has not arrived yet in the current month, or if selectedMonth is in future
+        if (selectedMonth === currentMonth && expenseDateStr > today) {
+          continue;
+        }
+        if (selectedMonth > currentMonth) {
+          continue;
+        }
 
         // Check if salary expense already exists for this staff in selectedMonth
         const alreadyHasSalary = expensesData.some((exp) => {

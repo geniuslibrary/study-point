@@ -583,23 +583,8 @@ export const checkDuplicatePhoneSync = ({
     }
   }
 
-  // 2. Staff-to-Staff check (if scope is 'staff' or 'all')
-  if (scope === 'staff' || scope === 'all') {
-    if (Array.isArray(staffUsers)) {
-      const matched = staffUsers.find(
-        (u) => u.id !== excludeId && normalizePhone(u.phone) === norm
-      );
-      if (matched) {
-        return {
-          exists: true,
-          type: 'staff',
-          name: matched.name,
-          phone: matched.phone,
-          message: `Yeh mobile number (${norm}) pehle se staff "${matched.name}" ke paas registered hai! Do staff members ka same number nahi ho sakta.`,
-        };
-      }
-    }
-
+  // 2. Staff Member check (if scope is 'staff_member' or 'staff' or 'all')
+  if (scope === 'staff_member' || scope === 'staff' || scope === 'all') {
     if (Array.isArray(staffMembers)) {
       const matched = staffMembers.find(
         (m) => m.id !== excludeId && m.status !== 'deleted' && normalizePhone(m.phone) === norm
@@ -607,10 +592,28 @@ export const checkDuplicatePhoneSync = ({
       if (matched) {
         return {
           exists: true,
-          type: 'staff',
+          type: 'staff_member',
           name: matched.name,
           phone: matched.phone,
           message: `Yeh mobile number (${norm}) pehle se staff member "${matched.name}" ke paas registered hai! Do staff members ka same number nahi ho sakta.`,
+        };
+      }
+    }
+  }
+
+  // 3. Staff User (login account) check (if scope is 'staff_user' or 'staff' or 'all')
+  if (scope === 'staff_user' || scope === 'staff' || scope === 'all') {
+    if (Array.isArray(staffUsers)) {
+      const matched = staffUsers.find(
+        (u) => u.id !== excludeId && normalizePhone(u.phone) === norm
+      );
+      if (matched) {
+        return {
+          exists: true,
+          type: 'staff_user',
+          name: matched.name,
+          phone: matched.phone,
+          message: `Yeh mobile number (${norm}) pehle se login user "${matched.name}" ke paas registered hai! Do login users ka same number nahi ho sakta.`,
         };
       }
     }
@@ -632,7 +635,11 @@ export const checkDuplicatePhoneNumber = async ({ phone, excludeId = null, scope
     if (scope === 'student' || scope === 'all') {
       students = await fetchCollectionData(COLLECTIONS.STUDENTS).catch(() => []);
     }
-    if (scope === 'staff' || scope === 'all') {
+    if (scope === 'staff_member') {
+      staffMembers = await fetchCollectionData(COLLECTIONS.STAFF_MEMBERS).catch(() => []);
+    } else if (scope === 'staff_user') {
+      staffUsers = await fetchCollectionData(COLLECTIONS.STAFF_USERS).catch(() => []);
+    } else if (scope === 'staff' || scope === 'all') {
       [staffUsers, staffMembers] = await Promise.all([
         fetchCollectionData(COLLECTIONS.STAFF_USERS).catch(() => []),
         fetchCollectionData(COLLECTIONS.STAFF_MEMBERS).catch(() => []),

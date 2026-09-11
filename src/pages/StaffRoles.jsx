@@ -259,17 +259,15 @@ export default function StaffRoles() {
   const staffMemberPhoneWarning = checkDuplicatePhoneSync({
     phone: staffMemberFormData.phone,
     excludeId: editStaffMember?.id,
-    scope: 'staff',
-    staffUsers: staffList,
+    scope: 'staff_member',
     staffMembers: staffMembers,
   });
 
   const staffUserPhoneWarning = checkDuplicatePhoneSync({
     phone: formData.phone,
     excludeId: editStaff?.id,
-    scope: 'staff',
+    scope: 'staff_user',
     staffUsers: staffList,
-    staffMembers: staffMembers,
   });
 
   const fetchData = async (showFullLoader = true) => {
@@ -451,7 +449,7 @@ export default function StaffRoles() {
       const dupCheck = await checkDuplicatePhoneNumber({
         phone: staffMemberFormData.phone,
         excludeId: editStaffMember?.id,
-        scope: 'staff',
+        scope: 'staff_member',
       });
       if (dupCheck) {
         alert(`⚠️ मोबाइल नंबर अमान्य:\n\n${dupCheck.message}`);
@@ -480,21 +478,23 @@ export default function StaffRoles() {
         await updateDocument(COLLECTIONS.STAFF_MEMBERS, editStaffMember.id, payload);
         showToast(`Staff "${payload.name}" updated successfully!`);
 
-        // If salary or name was updated, also update any auto-scheduled expense for current month
+        // If salary, name or joinDate was updated, also update any auto-scheduled expense
         if (payload.salary > 0 && payload.status !== 'left') {
-          const currentMonth = new Date().toISOString().slice(0, 7);
           const existingExpenses = await fetchCollectionData(COLLECTIONS.EXPENSES);
           const currentMonthSal = (existingExpenses || []).find((exp) => {
             const isSal = exp.category === 'Staff Salary' || exp.type === 'salary';
             const mId = exp.staffId === editStaffMember.id || exp.salaryDetails?.staffId === editStaffMember.id;
-            const mMonth = (exp.date && exp.date.startsWith(currentMonth)) || exp.month === currentMonth;
-            return isSal && mId && mMonth && (exp.isStaffSalaryAuto || !exp.salaryDetails?.deductions);
+            return isSal && mId && (exp.isStaffSalaryAuto || !exp.salaryDetails?.deductions);
           });
           if (currentMonthSal) {
+            const correctedDate = payload.joinDate || currentMonthSal.date;
+            const correctedMonth = payload.joinDate ? payload.joinDate.slice(0, 7) : currentMonthSal.month;
             await updateDocument(COLLECTIONS.EXPENSES, currentMonthSal.id, {
               amount: payload.salary,
               title: `Salary - ${payload.name}`,
               description: `Staff Salary: ${payload.name} [Monthly Scheduled]`,
+              date: correctedDate,
+              month: correctedMonth,
               'salaryDetails.baseSalary': payload.salary,
               'salaryDetails.netSalary': payload.salary,
               'salaryDetails.staffName': payload.name,
@@ -508,15 +508,11 @@ export default function StaffRoles() {
         setStaffMembers((prev) => [newMember, ...prev.filter((s) => s.id !== newMember.id)]);
         showToast(`New staff "${payload.name}" added successfully!`);
 
-        // Auto-schedule current month's salary voucher if salary is set
+        // Auto-schedule initial salary voucher based on joining date
         if (payload.salary > 0 && payload.status !== 'left') {
-          const currentMonth = new Date().toISOString().slice(0, 7);
+          const joinDateStr = payload.joinDate || new Date().toISOString().split('T')[0];
+          const joinMonth = joinDateStr.slice(0, 7);
           const activeTenantId = getActiveTenantId();
-          const joinDay = payload.joinDate ? parseInt(payload.joinDate.split('-')[2], 10) : 1;
-          const [curY, curM] = currentMonth.split('-');
-          const maxDays = new Date(parseInt(curY, 10), parseInt(curM, 10), 0).getDate();
-          const validDay = Math.min(joinDay, maxDays);
-          const scheduledDateStr = `${curY}-${curM}-${String(validDay).padStart(2, '0')}`;
 
           const initialSalaryExpense = {
             title: `Salary - ${payload.name}`,
@@ -524,10 +520,10 @@ export default function StaffRoles() {
             type: 'salary',
             expenseType: 'salary',
             amount: payload.salary,
-            date: scheduledDateStr,
-            month: currentMonth,
+            date: joinDateStr,
+            month: joinMonth,
             paymentMode: 'cash',
-            description: `Staff Salary: ${payload.name} [Monthly Scheduled]`,
+            description: `Staff Salary: ${payload.name} [Joining Month]`,
             staffId: newMember.id,
             isStaffSalaryAuto: true,
             isRecurring: true,
@@ -538,8 +534,8 @@ export default function StaffRoles() {
               staffName: payload.name,
               role: payload.role,
               baseSalary: payload.salary,
-              daysInMonth: getDaysInMonth(scheduledDateStr),
-              daysWorked: getDaysInMonth(scheduledDateStr),
+              daysInMonth: getDaysInMonth(joinDateStr),
+              daysWorked: getDaysInMonth(joinDateStr),
               bonus: 0,
               deductions: 0,
               netSalary: payload.salary,
@@ -935,7 +931,7 @@ export default function StaffRoles() {
       const dupCheck = await checkDuplicatePhoneNumber({
         phone: formData.phone,
         excludeId: editStaff?.id,
-        scope: 'staff',
+        scope: 'staff_user',
       });
       if (dupCheck) {
         alert(`⚠️ मोबाइल नंबर अमान्य:\n\n${dupCheck.message}`);
