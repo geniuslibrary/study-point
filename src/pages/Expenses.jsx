@@ -7,7 +7,7 @@ import ExpenseList from '../components/expenses/ExpenseList';
 import ExpenseSummary from '../components/expenses/ExpenseSummary';
 import { Plus, Loader2, Zap, Receipt, Calendar, Sparkles } from 'lucide-react';
 import { COLLECTIONS } from '../utils/constants';
-import { getMonthName, formatCurrency } from '../utils/helpers';
+import { getMonthName, formatCurrency, getFirstSalaryInfo } from '../utils/helpers';
 import {
   fetchCollectionData,
   createDocument,
@@ -104,7 +104,9 @@ export default function Expenses() {
         }
       }
 
-      // 1.5 Auto-relocate any salary expense that was prematurely placed in a future date instead of joining month
+      // 1.5 Clean up any premature auto-scheduled salary expenses:
+      // (Kharcha joining month me add nahi hota, 1 month poora hone ke baad add hota hai)
+      const toRemoveIds = [];
       for (const exp of expensesData) {
         if (!exp.isStaffSalaryAuto) continue;
         const matchingStaff = combinedStaff.find(
@@ -113,25 +115,23 @@ export default function Expenses() {
         if (!matchingStaff) continue;
         const staffJoinDate = matchingStaff.joinDate || matchingStaff.startDate;
         if (!staffJoinDate) continue;
-        const joinMonth = staffJoinDate.slice(0, 7);
 
-        const expDateStr = exp.date ? (exp.date.split('T')[0]) : '';
-        if (expDateStr > today && exp.month > joinMonth) {
-          const hasJoinMonthSalary = expensesData.some(
-            (e) => e.id !== exp.id &&
-                   (e.month === joinMonth || (e.date && e.date.startsWith(joinMonth))) &&
-                   (e.staffId === matchingStaff.id || e.salaryDetails?.staffId === matchingStaff.id)
-          );
-          if (!hasJoinMonthSalary) {
-            const correctedDate = staffJoinDate;
-            const correctedMonth = joinMonth;
-            await updateDocument(COLLECTIONS.EXPENSES, exp.id, {
-              date: correctedDate,
-              month: correctedMonth,
-              description: `Staff Salary: ${matchingStaff.name} [Joining Month]`,
-            });
-            exp.date = correctedDate;
-            exp.month = correctedMonth;
+        const { firstMonth } = getFirstSalaryInfo(staffJoinDate);
+        const expMonth = exp.month || (exp.date ? exp.date.slice(0, 7) : '');
+        const expDate = exp.date ? exp.date.slice(0, 10) : '';
+
+        // If expense was created in a month before 1 full month of service (e.g. in August for 26/08 joiner)
+        // OR if expense date has not yet arrived (expDate > today)
+        if ((firstMonth && expMonth < firstMonth) || (expDate && expDate > today)) {
+          toRemoveIds.push(exp.id);
+        }
+      }
+
+      if (toRemoveIds.length > 0) {
+        await Promise.all(toRemoveIds.map((id) => removeDocument(COLLECTIONS.EXPENSES, id).catch(console.warn)));
+        for (let i = expensesData.length - 1; i >= 0; i--) {
+          if (toRemoveIds.includes(expensesData[i].id)) {
+            expensesData.splice(i, 1);
           }
         }
       }
@@ -144,10 +144,11 @@ export default function Expenses() {
 
         // Check starting/joining date & month
         const staffJoinDate = staff.joinDate || staff.startDate || (staff.createdAt?.seconds ? new Date(staff.createdAt.seconds * 1000).toISOString().split('T')[0] : null);
-        const startMonth = staffJoinDate ? staffJoinDate.substring(0, 7) : null;
+        const { firstMonth } = getFirstSalaryInfo(staffJoinDate);
 
-        // If selectedMonth is before the staff's joining month, do not generate
-        if (startMonth && selectedMonth < startMonth) {
+        // If selectedMonth is before the staff's 1st completed month, do not generate!
+        // (Jaise 26/08 ko join kiya toh August me kharcha nahi aayega, September me 1 month hone ke baad aayega)
+        if (firstMonth && selectedMonth < firstMonth) {
           continue;
         }
 

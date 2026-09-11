@@ -507,43 +507,6 @@ export default function StaffRoles() {
         const newMember = await createDocument(COLLECTIONS.STAFF_MEMBERS, payload);
         setStaffMembers((prev) => [newMember, ...prev.filter((s) => s.id !== newMember.id)]);
         showToast(`New staff "${payload.name}" added successfully!`);
-
-        // Auto-schedule initial salary voucher based on joining date
-        if (payload.salary > 0 && payload.status !== 'left') {
-          const joinDateStr = payload.joinDate || new Date().toISOString().split('T')[0];
-          const joinMonth = joinDateStr.slice(0, 7);
-          const activeTenantId = getActiveTenantId();
-
-          const initialSalaryExpense = {
-            title: `Salary - ${payload.name}`,
-            category: 'Staff Salary',
-            type: 'salary',
-            expenseType: 'salary',
-            amount: payload.salary,
-            date: joinDateStr,
-            month: joinMonth,
-            paymentMode: 'cash',
-            description: `Staff Salary: ${payload.name} [Joining Month]`,
-            staffId: newMember.id,
-            isStaffSalaryAuto: true,
-            isRecurring: true,
-            tenantId: activeTenantId,
-            ownerId: activeTenantId,
-            salaryDetails: {
-              staffId: newMember.id,
-              staffName: payload.name,
-              role: payload.role,
-              baseSalary: payload.salary,
-              daysInMonth: getDaysInMonth(joinDateStr),
-              daysWorked: getDaysInMonth(joinDateStr),
-              bonus: 0,
-              deductions: 0,
-              netSalary: payload.salary,
-              paymentMode: 'cash',
-            },
-          };
-          await createDocument(COLLECTIONS.EXPENSES, initialSalaryExpense);
-        }
       }
       setShowStaffModal(false);
       fetchStaffMembersData();

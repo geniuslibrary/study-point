@@ -758,3 +758,24 @@ export const extractAllFeePayments = (fees, students = []) => {
 
   return result;
 };
+
+// Calculate first eligible salary date and month: exactly 1 month after join date
+export const getFirstSalaryInfo = (joinDateStr) => {
+  if (!joinDateStr) return { firstDate: null, firstMonth: null };
+  const parts = String(joinDateStr).split('T')[0].split('-').map(Number);
+  if (parts.length < 3) return { firstDate: null, firstMonth: null };
+  const [y, m, d] = parts;
+  if (!y || !m || !d) return { firstDate: null, firstMonth: null };
+
+  let nextYear = y;
+  let nextMonth = m + 1;
+  if (nextMonth > 12) {
+    nextMonth = 1;
+    nextYear += 1;
+  }
+  const maxDays = new Date(nextYear, nextMonth, 0).getDate();
+  const validDay = Math.min(d, maxDays);
+  const firstDate = `${nextYear}-${String(nextMonth).padStart(2, '0')}-${String(validDay).padStart(2, '0')}`;
+  const firstMonth = `${nextYear}-${String(nextMonth).padStart(2, '0')}`;
+  return { firstDate, firstMonth };
+};
